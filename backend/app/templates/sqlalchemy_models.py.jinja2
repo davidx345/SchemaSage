@@ -1,0 +1,185 @@
+"""
+Generated SQLAlchemy models
+Generated on: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+"""
+
+from sqlalchemy import (
+    Column, Integer, String, Float, Boolean, DateTime, 
+    ForeignKey, JSON, Text, UniqueConstraint, Index, TIMESTAMP,
+    CheckConstraint, UUID, Enum
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, declarative_base, validates
+from sqlalchemy.sql import func
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+import re
+{% if use_mypy %}
+from typing_extensions import TypeAlias
+{% endif %}
+
+{{ base_class }} = declarative_base()
+
+{% if use_mypy %}
+# Type aliases for better type hints
+JSONDict: TypeAlias = Dict[str, Any]
+{% endif %}
+
+{% for table in tables %}
+class {{ table.name|capitalize }}({{ base_class }}):
+    """
+    {{ table.description if table.description else table.name|capitalize }} model
+    {% if table.metadata and table.metadata.comments %}
+    {{ table.metadata.comments }}
+    {% endif %}
+    """
+    __tablename__ = '{{ table.name }}'
+
+    {% for column in table.columns %}
+    {{ column.name }} = Column(
+        {% if column.type == 'JSON' %}
+        JSONB if use_jsonb else JSON,
+        {% else %}
+        {{ column.type }},
+        {% endif %}
+        {% if column.is_primary_key %}primary_key=True,{% endif %}
+        {% if not column.nullable %}nullable=False,{% endif %}
+        {% if column.default %}default={{ column.default }},{% endif %}
+        {% if column.foreign_key %}ForeignKey('{{ column.foreign_key }}'),{% endif %}
+        {% if column.unique %}unique=True,{% endif %}
+        {% if column.index %}index=True,{% endif %}
+        {% if column.comment %}comment="{{ column.comment }}",{% endif %}
+    )
+    {% if column.statistics %}
+    # Stats: {{ column.statistics.unique_count }} unique values ({{ "%.1f"|format(column.statistics.unique_percentage) }}% unique)
+    {% if column.statistics.null_count is not none %}
+    # {{ column.statistics.null_count }} null values ({{ "%.1f"|format(column.statistics.null_percentage) }}%)
+    {% endif %}
+    {% endif %}
+
+    {% endfor %}
+
+    {% if relationships[table.name]['outgoing'] %}
+    # Outgoing Relationships
+    {% for rel in relationships[table.name]['outgoing'] %}
+    {{ rel.backref_name }} = relationship(
+        "{{ rel.target_table|capitalize }}",
+        {% if rel.type == 'one-to-many' %}
+        back_populates="{{ table.name }}s",
+        cascade="all, delete-orphan",
+        lazy="{{ rel.lazy }}"
+        {% elif rel.type == 'many-to-one' %}
+        back_populates="{{ table.name }}",
+        lazy="{{ rel.lazy }}"
+        {% elif rel.type == 'many-to-many' %}
+        secondary="{{ rel.bridge_table }}",
+        back_populates="{{ table.name }}s",
+        lazy="{{ rel.lazy }}"
+        {% endif %}
+    )
+    {% endfor %}
+    {% endif %}
+
+    {% if relationships[table.name]['incoming'] %}
+    # Incoming Relationships
+    {% for rel in relationships[table.name]['incoming'] %}
+    {{ rel.backref_name }} = relationship(
+        "{{ rel.source_table|capitalize }}",
+        back_populates="{{ rel.backref_name }}",
+        lazy="{{ rel.lazy }}"
+    )
+    {% endfor %}
+    {% endif %}
+
+    {% if table.indexes %}
+    # Indexes and Constraints
+    __table_args__ = (
+        {% for index in table.indexes %}
+        {{ index }},
+        {% endfor %}
+    )
+    {% endif %}
+
+    {% if use_validators and table.columns|selectattr('validation')|list %}
+    # Validators
+    {% for column in table.columns if column.validation %}
+    @validates('{{ column.name }}')
+    def validate_{{ column.name }}(self, key: str, value: Any) -> Any:
+        """Validate {{ column.name }} field."""
+        if value is None and {{ 'True' if column.nullable else 'False' }}:
+            return value
+            
+        {% if column.validation == 'email' %}
+        if not re.match(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$', str(value)):
+            raise ValueError(f"Invalid email format for {key}")
+        {% elif column.validation == 'url' %}
+        if not re.match(r'^https?://[^\s/$.?#].[^\s]*$', str(value)):
+            raise ValueError(f"Invalid URL format for {key}")
+        {% elif column.validation == 'phone' %}
+        if not re.match(r'^\+?1?\d{9,15}$', str(value)):
+            raise ValueError(f"Invalid phone number format for {key}")
+        {% endif %}
+        return value
+        
+    {% endfor %}
+    {% endif %}
+
+    def __repr__(self) -> str:
+        """String representation of the model."""
+        return f"<{{ table.name|capitalize }}(id={self.id})>"
+
+    {% if use_mypy %}
+    def to_dict(self) -> JSONDict:
+    {% else %}
+    def to_dict(self) -> Dict[str, Any]:
+    {% endif %}
+        """Convert model instance to dictionary."""
+        return {
+            {% for column in table.columns %}
+            '{{ column.name }}': self.{{ column.name }},
+            {% endfor %}
+            {% if relationships[table.name]['outgoing'] %}
+            # Add relationship data if requested
+            **{rel: [item.to_dict() for item in getattr(self, rel)] 
+               for rel in [{% for rel in relationships[table.name]['outgoing'] %}'{{ rel.backref_name }}'{% if not loop.last %}, {% endif %}{% endfor %}]
+               if getattr(self, rel) is not None}
+            {% endif %}
+        }
+
+    @classmethod
+    {% if use_mypy %}
+    def from_dict(cls, data: JSONDict) -> '{{ table.name|capitalize }}':
+    {% else %}
+    def from_dict(cls, data: Dict[str, Any]) -> '{{ table.name|capitalize }}':
+    {% endif %}
+        """Create model instance from dictionary."""
+        return cls(**{
+            k: v for k, v in data.items() 
+            if k in [{% for column in table.columns %}'{{ column.name }}'{% if not loop.last %}, {% endif %}{% endfor %}]
+        })
+
+{% endfor %}
+
+{% if metadata and metadata.bridge_tables %}
+# Bridge Tables for Many-to-Many Relationships
+{% for bridge in metadata.bridge_tables %}
+class {{ bridge.name|capitalize }}({{ base_class }}):
+    """Bridge table for {{ bridge.description if bridge.description else bridge.source_table + ' and ' + bridge.target_table }}."""
+    __tablename__ = '{{ bridge.name }}'
+
+    id = Column(Integer, primary_key=True)
+    {{ bridge.source_column }} = Column(Integer, ForeignKey('{{ bridge.source_table }}.id'), nullable=False)
+    {{ bridge.target_column }} = Column(Integer, ForeignKey('{{ bridge.target_table }}.id'), nullable=False)
+    {% if bridge.metadata and bridge.metadata.add_timestamps %}
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    {% endif %}
+
+    __table_args__ = (
+        UniqueConstraint('{{ bridge.source_column }}', '{{ bridge.target_column }}', name='uix_{{ bridge.name }}'),
+        Index('ix_{{ bridge.name }}_{{ bridge.source_column }}', '{{ bridge.source_column }}'),
+        Index('ix_{{ bridge.name }}_{{ bridge.target_column }}', '{{ bridge.target_column }}')
+    )
+
+{% endfor %}
+{% endif %}

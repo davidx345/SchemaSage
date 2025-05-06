@@ -1,0 +1,13 @@
+"""
+Auto-generated Python dataclasses from schema
+"""
+from dataclasses import dataclass
+from typing import Optional
+
+{% for table in schema.tables %}
+@dataclass
+class {{ table.name|capitalize }}:
+{% for col in table.columns %}    {{ col.name }}: {{ col.data_type|default('str') }}{% if not col.is_nullable %} = ...{% else %} = None{% endif %}
+{% endfor %}
+
+{% endfor %}

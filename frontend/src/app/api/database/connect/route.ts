@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server';
+import type { DatabaseConfig } from '@/lib/types';
+
+export async function POST(req: Request) {
+  try {
+    const config: DatabaseConfig = await req.json();
+    
+    const response = await fetch('http://localhost:8000/api/database/connect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: error.message || error.detail || 'Failed to connect to database',
+          details: error.details
+        },
+        { status: response.status }
+      );
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Internal server error'
+      },
+      { status: 500 }
+    );
+  }
+}
