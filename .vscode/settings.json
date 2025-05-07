@@ -14,5 +14,11 @@
             "fileMatch": ["vite.config.ts"],
             "url": "https://json.schemastore.org/vite.json"
         }
-    ]
+    ],
+    "github.copilot.enable": {
+        "*": true,
+        "plaintext": true,
+        "markdown": false,
+        "scminput": false
+    }
 }

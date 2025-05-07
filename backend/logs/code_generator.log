@@ -99,3 +99,5 @@
 2025-05-05 19:52:09,033 - code_generator - INFO - CodeGenerator initialized with templates from: C:\Users\david\Documents\projects\schemaSage\backend\app\services\../templates - [code_generator.py:34]
 2025-05-05 19:53:09,282 - code_generator - INFO - CodeGenerator initialized with templates from: C:\Users\david\Documents\projects\schemaSage\backend\app\services\../templates - [code_generator.py:34]
 2025-05-05 19:53:33,264 - code_generator - INFO - CodeGenerator initialized with templates from: C:\Users\david\Documents\projects\schemaSage\backend\app\services\../templates - [code_generator.py:34]
+2025-05-06 11:51:27,767 - code_generator - INFO - CodeGenerator initialized with templates from: C:\Users\david\Documents\projects\schemaSage\backend\app\services\../templates - [code_generator.py:34]
+2025-05-06 11:51:39,734 - code_generator - INFO - CodeGenerator initialized with templates from: C:\Users\david\Documents\projects\schemaSage\backend\app\services\../templates - [code_generator.py:34]
