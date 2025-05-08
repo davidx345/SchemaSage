@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Database, AlertCircle } from "lucide-react";
+import { Loader2, Database, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Form,
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useStore } from "@/lib/store";
 import { databaseApi } from "@/lib/api";
 
@@ -40,16 +40,28 @@ const databaseSchema = z.object({
   username: z.string().optional(),
   password: z.string().optional(),
   connectionString: z.string().optional(),
+  ssl: z.boolean().optional(),
 });
 
 // For type safety with the form
 type DatabaseFormValues = z.infer<typeof databaseSchema>;
 
+// Connection status
+type ConnectionStatus = {
+  status: 'idle' | 'testing' | 'connected' | 'importing' | 'completed' | 'error';
+  message?: string;
+  progress?: number;
+};
+
 export function DatabaseConnection() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    status: 'idle',
+    progress: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const { setCurrentSchema } = useStore();
+  const [activeTab, setActiveTab] = useState<string>('standard');
   
   // Initialize the form
   const form = useForm<DatabaseFormValues>({
@@ -62,13 +74,15 @@ export function DatabaseConnection() {
       username: "",
       password: "",
       connectionString: "",
+      ssl: false,
     },
   });
   
   // Form submission handler
   const onSubmit = async (values: DatabaseFormValues) => {
-    setIsLoading(true);
+    // Reset status
     setError(null);
+    setConnectionStatus({ status: 'testing', progress: 10, message: 'Testing connection...' });
     
     try {
       // Test connection first
@@ -78,7 +92,12 @@ export function DatabaseConnection() {
         throw new Error(testResult.error?.message || "Connection test failed");
       }
       
-      toast.success("Connection successful!");
+      setConnectionStatus({ status: 'connected', progress: 30, message: 'Connection successful! Importing schema...' });
+      toast.success("Database connection successful!");
+      
+      // Short delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setConnectionStatus({ status: 'importing', progress: 50, message: 'Importing schema structure...' });
       
       // Import schema from database
       const importResult = await databaseApi.importFromDatabase(values);
@@ -87,10 +106,19 @@ export function DatabaseConnection() {
         throw new Error(importResult.error?.message || "Failed to import schema");
       }
       
+      // Update progress
+      setConnectionStatus({ status: 'importing', progress: 80, message: 'Processing relationships...' });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Store schema in global state
       setCurrentSchema(importResult.data);
       
+      // Complete
+      setConnectionStatus({ status: 'completed', progress: 100, message: 'Schema imported successfully!' });
       toast.success("Schema imported successfully!");
+      
+      // Short delay to show completion message
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Navigate to schema page
       router.push("/schema");
@@ -98,9 +126,8 @@ export function DatabaseConnection() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to connect to database";
       setError(message);
+      setConnectionStatus({ status: 'error', message });
       toast.error(`Error: ${message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -115,6 +142,20 @@ export function DatabaseConnection() {
 
     form.setValue('port', defaultPorts[type as keyof typeof defaultPorts]);
   };
+  
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Clear connection string when switching to standard tab
+    if (value === 'standard') {
+      form.setValue('connectionString', '');
+    }
+  };
+
+  // Check if form is in loading state
+  const isLoading = connectionStatus.status === 'testing' || 
+                    connectionStatus.status === 'importing' || 
+                    connectionStatus.status === 'connected';
 
   return (
     <Card className="p-6">
@@ -129,11 +170,35 @@ export function DatabaseConnection() {
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        
+        {connectionStatus.status === 'completed' && (
+          <Alert variant="default" className="bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300">
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>{connectionStatus.message}</AlertDescription>
+          </Alert>
+        )}
+        
+        {isLoading && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-medium">{connectionStatus.message}</p>
+              <span className="text-sm">{connectionStatus.progress}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded">
+              <div
+                className="h-2 bg-blue-500 rounded transition-all duration-300"
+                style={{ width: `${connectionStatus.progress}%` }}
+              />
+            </div>
+          </div>
+        )}
 
-        <Tabs defaultValue="standard">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="standard">Standard</TabsTrigger>
             <TabsTrigger value="connectionString">Connection String</TabsTrigger>
@@ -154,6 +219,7 @@ export function DatabaseConnection() {
                           handleDatabaseTypeChange(value);
                         }}
                         defaultValue={field.value}
+                        disabled={isLoading}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -182,7 +248,7 @@ export function DatabaseConnection() {
                           <FormItem>
                             <FormLabel>Host</FormLabel>
                             <FormControl>
-                              <Input placeholder="localhost" {...field} />
+                              <Input placeholder="localhost" {...field} disabled={isLoading} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -199,6 +265,7 @@ export function DatabaseConnection() {
                               <Input
                                 type="number"
                                 {...field}
+                                disabled={isLoading}
                               />
                             </FormControl>
                             <FormMessage />
@@ -215,7 +282,7 @@ export function DatabaseConnection() {
                           <FormItem>
                             <FormLabel>Username</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} disabled={isLoading} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -232,6 +299,7 @@ export function DatabaseConnection() {
                               <Input
                                 type="password"
                                 {...field}
+                                disabled={isLoading}
                               />
                             </FormControl>
                             <FormMessage />
@@ -239,6 +307,31 @@ export function DatabaseConnection() {
                         )}
                       />
                     </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="ssl"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Use SSL connection</FormLabel>
+                            <FormDescription>
+                              Enable SSL/TLS for secure database connection
+                            </FormDescription>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </>
                 )}
 
@@ -251,7 +344,7 @@ export function DatabaseConnection() {
                         {form.watch("type") === "sqlite" ? "File Path" : "Database Name"}
                       </FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={isLoading} />
                       </FormControl>
                       <FormDescription>
                         {form.watch("type") === "sqlite"
@@ -272,7 +365,7 @@ export function DatabaseConnection() {
                     <FormItem>
                       <FormLabel>Connection String</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={isLoading} />
                       </FormControl>
                       <FormDescription>
                         {form.watch("type") === "postgresql"
@@ -297,6 +390,7 @@ export function DatabaseConnection() {
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
+                        disabled={isLoading}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -320,7 +414,7 @@ export function DatabaseConnection() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting...
+                    {connectionStatus.message || "Processing..."}
                   </>
                 ) : (
                   <>

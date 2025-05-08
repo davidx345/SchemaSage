@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any
 from ...core.db import db
 from ...models.schemas import SchemaResponse
 import logging
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -49,6 +50,14 @@ class ProjectListResponse(BaseModel):
     """List of projects response."""
     projects: List[ProjectResponse]
     total: int
+
+def project_to_response(project: dict) -> dict:
+    """Convert project dict to API response format with ISO date strings."""
+    project = dict(project)  # shallow copy
+    for field in ("created_at", "updated_at"):
+        if field in project and isinstance(project[field], datetime):
+            project[field] = project[field].isoformat()
+    return project
 
 @router.post("/test", response_model=TestConnectionResponse)
 async def test_connection(config: ConnectionConfig):
@@ -151,6 +160,7 @@ async def get_projects():
     """Get all projects."""
     try:
         projects = await db.get_projects()
+        projects = [project_to_response(p) for p in projects]
         return {
             "projects": projects,
             "total": len(projects)
@@ -170,7 +180,7 @@ async def create_project(project_data: CreateProjectRequest):
             name=project_data.name,
             description=project_data.description
         )
-        return project
+        return project_to_response(project)
     except Exception as e:
         logger.exception("Error creating project")
         raise HTTPException(
@@ -183,7 +193,7 @@ async def get_project(project_id: str):
     """Get a project by ID."""
     try:
         project = await db.get_project(project_id)
-        return project
+        return project_to_response(project)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -201,7 +211,7 @@ async def update_project(project_id: str, project_data: dict = Body(...)):
     """Update a project."""
     try:
         project = await db.update_project(project_id, project_data)
-        return project
+        return project_to_response(project)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

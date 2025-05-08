@@ -7,14 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploader } from "@/components/file-uploader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, AlertTriangle, Check, Database, FileJson } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, Database, FileJson, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { databaseApi } from "@/lib/api";
-import type { DatabaseConfig } from "@/lib/types";
+import type { DatabaseConfig, SchemaResponse, ApiResponse } from "@/lib/types";
 
 export default function UploadPage() {
   // File upload state
@@ -32,6 +32,7 @@ export default function UploadPage() {
   });
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [importedSchema, setImportedSchema] = useState<SchemaResponse | null>(null);
 
   // Test database connection
   const testDbConnection = async () => {
@@ -68,14 +69,15 @@ export default function UploadPage() {
     }
 
     setIsConnecting(true);
-
+    setErrorMessage("");
+    setImportedSchema(null);
     try {
-      const response = await databaseApi.importFromDatabase(dbConfig);
-
+      const response: ApiResponse<SchemaResponse> = await databaseApi.importFromDatabase(dbConfig);
       if (response.success && response.data) {
         setCurrentSchema(response.data);
+        setImportedSchema(response.data);
         toast.success("Schema imported successfully!");
-        router.push("/schema");
+        setTimeout(() => router.push("/schema"), 1200);
       } else {
         toast.error(`Failed to import schema: ${response.error?.message}`);
         setErrorMessage(response.error?.message || "Unknown error");
@@ -252,20 +254,38 @@ export default function UploadPage() {
                 <Button
                   variant="outline"
                   onClick={testDbConnection}
-                  disabled={connectionStatus === "testing"}
+                  disabled={connectionStatus === "testing" || isConnecting}
                   className="flex-1"
                 >
-                  {connectionStatus === "testing" ? "Testing..." : "Test Connection"}
+                  {connectionStatus === "testing" ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</>
+                  ) : "Test Connection"}
                 </Button>
-
                 <Button
                   onClick={importFromDatabase}
                   disabled={isConnecting}
                   className="flex-1"
                 >
-                  {isConnecting ? "Importing..." : "Import Schema"}
+                  {isConnecting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</>
+                  ) : "Import Schema"}
                 </Button>
               </div>
+              {isConnecting && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Importing schema from database...
+                </div>
+              )}
+              {importedSchema && (
+                <div className="mt-4 p-4 border rounded bg-muted">
+                  <div className="font-semibold mb-2">Imported Tables:</div>
+                  <ul className="list-disc ml-6">
+                    {importedSchema.tables?.map((t) => (
+                      <li key={t.name}>{t.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

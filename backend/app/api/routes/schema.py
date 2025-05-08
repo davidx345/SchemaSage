@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, status, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, Response, status, Request, UploadFile, File, Depends, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import aiohttp
@@ -17,6 +17,8 @@ from ...models.schemas import (
 from ...services.code_generator import CodeGenerator, CodeGenerationError
 from ...core.schema_detector import SchemaDetector, SchemaValidationError
 from ...config import get_settings
+from motor.motor_asyncio import AsyncIOMotorClient
+from datetime import datetime
 
 settings = get_settings()
 
@@ -72,18 +74,44 @@ def normalize_schema_dict(schema_dict: dict) -> dict:
                     rel[new] = rel.pop(old)
     return schema_dict
 
+async def get_db():
+    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    db = client[settings.MONGODB_DB]
+    try:
+        yield db
+    finally:
+        client.close()
+
+class ProjectCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+
+@router.post("/project")
+async def create_project(request: ProjectCreateRequest, db=Depends(get_db)):
+    now = datetime.utcnow()
+    doc = {
+        "name": request.name,
+        "description": request.description,
+        "created_at": now,
+        "updated_at": now,
+        "schema": {},
+    }
+    result = await db.projects.insert_one(doc)
+    return {"id": str(result.inserted_id)}
+
 @router.get("/validate-api-key")
-async def validate_api_key():
+async def validate_api_key(x_api_key: Optional[str] = Header(None)):
     """Validate the Gemini API key only (OpenAI removed)"""
     try:
         from ...services.gemini_service import verify_gemini_connection
+        api_key = x_api_key or settings.GEMINI_API_KEY
         if settings.USE_GEMINI:
-            if not settings.GEMINI_API_KEY:
+            if not api_key:
                 return create_error_response(
                     status.HTTP_400_BAD_REQUEST,
                     "Gemini API key not found or invalid format"
                 )
-            is_valid, message = await verify_gemini_connection()
+            is_valid, message = await verify_gemini_connection(api_key)
             if is_valid:
                 return {
                     "status": "success",
@@ -121,7 +149,7 @@ async def options_route(path: str):
     )
 
 @router.post('/detect', response_model=SchemaDetectResponse)
-async def detect_schema(request: SchemaDetectRequest):
+async def detect_schema(request: SchemaDetectRequest, x_api_key: Optional[str] = Header(None)):
     """Detect database schema from input data using Gemini AI"""
     if not request.data or not request.data.strip():
         return create_error_response(
@@ -129,15 +157,13 @@ async def detect_schema(request: SchemaDetectRequest):
             "Input data cannot be empty",
             {"error": "Input data cannot be empty"}
         )
-    
     try:
         from ...services.gemini_service import detect_schema_with_gemini
-        
+        api_key = x_api_key or settings.GEMINI_API_KEY
         # Use Gemini to detect the schema if USE_GEMINI is enabled
-        if settings.USE_GEMINI and settings.GEMINI_API_KEY:
-            detected_schema = await detect_schema_with_gemini(request.data)
+        if settings.USE_GEMINI and api_key:
+            detected_schema = await detect_schema_with_gemini(request.data, api_key)
             detected_schema = normalize_schema_dict(detected_schema)
-            
             return SchemaDetectResponse(
                 schema=SchemaResponse(**detected_schema),
                 metadata={
@@ -151,11 +177,9 @@ async def detect_schema(request: SchemaDetectRequest):
             detector = SchemaDetector(
                 settings=request.settings.model_dump() if request.settings else None
             )
-            
             # Detect schema from input
             detected_schema = await detector.detect_from_text(request.data)
             detected_schema = normalize_schema_dict(detected_schema)
-            
             return SchemaDetectResponse(
                 schema=detected_schema,
                 metadata={
@@ -211,7 +235,7 @@ async def detect_from_file(file: UploadFile = File(...)):
         )
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, x_api_key: Optional[str] = Header(None)):
     """Chat about schema using AI"""
     try:
         if not request.messages:
@@ -219,13 +243,22 @@ async def chat(request: ChatRequest):
                 status.HTTP_400_BAD_REQUEST,
                 "No messages provided"
             )
-
         if not request.messages[-1].get("content"):
             return create_error_response(
                 status.HTTP_400_BAD_REQUEST,
                 "Last message has no content"
             )
-
+        # Use Gemini chat if enabled
+        if settings.USE_GEMINI:
+            from ...services.gemini_service import chat_with_gemini
+            api_key = x_api_key or settings.GEMINI_API_KEY
+            response = await chat_with_gemini(
+                messages=request.messages,
+                schema=request.schema_data,
+                api_key=api_key
+            )
+            return response
+        # Fallback to legacy chat service
         response = await chat_service.get_response(
             schema=request.schema_data,
             messages=request.messages,
@@ -251,19 +284,19 @@ async def chat(request: ChatRequest):
         )
 
 @router.post("/generate-code", response_model=CodeGenResponse)
-async def generate_code(request: CodeGenRequest) -> CodeGenResponse:
+async def generate_code(request: CodeGenRequest, x_api_key: Optional[str] = Header(None)) -> CodeGenResponse:
     """Generate code from schema using Gemini AI"""
     try:
-        if settings.USE_GEMINI and settings.GEMINI_API_KEY:
+        api_key = x_api_key or settings.GEMINI_API_KEY
+        if settings.USE_GEMINI and api_key:
             # Use Gemini for code generation
             from ...services.gemini_service import generate_code_with_gemini
-            
             code = await generate_code_with_gemini(
                 schema=request.schema_data,
                 format=request.format.value if hasattr(request.format, 'value') else request.format,
-                options=request.options
+                options=request.options,
+                api_key=api_key
             )
-            
             return CodeGenResponse(
                 code=code,
                 language=request.format.value if hasattr(request.format, 'value') else request.format,
@@ -310,3 +343,18 @@ async def generate_code(request: CodeGenRequest) -> CodeGenResponse:
             "Failed to generate code",
             {"error": str(e)}
         )
+
+@router.get("/projects")
+async def list_projects(db=Depends(get_db)):
+    """List all projects (for dashboard and project list)"""
+    projects = await db.projects.find().sort("updated_at", -1).to_list(100)
+    return [
+        {
+            "id": str(p["_id"]),
+            "name": p.get("name", "Untitled"),
+            "description": p.get("description", ""),
+            "createdAt": p.get("created_at"),
+            "updatedAt": p.get("updated_at"),
+        }
+        for p in projects
+    ]

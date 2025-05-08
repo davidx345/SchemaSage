@@ -53,36 +53,39 @@ export function AIChatDialog() {
       timestamp: new Date().toISOString()
     };
     
-    // Use array concatenation instead of updater function
-    setChatHistory([...chatHistory, userMessage]);
+    // Update the chat history with the user message first
+    const updatedHistory = [...chatHistory, userMessage];
+    setChatHistory(updatedHistory);
     setInput("");
     setIsLoading(true);
     
     try {
-      // Call the chat API with schema context if available
-      const schemaContext = currentSchema ? { schema: currentSchema } : undefined;
-      const response = await schemaApi.chat(chatHistory, schemaContext);
+      // Prepare schema context - pass the full schema object
+      const schemaContext = currentSchema ? { ...currentSchema } : undefined;
+      
+      // Call the chat API with the updated history
+      const response = await schemaApi.chat(updatedHistory, schemaContext);
       
       if (response.success && response.data) {
-        setChatHistory([...chatHistory, userMessage, response.data]);
+        setChatHistory([...updatedHistory, response.data]);
       } else {
         // Add error message as an assistant message
         const errorMessage: ChatMessage = {
           role: "assistant",
-          content: `Sorry, I encountered an error: ${response.error?.message || "Unknown error"}`,
+          content: `Sorry, I encountered an error: ${response.error?.message || "Unknown error"}. Please try again with a different question.`,
           timestamp: new Date().toISOString()
         };
-        setChatHistory([...chatHistory, userMessage, errorMessage]);
+        setChatHistory([...updatedHistory, errorMessage]);
       }
     } catch (error) {
       console.error("Chat API error:", error);
       // Add error message
       const errorMessage: ChatMessage = {
         role: "assistant",
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please check your connection and try again.`,
         timestamp: new Date().toISOString()
       };
-      setChatHistory([...chatHistory, userMessage, errorMessage]);
+      setChatHistory([...updatedHistory, errorMessage]);
     } finally {
       setIsLoading(false);
     }

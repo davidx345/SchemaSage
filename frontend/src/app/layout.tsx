@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={fontClassName}>
-        <ThemeProvider defaultTheme="system">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <div className="relative flex min-h-screen">
             <Sidebar />
             <div className="flex-1">

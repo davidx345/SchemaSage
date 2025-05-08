@@ -37,7 +37,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   }
 
   return (
-    <NextThemesProvider {...props}>
+    <NextThemesProvider defaultTheme="light" attribute="class" {...props}>
       <ThemeWatcher />
       {children}
     </NextThemesProvider>

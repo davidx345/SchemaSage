@@ -12,8 +12,8 @@ import type {
   CodeGenFormat
 } from './types';
 
-// API base URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// API base URL with standard path
+const API_BASE = `${API_BASE_URL}/api`;
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -54,21 +54,26 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
 export const schemaApi = {
   // Schema Detection
   detectSchema: async (data: string, options: Partial<SchemaSettings> = {}): Promise<ApiResponse<DetectedSchema>> => {
-    const response = await api.post('/schema/detect', { 
-      data, 
-      settings: options
+    const response = await fetch(`${API_BASE}/schema/detect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, settings: options })
     });
-    return response.data;
+    const result = await response.json();
+    if (!response.ok) {
+      return { success: false, error: { message: result.error?.message || 'Failed to detect schema' } };
+    }
+    return { success: true, data: result.schema };
   },
 
   // Project Management
   getProjects: async (): Promise<ApiResponse<Project[]>> => {
-    const response = await api.get('/projects');
+    const response = await api.get('/database/projects');
     return response.data;
   },
 
   createProject: async (name: string): Promise<ApiResponse<Project>> => {
-    const response = await api.post('/projects', { name });
+    const response = await api.post('/database/projects', { name });
     return response.data;
   },
 
@@ -90,25 +95,22 @@ export const schemaApi = {
     options: CodeGenOptions
   ): Promise<{success: boolean; data?: string; error?: {message: string}}> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/schema/generate-code`, {
+      const response = await fetch(`${API_BASE}/schema/generate-code`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           schema_data: schema,
           format,
           options
         })
       });
-      
       const result = await response.json();
-      
       if (!response.ok) {
         return {
           success: false,
           error: { message: result.error?.message || "Failed to generate code" }
         };
       }
-      
       return {
         success: true,
         data: result.code
@@ -127,36 +129,41 @@ export const schemaApi = {
     schemaContext?: Record<string, unknown>
   ): Promise<{success: boolean; data?: ChatMessage; error?: {message: string}}> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/schema/chat`, {
+      const chatRequest = {
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        schema_data: schemaContext
+      };
+      const response = await fetch(`${API_BASE}/schema/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          schema_data: schemaContext
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chatRequest)
       });
-      
-      const result = await response.json();
-      
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        return {
+          success: false,
+          error: { message: "Invalid response format from server" }
+        };
+      }
       if (!response.ok) {
         return {
           success: false,
-          error: { message: result.error?.message || "Chat request failed" }
+          error: { message: result.message || result.error?.message || "Chat request failed" }
         };
       }
-      
       return {
         success: true,
         data: {
           role: "assistant",
           content: result.response,
           timestamp: new Date().toISOString(),
-          suggestions: result.suggestions
+          suggestions: result.suggestions || []
         }
       };
     } catch (error) {
@@ -172,21 +179,17 @@ export const schemaApi = {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
-      const response = await fetch(`${API_BASE_URL}/api/schema/detect-from-file`, {
+      const response = await fetch(`${API_BASE}/schema/detect-from-file`, {
         method: "POST",
         body: formData
       });
-      
       const result = await response.json();
-      
       if (!response.ok) {
         return {
           success: false,
           error: { message: result.error?.message || "Failed to detect schema from file" }
         };
       }
-      
       return {
         success: true,
         data: result.schema
@@ -223,7 +226,7 @@ export const databaseApi = {
   // Test database connection
   testConnection: async (config: DatabaseConfig): Promise<{success: boolean; message?: string; error?: {message: string}}> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/database/test-connection`, {
+      const response = await fetch(`${API_BASE}/database/test-connection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config)
@@ -253,7 +256,7 @@ export const databaseApi = {
   // Import schema from database
   importFromDatabase: async (config: DatabaseConfig): Promise<{success: boolean; data?: SchemaResponse; error?: {message: string}}> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/database/import-schema`, {
+      const response = await fetch(`${API_BASE}/database/import-schema`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config)
@@ -286,7 +289,7 @@ export const projectApi = {
   // Get all projects
   getProjects: async (): Promise<ApiResponse<Project[]>> => {
     try {
-      const response = await fetch(`${API_BASE}/projects`, {
+      const response = await fetch(`${API_BASE}/database/projects`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -313,29 +316,35 @@ export const projectApi = {
       };
     }
   },
-
-  // API key validation
-  async validateApiKey(): Promise<{success: boolean; message?: string; provider?: string; error?: {message: string}}> {
+  
+  // Create new project
+  createProject: async (name: string): Promise<ApiResponse<Project>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/schema/validate-api-key`);
-      const result = await response.json();
-      
-      if (!response.ok || result.status === "error") {
-        return {
-          success: false,
-          error: { message: result.message || "API key validation failed" }
-        };
+      const response = await fetch(`${API_BASE}/database/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create project');
       }
-      
+
+      const data = await response.json();
       return {
         success: true,
-        message: result.message,
-        provider: result.ai_provider
+        data: data
       };
     } catch (error) {
+      console.error('Create project API error:', error);
       return {
         success: false,
-        error: { message: error instanceof Error ? error.message : "Unknown error" }
+        error: {
+          message: error instanceof Error ? error.message : 'Unknown error creating project'
+        }
       };
     }
   }

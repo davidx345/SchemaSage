@@ -15,10 +15,12 @@ interface StoreState {
 
   // Settings
   settings: {
+    autoSave: boolean;
     detectRelations: boolean;
     inferTypes: boolean;
     generateNullableFields: boolean;
     generateIndexes: boolean;
+    compactMode: boolean;
   };
 
   // Database Connections
@@ -36,6 +38,7 @@ interface StoreState {
   toggleSidebar: () => void;
   setActiveTab: (tab: string) => void;
   updateSettings: (settings: Partial<StoreState['settings']>) => void;
+  setSettings: (settings: StoreState['settings']) => void;
   addDatabaseConnection: (connection: DatabaseConfig) => void;
   removeDatabaseConnection: (connectionId: string) => void;
   setChatHistory: (messages: ChatMessage[]) => void;
@@ -53,10 +56,12 @@ export const useStore = create<StoreState>()(
       sidebarCollapsed: false,
       activeTab: 'schema',
       settings: {
+        autoSave: true,
         detectRelations: true,
         inferTypes: true,
         generateNullableFields: true,
         generateIndexes: true,
+        compactMode: false,
       },
       savedConnections: [],
       chatHistory: [],
@@ -89,6 +94,10 @@ export const useStore = create<StoreState>()(
       
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings },
+      })),
+      
+      setSettings: (settings) => set(() => ({
+        settings: settings,
       })),
       
       addDatabaseConnection: (connection) => set((state) => ({

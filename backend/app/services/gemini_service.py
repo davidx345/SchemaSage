@@ -17,24 +17,24 @@ class GeminiServiceError(Exception):
     """Base exception for Gemini service errors"""
     pass
 
-def setup_gemini():
-    """Set up Gemini API with API key from settings"""
-    if not settings.GEMINI_API_KEY:
+def setup_gemini(api_key: Optional[str] = None):
+    """Set up Gemini API with API key from settings or provided key"""
+    key = api_key or settings.GEMINI_API_KEY
+    if not key:
         logger.error("Gemini API key is not configured")
         raise GeminiServiceError("Gemini API key is not configured")
-        
     try:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        genai.configure(api_key=key)
         logger.info(f"Gemini API initialized with model: {settings.GEMINI_MODEL}")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize Gemini API: {str(e)}")
         raise GeminiServiceError(f"Failed to initialize Gemini API: {str(e)}")
 
-async def chat_with_gemini(messages: List[Dict[str, str]], schema: Any = None) -> ChatResponse:
+async def chat_with_gemini(messages: List[Dict[str, str]], schema: Any = None, api_key: Optional[str] = None) -> ChatResponse:
     """Generate chat responses using Gemini API"""
     try:
-        setup_gemini()
+        setup_gemini(api_key)
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         # Convert messages to Gemini format and include schema context
@@ -69,10 +69,10 @@ async def chat_with_gemini(messages: List[Dict[str, str]], schema: Any = None) -
         logger.error(f"Error generating chat response with Gemini: {str(e)}")
         raise GeminiServiceError(f"Failed to generate chat response: {str(e)}")
 
-async def detect_schema_with_gemini(data: str) -> Dict[str, Any]:
+async def detect_schema_with_gemini(data: str, api_key: Optional[str] = None) -> Dict[str, Any]:
     """Detect schema using Gemini API"""
     try:
-        setup_gemini()
+        setup_gemini(api_key)
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         prompt = f"""Analyze this data and infer a database schema. Return only valid JSON in this format:
@@ -129,10 +129,10 @@ Return ONLY the JSON schema, no other text or explanation."""
         logger.error(f"Error detecting schema with Gemini: {str(e)}")
         raise GeminiServiceError(f"Failed to detect schema: {str(e)}")
 
-async def generate_code_with_gemini(schema: Any, format: str, options: Optional[Dict[str, Any]] = None) -> str:
+async def generate_code_with_gemini(schema: Any, format: str, options: Optional[Dict[str, Any]] = None, api_key: Optional[str] = None) -> str:
     """Generate code from schema using Gemini API"""
     try:
-        setup_gemini()
+        setup_gemini(api_key)
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         # Format options for the prompt
@@ -176,16 +176,14 @@ The code should be complete and ready to use."""
         logger.error(f"Error generating code with Gemini: {str(e)}")
         raise GeminiServiceError(f"Failed to generate code: {str(e)}")
 
-async def verify_gemini_connection() -> tuple[bool, str]:
+async def verify_gemini_connection(api_key: Optional[str] = None) -> tuple[bool, str]:
     """Verify connection to Gemini API"""
     try:
-        setup_gemini()
+        setup_gemini(api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content("Hello, world!")
-        
         if response and response.text:
             return True, "API key is valid and working"
         return False, "API returned empty response"
-        
     except Exception as e:
         return False, str(e)
