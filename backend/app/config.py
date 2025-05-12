@@ -1,9 +1,8 @@
 from pydantic_settings import BaseSettings
 from typing import List, ClassVar, Optional, Any, Union
 from functools import lru_cache
-import os
 import json
-from pydantic import field_validator, ValidationError
+from pydantic import ValidationError, field_validator
 
 def parse_list_value(v: Union[str, List[str]]) -> List[str]:
     """Parse a string value into a list, handling various formats:
@@ -58,6 +57,9 @@ class Settings(BaseSettings):
     MONGODB_DB: str = "schema_sage"
     MONGODB_PROJECTS_COLLECTION: str = "projects"
     MONGODB_SCHEMAS_COLLECTION: str = "schemas"
+
+    # JWT Settings
+    SECRET_KEY: str = "supersecretkey"  # Added secret key for JWT authentication
 
     # Configuration
     class Config:

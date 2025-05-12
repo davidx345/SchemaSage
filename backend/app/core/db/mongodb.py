@@ -8,11 +8,19 @@ import uuid
 from bson import ObjectId
 from ...config import get_settings
 from ...models.schemas import SchemaResponse
+from app.models.user import User
+
+try:
+    from passlib.context import CryptContext
+except ImportError:
+    CryptContext = None
+    # Optionally, log a warning or raise a clear error if password hashing is attempted
 
 settings = get_settings()
 
 # Create a MongoDB client instance
 client = AsyncIOMotorClient(settings.MONGODB_URI, serverSelectionTimeoutMS=5000)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") if CryptContext else None
 
 class PyObjectId(ObjectId):
     """Custom ObjectId type for Pydantic models"""
@@ -178,6 +186,35 @@ class MongoDB:
             raise ValueError(f"No schema found for project {project_id}")
             
         return SchemaResponse.model_validate(schema_doc["schema"])
+    
+    async def get_user_by_email(self, email: str):
+        user = await self.db.users.find_one({"email": email})
+        if user:
+            return User(**user)
+        return None
+
+    async def create_user(self, email: str, password: str, full_name: str = None):
+        hashed_password = pwd_context.hash(password) if pwd_context else password
+        user = User(email=email, hashed_password=hashed_password, full_name=full_name)
+        result = await self.db.users.insert_one(user.dict(by_alias=True))
+        user.id = str(result.inserted_id)
+        return user
+
+    async def authenticate_user(self, email: str, password: str):
+        user = await self.get_user_by_email(email)
+        if not user:
+            return None
+        if not pwd_context.verify(password, user.hashed_password) if pwd_context else False:
+            return None
+        return user
+
+async def get_db():
+    from motor.motor_asyncio import AsyncIOMotorClient
+    from app.config import get_settings
+    settings = get_settings()
+    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    db = client[settings.MONGODB_DB]
+    return db
 
 # Create a singleton instance to be imported by other modules
 db = MongoDB()

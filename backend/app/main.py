@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from .api.routes import schema, chat, database, dashboard  # Added dashboard import
+from app.api.routes import schema, chat, database, dashboard, auth  # Added auth import
 from .config import get_settings
 from contextlib import asynccontextmanager
 import aiohttp
@@ -93,6 +93,7 @@ app.include_router(schema.router, prefix="/api/schema", tags=["schema"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(database.router, prefix="/api/database", tags=["database"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])  # Register auth router
 
 @app.get("/", tags=["health"])
 async def root():
