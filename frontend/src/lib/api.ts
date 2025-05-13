@@ -350,5 +350,46 @@ export const projectApi = {
   }
 };
 
+// Authentication API
+export const authApi = {
+  signup: async (email: string, password: string, fullName?: string) => {
+    const response = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, full_name: fullName })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || 'Signup failed');
+    }
+    return data;
+  },
+  login: async (email: string, password: string) => {
+    const params = new URLSearchParams();
+    params.append('username', email);
+    params.append('password', password);
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || 'Login failed');
+    }
+    return data;
+  },
+  getMe: async (token: string) => {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || 'Failed to fetch user');
+    }
+    return data;
+  }
+};
+
 // Export specific functions for direct use
 export const detectSchemaFromFile = schemaApi.detectSchemaFromFile;

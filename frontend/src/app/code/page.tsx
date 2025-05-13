@@ -19,6 +19,7 @@ import { CodePreview } from "@/components/code-preview";
 import { useStore } from "@/lib/store";
 import { schemaApi } from "@/lib/api";
 import { CodeGenFormat } from "@/lib/types";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export default function CodePage() {
   const router = useRouter();
@@ -106,11 +107,10 @@ export default function CodePage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">No Schema Data</h2>
           <p className="text-muted-foreground mb-4">
-            You need to upload data or connect to a database first.
+            You need to upload data or connect to a database first.<br />
+            <span className="text-xs">Tip: Try the sample project from onboarding to explore code generation features.</span>
           </p>
-          <Button onClick={() => router.push("/upload")}>
-            Upload Data
-          </Button>
+          <Button onClick={() => router.push("/upload")}>Upload Data</Button>
         </div>
       </div>
     );
@@ -134,19 +134,23 @@ export default function CodePage() {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label htmlFor="language">Language</Label>
-                  <Select
-                    value={language}
-                    onValueChange={handleLanguageChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="typescript">TypeScript</SelectItem>
-                      <SelectItem value="python">Python</SelectItem>
-                      <SelectItem value="sql">SQL</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-4 items-end">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Select value={language} onValueChange={handleLanguageChange}>
+                          <SelectTrigger className="w-[150px]">
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="typescript">TypeScript</SelectItem>
+                            <SelectItem value="python">Python</SelectItem>
+                            <SelectItem value="sql">SQL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TooltipTrigger>
+                      <TooltipContent>Select code generation language</TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
 
                 <div className="space-y-1">

@@ -26,7 +26,7 @@ import {
 import { formatRelativeTime } from "@/lib/utils";
 import { projectApi } from "@/lib/api";
 import { Project } from "@/lib/types";
-import { useStore } from "@/lib/store";
+import { useStore, useAuth } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -38,8 +38,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { OnboardingModal } from "@/components/onboarding-modal";
 
 export default function Dashboard() {
+  const { token } = useAuth();
+  const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -50,8 +54,15 @@ export default function Dashboard() {
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "" });
   const [createLoading, setCreateLoading] = useState(false);
-  const router = useRouter();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { addRecentProject } = useStore();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!token) {
+      router.replace("/auth/login");
+    }
+  }, [token, router]);
 
   // Fetch projects data
   useEffect(() => {
@@ -149,8 +160,22 @@ export default function Dashboard() {
     router.push("/code");
   };
 
+  useEffect(() => {
+    if (!loading && projects.length === 0 && !localStorage.getItem("onboardingDismissed")) {
+      setShowOnboarding(true);
+    }
+  }, [loading, projects]);
+
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false);
+    localStorage.setItem("onboardingDismissed", "1");
+  };
+
+  if (!token) return null;
+
   return (
     <div className="space-y-8">
+      <OnboardingModal open={showOnboarding} onClose={handleOnboardingClose} />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>

@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Toaster } from "sonner";
 import { AIChatDialog } from "@/components/ai-chat-dialog";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Notifications } from "@/components/notifications";
 import "./globals.css";
 
 // Use a system font stack instead of Google Fonts for offline usage
@@ -27,10 +29,15 @@ export default function RootLayout({
             <Sidebar />
             <div className="flex-1">
               <Header />
-              <main className="p-6">{children}</main>
+              <main className="p-6">
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
+              </main>
             </div>
           </div>
           <AIChatDialog />
+          <Notifications />
           <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>
