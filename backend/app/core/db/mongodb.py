@@ -218,3 +218,7 @@ async def get_db():
 
 # Create a singleton instance to be imported by other modules
 db = MongoDB()
+
+async def get_db_service() -> MongoDB:
+    """FastAPI dependency to get the MongoDB service instance."""
+    return db

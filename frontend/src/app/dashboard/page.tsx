@@ -1,3 +1,4 @@
+'use client';
 import Dashboard from "../../components/dashboard";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";

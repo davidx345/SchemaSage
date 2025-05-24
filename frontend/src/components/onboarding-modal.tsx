@@ -74,12 +74,19 @@ export function OnboardingModal({ open, onClose }: { open: boolean; onClose: () 
         </DialogHeader>
         <div className="space-y-4 py-2">
           <p className="text-muted-foreground">
-            Get started by creating your first project or try a sample project to explore features.
+            SchemaSage helps you design, visualize, and generate code for your database schemas using AI.<br />
+            <span className="block mt-2">Get started in 3 easy steps:</span>
+            <ol className="list-decimal ml-6 mt-2 text-sm">
+              <li>Create your first project or try a sample project below.</li>
+              <li>Upload your data or connect to a database.</li>
+              <li>Visualize, edit, and generate code for your schema!</li>
+            </ol>
+            <span className="block mt-4 text-xs">Need help? <a href="/help" className="underline text-blue-600">Read the docs</a> or <a href="/landing" className="underline text-blue-600">see a demo</a>.</span>
           </p>
         </div>
         <DialogFooter>
           <Button onClick={handleCreateSample} disabled={loading}>
-            {loading ? "Creating..." : "Create Sample Project"}
+            {loading ? "Creating..." : "Try Sample Project"}
           </Button>
           <Button variant="outline" onClick={onClose}>
             Skip

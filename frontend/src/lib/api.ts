@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from "./config";
+import { useAuth } from './store'; // Import useAuth to access the token
 import type { 
   DetectedSchema, 
   SchemaSettings,
@@ -22,6 +23,23 @@ const api = axios.create({
   },
   timeout: 20000, // 20 second timeout
 });
+
+// Request Interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    // Access token from Zustand store
+    // Note: Zustand's `getState()` is for use outside of React components.
+    // If this were in a React component, you'd use the hook: const token = useAuth((state) => state.token);
+    const token = useAuth.getState().token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export interface ApiError {
   message: string;
@@ -393,3 +411,6 @@ export const authApi = {
 
 // Export specific functions for direct use
 export const detectSchemaFromFile = schemaApi.detectSchemaFromFile;
+
+// Ensure the 'api' instance is exported if it wasn't already explicitly
+export { api };

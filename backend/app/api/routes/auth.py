@@ -3,9 +3,9 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
-from app.core.db.mongodb import get_user_by_email, create_user, authenticate_user
 from app.models.user import User
 from app.config import get_settings
+from app.core.db.mongodb import get_db_service
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 settings = get_settings()
@@ -32,24 +32,24 @@ class Token(BaseModel):
     token_type: str
 
 @router.post("/signup", response_model=Token)
-async def signup(user: UserCreate = Body(...), db=Depends(settings.get_db)):
-    existing = await get_user_by_email(db, user.email)
+async def signup(user: UserCreate = Body(...), db_service=Depends(get_db_service)):
+    existing = await db_service.get_user_by_email(user.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    new_user = await create_user(db, user.email, user.password, user.full_name)
+    new_user = await db_service.create_user(user.email, user.password, user.full_name)
     access_token = create_access_token({"sub": new_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db=Depends(settings.get_db)):
-    user = await authenticate_user(db, form_data.username, form_data.password)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db_service=Depends(get_db_service)):
+    user = await db_service.authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     access_token = create_access_token({"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=User)
-async def get_me(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/login")), db=Depends(settings.get_db)):
+async def get_me(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/login")), db_service=Depends(get_db_service)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -62,7 +62,7 @@ async def get_me(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/l
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = await get_user_by_email(db, email)
+    user = await db_service.get_user_by_email(email)
     if user is None:
         raise credentials_exception
     return user

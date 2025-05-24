@@ -22,7 +22,7 @@ export function Testimonial({
       <Quote className="h-8 w-8 text-primary mb-4" />
       
       <blockquote className="text-lg mb-6">
-        "{quote}"
+        &quot;{quote}&quot;
       </blockquote>
 
       <div className="flex items-center gap-3 mt-auto">

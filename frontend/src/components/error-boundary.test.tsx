@@ -11,4 +11,16 @@ describe('ErrorBoundary', () => {
     );
     expect(getByText('Child')).toBeInTheDocument();
   });
+
+  it('catches and displays error from child', () => {
+    // Component that throws
+    const Problem = () => { throw new Error('Boom!'); };
+    const { getByText } = render(
+      <ErrorBoundary>
+        <Problem />
+      </ErrorBoundary>
+    );
+    expect(getByText('Something went wrong')).toBeInTheDocument();
+    expect(getByText('Boom!')).toBeInTheDocument();
+  });
 });

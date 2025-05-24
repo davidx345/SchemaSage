@@ -13,6 +13,7 @@ import {
   Shield,
   LineChart,
 } from "lucide-react";
+import Link from "next/link"; // Import Link
 
 export default function LandingPage() {
   return (
@@ -27,7 +28,9 @@ export default function LandingPage() {
             SchemaSage uses AI to automatically detect and generate database schemas from your existing data, saving you hours of manual work.
           </p>
           <div className="flex gap-4 justify-center">
-            <Button size="lg">Get Started Free</Button>
+            <Link href="/auth/login" passHref>
+              <Button size="lg">Get Started Free</Button>
+            </Link>
             <Button size="lg" variant="outline">View Demo</Button>
           </div>
         </div>
