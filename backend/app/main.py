@@ -106,6 +106,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(database.router, prefix="/api/database", tags=["database"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 
+
 @app.get("/", tags=["health"])
 async def root():
     """Health check endpoint"""
