@@ -101,6 +101,21 @@ export default function UploadPage() {
     }
   };
 
+  // Show empty state if no schema has been imported and not currently connecting
+  if (!importedSchema && !isConnecting) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">No Data Uploaded</h2>
+          <p className="text-muted-foreground mb-4">
+            Start by uploading a JSON, SQL, or YAML file, or connect to your database.<br />
+            <span className="text-xs">Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600'>read the docs</a> for more info.</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Import Schema</h1>

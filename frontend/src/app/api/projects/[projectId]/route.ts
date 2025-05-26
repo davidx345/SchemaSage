@@ -1,17 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { API_BASE_URL } from '@/lib/config';
 
-interface RouteParams {
-  params: {
-    projectId: string;
-  };
-}
-
-export async function GET(req: Request, { params }: RouteParams) {
+// Updated route parameter type to match Next.js 15.3.2 expectations
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
+  const { projectId } = params;
   try {
-    const { projectId } = params;
-    
-    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
+    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -19,36 +16,37 @@ export async function GET(req: Request, { params }: RouteParams) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ message: 'Failed to parse error response from API' }));
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: error.message || error.detail || `Failed to retrieve project ${projectId}`,
         },
         { status: response.status }
       );
     }
 
-    const result = await response.json();
-    return NextResponse.json(result);
+    const data = await response.json();
+    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Get project error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error occurred during project retrieval';
+    console.error(`Error in GET /api/projects/${projectId}:`, error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Internal server error'
-      },
+      { success: false, message },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(req: Request, { params }: RouteParams) {
+// PUT handler with inline type definition
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
+  const { projectId } = params;
   try {
-    const { projectId } = params;
-    const updateData = await req.json();
-    
-    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
+    const updateData = await request.json();
+    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -57,35 +55,36 @@ export async function PUT(req: Request, { params }: RouteParams) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ message: 'Failed to parse error response from API' }));
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: error.message || error.detail || `Failed to update project ${projectId}`,
         },
         { status: response.status }
       );
     }
 
-    const result = await response.json();
-    return NextResponse.json(result);
+    const data = await response.json();
+    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Update project error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error occurred during project update';
+    console.error(`Error in PUT /api/projects/${projectId}:`, error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Internal server error'
-      },
+      { success: false, message },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(req: Request, { params }: RouteParams) {
+// DELETE handler with inline type definition
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
+  const { projectId } = params;
   try {
-    const { projectId } = params;
-    
-    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
+    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -93,25 +92,39 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ message: 'Failed to parse error response from API' }));
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: error.message || error.detail || `Failed to delete project ${projectId}`,
         },
         { status: response.status }
       );
     }
 
-    const result = await response.json();
-    return NextResponse.json(result);
+    // DELETE requests might not return a body or return a confirmation message
+    try {
+        const data = await response.json();
+        return NextResponse.json({ success: true, data });
+    } catch (e) {
+        // Handle cases where DELETE might return no content or non-JSON response on success
+        if (response.status === 204 || response.status === 200) {
+             return NextResponse.json({ success: true, message: `Project ${projectId} deleted successfully.` });
+        }
+        // If it's an actual error parsing what should have been an error response
+        const errorMsg = e instanceof Error ? e.message : 'Failed to parse API response after delete attempt';
+        console.error(`Error parsing response for DELETE /api/projects/${projectId} (after non-ok status was not hit):`, e);
+        return NextResponse.json(
+          { success: false, message: `Project ${projectId} deleted, but response parsing failed: ${errorMsg}` },
+          { status: response.status }
+        );
+    }
+
   } catch (error) {
-    console.error('Delete project error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error occurred during project deletion';
+    console.error(`Error in DELETE /api/projects/${projectId}:`, error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Internal server error'
-      },
+      { success: false, message },
       { status: 500 }
     );
   }

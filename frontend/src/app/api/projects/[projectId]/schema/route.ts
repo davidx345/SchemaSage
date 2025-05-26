@@ -1,16 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import type { SchemaResponse } from '@/lib/types';
 import { API_BASE_URL } from '@/lib/config';
 
-interface RouteParams {
-  params: {
-    projectId: string;
-  };
-}
-
-export async function GET(req: Request, { params }: RouteParams) {
+export async function GET(request: NextRequest, context: { params: { projectId: string } }) {
   try {
-    const { projectId } = params;
+    const { projectId } = context.params;
     
     const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}/schema`, {
       method: 'GET',
@@ -44,7 +38,10 @@ export async function GET(req: Request, { params }: RouteParams) {
   }
 }
 
-export async function POST(req: Request, { params }: RouteParams) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
   try {
     const { projectId } = params;
     const schema: SchemaResponse = await req.json();

@@ -19,6 +19,7 @@ import { RelationshipEditor } from "@/components/relationship-editor";
 import { useStore } from "@/lib/store";
 import type { SchemaResponse, Relationship } from "@/lib/types";
 import { CodePreview } from "@/components/code-preview";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export default function SchemaPage() {
   const router = useRouter();
@@ -136,11 +137,10 @@ export default function SchemaPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">No Schema Data</h2>
           <p className="text-muted-foreground mb-4">
-            You need to upload data or connect to a database first.
+            You need to upload data or connect to a database first.<br />
+            <span className="text-xs">Tip: Try the sample project from onboarding to explore features.</span>
           </p>
-          <Button onClick={() => router.push("/upload")}>
-            Upload Data
-          </Button>
+          <Button onClick={() => router.push("/upload")}>Upload Data</Button>
         </div>
       </div>
     );
@@ -155,14 +155,19 @@ export default function SchemaPage() {
             View and edit your database schema
           </p>
         </div>
-        <Select defaultValue="current-project">
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="current-project">Current Project</SelectItem>
-          </SelectContent>
-        </Select>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Select defaultValue="current-project">
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current-project">Current Project</SelectItem>
+              </SelectContent>
+            </Select>
+          </TooltipTrigger>
+          <TooltipContent>Select a project to view its schema</TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="grid gap-6 grid-cols-1">

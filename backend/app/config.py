@@ -1,9 +1,8 @@
 from pydantic_settings import BaseSettings
 from typing import List, ClassVar, Optional, Any, Union
 from functools import lru_cache
-import os
 import json
-from pydantic import field_validator, ValidationError
+from pydantic import ValidationError, field_validator
 
 
 def parse_list_value(v: Union[str, List[str]]) -> List[str]:
@@ -68,6 +67,9 @@ class Settings(BaseSettings):
 
     # PostgreSQL Settings
     POSTGRESQL_URI: str = "postgresql+asyncpg://user:password@host:port/dbname"
+
+    # JWT Settings
+    SECRET_KEY: str = "supersecretkey"  # Added secret key for JWT authentication
 
     # Configuration
     class Config:

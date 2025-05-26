@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Activity } from "lucide-react";
 
 interface DashboardStats {
   activeProjects: number;
@@ -68,6 +70,13 @@ export default function Dashboard() {
     }
   };
 
+  // Simulated activity feed (replace with real data if available)
+  const activityFeed = [
+    { id: 1, description: "Created project 'Sample Project'", timestamp: new Date().toLocaleString() },
+    { id: 2, description: "Updated schema for 'Orders'", timestamp: new Date(Date.now() - 3600 * 1000).toLocaleString() },
+    { id: 3, description: "Generated code for 'Users'", timestamp: new Date(Date.now() - 2 * 3600 * 1000).toLocaleString() },
+  ];
+
   if (loading) return <div>Loading dashboard...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
   if (!stats) return null;
@@ -112,9 +121,24 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-2">Quick Actions</h2>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={handleUpload}>Upload Data</Button>
-          <Button variant="outline" onClick={handleConnectDb}>Connect Database</Button>
-          <Button variant="outline" onClick={handleGenerateCode}>Generate Code</Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={handleUpload}>Upload Data</Button>
+            </TooltipTrigger>
+            <TooltipContent>Import JSON or CSV files</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={handleConnectDb}>Connect Database</Button>
+            </TooltipTrigger>
+            <TooltipContent>Import schema from an existing database</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={handleGenerateCode}>Generate Code</Button>
+            </TooltipTrigger>
+            <TooltipContent>Export your schema to code</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -143,6 +167,22 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><Activity className="h-5 w-5" />Activity Feed</h2>
+        <div className="space-y-2">
+          {activityFeed.length === 0 ? (
+            <div className="text-muted-foreground">No recent activity.</div>
+          ) : (
+            activityFeed.map((item) => (
+              <div key={item.id} className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{item.timestamp}</span>
+                <span>{item.description}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

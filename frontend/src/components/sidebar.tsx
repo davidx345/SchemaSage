@@ -14,8 +14,11 @@ import {
   Code2,
   Settings,
   HelpCircle,
-  Boxes
+  Boxes,
+  User
 } from "lucide-react";
+import { useAuth } from "@/lib/store";
+import { useRouter } from "next/navigation";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -32,6 +35,8 @@ const secondaryNavigation = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <div
@@ -92,6 +97,22 @@ export function Sidebar() {
           </div>
         </div>
       </ScrollArea>
+
+      {/* User info/profile at bottom */}
+      <div className="border-t px-4 py-3 flex items-center gap-3 mt-auto">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/settings")}> 
+          <User className="h-6 w-6 text-muted-foreground" />
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="font-medium text-sm">{user?.fullName || user?.email || "User"}</span>
+              <span className="text-xs text-muted-foreground">Profile</span>
+            </div>
+          )}
+        </div>
+        {!isCollapsed && (
+          <Button size="sm" variant="outline" className="ml-auto" onClick={logout}>Logout</Button>
+        )}
+      </div>
 
       <Button
         variant="ghost"
