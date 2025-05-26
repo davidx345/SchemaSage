@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { DatabaseConfig } from '@/lib/types';
+import { API_BASE_URL } from '@/lib/config';
 
 export async function POST(req: Request) {
   try {
     const config: DatabaseConfig = await req.json();
 
-    const response = await fetch('http://localhost:8000/api/database/connect', {
+    const response = await fetch(`${API_BASE_URL}/api/database/connect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export async function PUT(req: Request) {
   try {
     const { config, tables }: { config: DatabaseConfig; tables: string[] } = await req.json();
 
-    const response = await fetch('http://localhost:8000/api/database/import', {
+    const response = await fetch(`${API_BASE_URL}/api/database/import`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

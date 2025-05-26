@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { DetectedSchema } from '@/lib/types';
+import { API_BASE_URL } from '@/lib/config';
 
 export async function POST(req: Request) {
   try {
     const { data, options } = await req.json();
     
     // Fix: Rename options to settings to match backend's expected format
-    const response = await fetch('http://localhost:8000/api/schema/detect', {
+    const response = await fetch(`${API_BASE_URL}/api/schema/detect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

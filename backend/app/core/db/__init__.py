@@ -1,4 +1,5 @@
 """Database utilities and services."""
-from .mongodb import db, MongoDB, PyObjectId
 
-__all__ = ["db", "MongoDB", "PyObjectId"]
+from .postgresql import Base, get_db, init_db, engine, AsyncSessionLocal
+
+__all__ = ["Base", "get_db", "init_db", "engine", "AsyncSessionLocal"]

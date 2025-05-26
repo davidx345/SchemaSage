@@ -4,24 +4,28 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from .api.routes import schema, chat, database, dashboard  # Added dashboard import
-from .config import get_settings
+from app.api.routes import schema, chat, database, dashboard  # Added dashboard import
+from app.config import get_settings
+from app.core.db.postgresql import init_db  # Import init_db
 from contextlib import asynccontextmanager
 import aiohttp
 import logging
 import asyncio
-from .services.gemini_service import verify_gemini_connection
+from app.services.gemini_service import verify_gemini_connection
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    await init_db()  # Initialize database tables
     # Removed OpenAI check
     yield
     # Shutdown
     print("Shutting down application...")
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -40,9 +44,10 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Add trusted host middleware
 if settings.ENV == "production":
     app.add_middleware(
-        TrustedHostMiddleware, 
+        TrustedHostMiddleware,
         allowed_hosts=settings.ALLOWED_HOSTS,
     )
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)
@@ -53,26 +58,28 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "message": "Invalid request format",
             "details": exc.errors(),
-            "status": "error"
-        }
+            "status": "error",
+        },
     )
+
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle general exceptions with better logging"""
     import traceback
-    logger.error(f"Error: {str(exc)}\n{''.join(traceback.format_tb(exc.__traceback__))}")
-    
+
+    logger.error(
+        f"Error: {str(exc)}\n{''.join(traceback.format_tb(exc.__traceback__))}"
+    )
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "message": "Internal server error",
-            "details": {
-                "error": str(exc),
-                "path": request.url.path
-            }
-        }
+            "details": {"error": str(exc), "path": request.url.path},
+        },
     )
+
 
 # Health check endpoint
 @app.get("/health")
@@ -82,17 +89,23 @@ async def health_check():
         "status": "healthy",
         "components": {
             "api": "healthy",
-            "gemini": "configured" if settings.USE_GEMINI and settings.GEMINI_API_KEY else "not_configured"
+            "gemini": (
+                "configured"
+                if settings.USE_GEMINI and settings.GEMINI_API_KEY
+                else "not_configured"
+            ),
         },
         "version": "1.0.0",
-        "environment": settings.ENV
+        "environment": settings.ENV,
     }
+
 
 # Include routers
 app.include_router(schema.router, prefix="/api/schema", tags=["schema"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(database.router, prefix="/api/database", tags=["database"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+
 
 @app.get("/", tags=["health"])
 async def root():
@@ -103,8 +116,9 @@ async def root():
         "version": "1.0.0",
         "environment": settings.ENV,
         "docs_url": "/docs",
-        "redoc_url": "/redoc"
+        "redoc_url": "/redoc",
     }
+
 
 @app.on_event("startup")
 async def startup_event():

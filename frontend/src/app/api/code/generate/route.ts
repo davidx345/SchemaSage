@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { SchemaResponse, CodeGenOptions } from '@/lib/types';
+import { API_BASE_URL } from '@/lib/config';
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
     } = await req.json();
 
     // Fix: Update path and restructure request to match backend's expected format
-    const response = await fetch('http://localhost:8000/api/schema/generate-code', {
+    const response = await fetch(`${API_BASE_URL}/api/schema/generate-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

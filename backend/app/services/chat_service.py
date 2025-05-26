@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 import aiohttp
-from ..config import settings
-from ..models.schemas import ChatResponse
+from app.config import settings
+from app.models.schemas import ChatResponse
 
 class ChatError(Exception):
     """Base exception for chat service errors"""

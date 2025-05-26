@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { API_BASE_URL } from '@/lib/config';
 // Removed unused ChatMessage interface
 
 export async function POST(req: Request) {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     // Restructure request to match backend's expected format
-    const response = await fetch('http://localhost:8000/api/schema/chat', {
+    const response = await fetch(`${API_BASE_URL}/api/schema/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -50,7 +50,7 @@ export default function Dashboard() {
     }
     setCreating(true);
     try {
-      const res = await fetch("/api/schema/project", {
+      const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newProject.name, description: newProject.description })

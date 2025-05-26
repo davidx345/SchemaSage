@@ -1,8 +1,9 @@
+import { API_BASE_URL } from '@/lib/config';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const response = await fetch('http://localhost:8000/api/database/projects', {
+    const response = await fetch(`${API_BASE_URL}/api/database/projects`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
   try {
     const { name, description } = await req.json();
     
-    const response = await fetch('http://localhost:8000/api/database/projects', {
+    const response = await fetch(`${API_BASE_URL}/api/database/projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

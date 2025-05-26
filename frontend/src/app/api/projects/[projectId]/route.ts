@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { API_BASE_URL } from '@/lib/config';
 
 interface RouteParams {
   params: {
@@ -10,7 +11,7 @@ export async function GET(req: Request, { params }: RouteParams) {
   try {
     const { projectId } = params;
     
-    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +48,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
     const { projectId } = params;
     const updateData = await req.json();
     
-    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -84,7 +85,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
   try {
     const { projectId } = params;
     
-    const response = await fetch(`http://localhost:8000/api/database/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/database/projects/${projectId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
