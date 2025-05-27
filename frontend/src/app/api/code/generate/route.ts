@@ -1,45 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import type { SchemaResponse, CodeGenOptions } from '@/lib/types';
-import { API_BASE_URL } from '@/lib/config';
+import { handleProxyRequest } from '@/lib/apiProxy';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { schema, options }: { 
+    const originalBody: { 
       schema: SchemaResponse; 
       options: CodeGenOptions;
     } = await req.json();
 
-    // Fix: Update path and restructure request to match backend's expected format
-    const response = await fetch(`${API_BASE_URL}/api/schema/generate-code`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        schema_data: schema,
-        format: options.format,
-        options: {
-          includeComments: options.includeComments,
-          includeValidation: options.includeValidation,
-          language: options.language
-        }
-      }),
+    const { schema, options } = originalBody;
+
+    // Restructure request to match backend's expected format
+    const backendRequestBody = {
+      schema_data: schema,
+      format: options.format,
+      options: {
+        includeComments: options.includeComments,
+        includeValidation: options.includeValidation,
+        language: options.language
+      }
+    };
+
+    // Create a new Request object with the transformed body for the proxy function
+    const modifiedRequest = new NextRequest(req.url, {
+      method: req.method,
+      headers: req.headers, // Pass original headers
+      body: JSON.stringify(backendRequestBody),
+      duplex: 'half' // Required for ReadableStream body in some environments
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || error.detail || 'Failed to generate code' },
-        { status: response.status }
-      );
-    }
+    return handleProxyRequest({
+      method: 'POST',
+      backendPath: '/api/schema/generate-code', // Corrected backend path
+      request: modifiedRequest, // Pass the new request with the transformed body
+    });
 
-    const result = await response.json();
-    return NextResponse.json(result);
   } catch (error) {
-    console.error('Code generation error:', error);
+    console.error('Code generation error in route handler:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error in code generation route';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message },
       { status: 500 }
     );
   }

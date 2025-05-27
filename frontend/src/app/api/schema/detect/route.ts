@@ -1,37 +1,36 @@
-import { NextResponse } from 'next/server';
-import type { DetectedSchema } from '@/lib/types';
-import { API_BASE_URL } from '@/lib/config';
+import { NextRequest, NextResponse } from 'next/server';
+import { handleProxyRequest } from '@/lib/apiProxy';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { data, options } = await req.json();
-    
-    // Fix: Rename options to settings to match backend's expected format
-    const response = await fetch(`${API_BASE_URL}/api/schema/detect`, {
+    const originalBody = await req.json();
+    const { data, options } = originalBody;
+
+    // Backend expects { data, settings: options }
+    const modifiedBody = { 
+      data,
+      settings: options 
+    };
+
+    const modifiedRequest = new NextRequest(req.nextUrl.clone(), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        data, 
-        settings: options // Map options to settings
-      }),
+      headers: req.headers,
+      body: JSON.stringify(modifiedBody),
+      duplex: 'half' // Required for NextRequest with body
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || error.detail || 'Failed to detect schema' },
-        { status: response.status }
-      );
-    }
-
-    const result: DetectedSchema = await response.json();
-    return NextResponse.json(result);
+    // Assuming handleProxyRequest expects the endpoint as a property of the request
+    // (modifiedRequest as NextRequest & { endpoint: string }).endpoint = '/api/schema/detect';
+    return handleProxyRequest({
+      backendPath: '/api/schema/detect',
+      request: modifiedRequest,
+      method: 'POST'
+    });
   } catch (error) {
     console.error('Schema detection error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error during request modification';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message },
       { status: 500 }
     );
   }

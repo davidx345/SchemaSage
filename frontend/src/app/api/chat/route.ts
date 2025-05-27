@@ -1,50 +1,47 @@
-import { NextResponse } from 'next/server';
-import { API_BASE_URL } from '@/lib/config';
-// Removed unused ChatMessage interface
+import { NextResponse, NextRequest } from 'next/server';
+import { handleProxyRequest } from '@/lib/apiProxy';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json();
+    const originalBody = await req.json();
+    const { messages, context } = originalBody;
     
-    // Extract schema data from context to match backend's expected format
     const schema_data = context?.schema;
     
     if (!schema_data) {
       return NextResponse.json(
-        { error: 'Schema data is required for chat' },
+        { success: false, message: 'Schema data is required for chat' },
         { status: 400 }
       );
     }
 
     // Restructure request to match backend's expected format
-    const response = await fetch(`${API_BASE_URL}/api/schema/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        schema_data: schema_data,
-        messages: messages.map((msg: {role: string; content: string}) => ({
-          role: msg.role,
-          content: msg.content
-        }))
-      }),
+    const backendRequestBody = {
+      schema_data: schema_data,
+      messages: messages.map((msg: {role: string; content: string}) => ({
+        role: msg.role,
+        content: msg.content
+      }))
+    };
+
+    const modifiedRequest = new NextRequest(req.url, {
+        method: req.method,
+        headers: req.headers, // Pass original headers
+        body: JSON.stringify(backendRequestBody),
+        duplex: 'half' // Required for ReadableStream body in some environments
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || error.detail || 'Chat service error' },
-        { status: response.status }
-      );
-    }
+    return handleProxyRequest({
+      method: 'POST',
+      backendPath: '/api/schema/chat',
+      request: modifiedRequest, // Pass the new request with the transformed body
+    });
 
-    const result = await response.json();
-    return NextResponse.json(result);
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('Chat error in route handler:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error in chat route';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message },
       { status: 500 }
     );
   }
