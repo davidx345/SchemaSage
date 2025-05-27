@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     return handleProxyRequest({
       method: 'POST',
-      backendPath: '/api/schema/chat',
+      backendPath: '/api/chat', // Changed from /api/schema/chat
       request: modifiedRequest, // Pass the new request with the transformed body
     });
 

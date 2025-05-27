@@ -109,6 +109,17 @@ class CodeGenResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
+class DatabaseConfig(BaseModel):
+    db_type: str = Field(..., description="Type of the database (e.g., postgresql, mysql, sqlite)")
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None  # Consider using Pydantic.SecretStr for sensitive fields
+    database_name: Optional[str] = None
+    file_path: Optional[str] = None  # For file-based DBs like SQLite
+    connection_string: Optional[str] = None  # Alternatively, a full connection string
+
+
 # Pydantic models for API requests/responses that might involve ORM Project data
 class ProjectBase(BaseModel):
     name: str
@@ -143,3 +154,9 @@ class SchemaStorageResponse(BaseModel):
 
 class ProjectDetailResponse(ProjectResponse):
     schemas: List[SchemaStorageResponse] = []
+
+
+class ProjectUpdate(ProjectBase):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    # Add other fields that can be updated here if needed

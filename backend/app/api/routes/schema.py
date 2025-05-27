@@ -15,17 +15,16 @@ from typing import Optional, Dict, Any
 
 # Assuming ChatService, ChatError, CodeGenerator, CodeGenerationError, SchemaDetector, SchemaValidationError
 # will be updated to not rely on MongoDB directly or will use the new DB structure if they need persistence.
-from app.services.chat_service import ChatService, ChatError
+# from app.services.chat_service import ChatService, ChatError # Removed ChatService, ChatError
 from app.models.schemas import (
-    ChatRequest,  # This might need to be reconciled with the one in chat.py
-    ChatResponse,
+    # ChatRequest,  # Removed ChatRequest
+    # ChatResponse, # Removed ChatResponse
     SchemaResponse,
-    # SchemaRequest, # This was not used in the provided snippet for this file directly
     CodeGenRequest,
     CodeGenResponse,
     SchemaSettings,
 )
-from ...services.code_generator import CodeGenerator, CodeGenerationError
+from ...services.code_generator import CodeGenerator, CodeGenerationError, CodeGenerationOptions
 from ...core.schema_detector import SchemaDetector, SchemaValidationError
 from ...config import get_settings
 
@@ -33,7 +32,7 @@ settings = get_settings()
 
 router = APIRouter()
 # These services might need to be refactored if they directly used the old MongoDB get_db
-chat_service = ChatService()
+# chat_service = ChatService() # Removed chat_service instantiation
 code_generator = CodeGenerator()
 schema_detector = SchemaDetector()
 
@@ -174,6 +173,46 @@ async def detect_schema(
         )
 
 
+@router.post("/generate-code", response_model=CodeGenResponse, summary="Generate code from schema")
+async def generate_code_from_schema(
+    request_data: CodeGenRequest,
+    # code_generator_service: CodeGenerator = Depends(CodeGenerator) # Use the instance defined above
+):
+    """
+    Generates code from the provided schema data and options.
+    """
+    try:
+        # The code_generator instance is already available in the module scope
+        generated_output = await code_generator.generate_code(
+            schema_data=request_data.schema_data, # schema_data is already a SchemaResponse model
+            target_format=request_data.format, # Renamed to target_format to match service
+            options=CodeGenerationOptions(**request_data.options) if request_data.options else CodeGenerationOptions()
+        )
+        if generated_output is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Code generation failed or returned no content")
+        
+        # Assuming generated_output is a dict with "code" and "language"
+        # If generate_code returns a CodeGenResponse model directly, this can be simplified.
+        # For now, let's assume it returns a dict or an object with these attributes.
+        # The CodeGenResponse model expects 'code' and 'language'.
+        # The service method `generate_code` returns a dict: {'code': ..., 'language': ...}
+        return CodeGenResponse(code=generated_output['code'], language=generated_output['language'], metadata={"format": request_data.format})
+
+    except CodeGenerationError as e:
+        return create_error_response(
+            status.HTTP_400_BAD_REQUEST,
+            f"Code generation error: {str(e)}",
+            {"details": str(e)} # Or e.errors() if it's a validation-like error
+        )
+    except Exception as e:
+        # Add logging here for unexpected errors
+        # logger.error(f"Unexpected error during code generation: {e}", exc_info=True)
+        return create_error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"An unexpected error occurred during code generation: {str(e)}"
+        )
+
+
 @router.post("/detect-from-file", response_model=SchemaDetectResponse)
 async def detect_from_file(
     file: UploadFile = File(...), x_api_key: Optional[str] = Header(None)
@@ -200,56 +239,5 @@ async def detect_from_file(
     except Exception as e:
         # Add logging here
         return create_error_response(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            f"Error detecting schema from file: {str(e)}",
-        )
-
-
-# The /chat endpoint here seems to be a duplicate or older version of the one in chat.py.
-# It also uses a ChatRequest model that might differ. For now, I am commenting it out.
-# If this is needed, it should be reconciled with app/api/routes/chat.py.
-# @router.post("/chat", response_model=ChatResponse)
-# async def chat(request: ChatRequest, x_api_key: Optional[str] = Header(None)):
-#     """Chat about schema using AI"""
-#     try:
-#         # response_text, suggestions = await chat_service.chat_with_schema(
-#         #     schema_data=request.schema_data.model_dump(),
-#         #     messages=[msg.model_dump() for msg in request.messages],
-#         #     api_key=x_api_key
-#         # )
-#         # return ChatResponse(response=response_text, suggestions=suggestions)
-#         pass # Placeholder
-#     except ChatError as e:
-#         return create_error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Chat service error: {str(e)}")
-#     except aiohttp.ClientError as e: # aiohttp might not be used directly here anymore
-#         return create_error_response(status.HTTP_503_SERVICE_UNAVAILABLE, f"External service error: {str(e)}")
-#     except Exception as e:
-#         return create_error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error during chat: {str(e)}")
-
-
-@router.post("/generate-code", response_model=CodeGenResponse)
-async def generate_code(
-    request: CodeGenRequest, x_api_key: Optional[str] = Header(None)
-) -> CodeGenResponse:
-    """Generate code from schema using Gemini AI"""
-    try:
-        # Assuming code_generator.generate is async or can be called in an async context
-        # If code_generator needs to save results or interact with DB, it should be refactored.
-        generated_code_response: CodeGenResponse = await code_generator.generate(
-            schema_data=request.schema_data,
-            target_format=request.format,
-            options=request.options,
-            api_key=x_api_key,  # Pass API key if needed
-        )
-        return generated_code_response
-    except CodeGenerationError as e:
-        return create_error_response(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, f"Code generation error: {str(e)}"
-        )
-    except NotImplementedError as e:
-        return create_error_response(status.HTTP_501_NOT_IMPLEMENTED, str(e))
-    except Exception as e:
-        # Add logging here
-        return create_error_response(
-            status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error generating code: {str(e)}"
+            status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error detecting schema from file: {str(e)}"
         )

@@ -14,6 +14,8 @@ from ...models.schemas import (
     ProjectCreate as PydanticProjectCreate,
     ProjectResponse as PydanticProjectResponse,
     ProjectDetailResponse as PydanticProjectDetailResponse,
+    DatabaseConfig, # Added DatabaseConfig
+    ProjectUpdate as PydanticProjectUpdate # Added ProjectUpdate
 )
 from ...models.orm_models import (
     Project as ORMProject,
@@ -96,6 +98,43 @@ async def get_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         )
 
 
+@router.put("/projects/{project_id}", response_model=PydanticProjectResponse)
+async def update_project(
+    project_id: uuid.UUID,
+    project_data: PydanticProjectUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an existing project."""
+    try:
+        result = await db.execute(
+            select(ORMProject).filter(ORMProject.id == project_id)
+        )
+        db_project = result.scalars().first()
+
+        if not db_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with id {project_id} not found"
+            )
+
+        update_data = project_data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_project, key, value)
+        
+        db_project.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(db_project)
+        return db_project
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating project {project_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating project: {str(e)}",
+        )
+
+
 class SchemaCreateRequest(BaseModel):
     project_id: uuid.UUID
     schema_content: Dict[str, Any]  # Or your SchemaResponse model
@@ -172,3 +211,79 @@ async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_d
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting project: {str(e)}",
         )
+
+
+@router.post("/connect", summary="Connect to a database (placeholder)")
+async def connect_to_database(
+    config: DatabaseConfig,
+    # db_inspector: DatabaseInspector = Depends(DatabaseInspector) # If inspector handles connection
+):
+    """
+    Placeholder for connecting to a database.
+    Actual connection logic would be in a service.
+    """
+    try:
+        # Example: Simulate connection test or get metadata
+        # connection_successful = db_inspector.test_connection(config)
+        # if not connection_successful:
+        #     raise HTTPException(status_code=400, detail="Failed to connect to the database")
+        # For now, just acknowledge the request
+        logger.info(f"Connection request received for: {config.db_type}")
+        return {"success": True, "message": "Connection request received.", "config_received": config.model_dump()}
+    except Exception as e:
+        logger.exception("Error in /connect endpoint")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/test", summary="Test database connection (placeholder)")
+async def test_database_connection(
+    config: DatabaseConfig,
+    # db_inspector: DatabaseInspector = Depends(DatabaseInspector) # If inspector handles connection test
+):
+    """
+    Tests the connection to the specified database.
+    """
+    try:
+        # success = db_inspector.test_connection(config) # Actual test logic
+        # if not success:
+        #     raise HTTPException(status_code=400, detail="Database connection test failed.")
+        # For now, simulate success
+        logger.info(f"Test connection request for: {config.db_type}")
+        return {"success": True, "message": "Database connection test successful (simulated)."}
+    except Exception as e:
+        logger.exception("Error testing database connection")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+class DatabaseImportRequest(BaseModel):
+    config: DatabaseConfig
+    # tables: Optional[List[str]] = None # Or whatever structure your frontend sends for schema import
+    # For now, let's assume we try to import everything the inspector can find
+
+
+@router.post("/import", summary="Import database schema (placeholder)")
+async def import_database_schema(
+    import_request: DatabaseImportRequest, # Changed to DatabaseImportRequest
+    # db_inspector: DatabaseInspector = Depends(DatabaseInspector) # If inspector handles import
+):
+    """
+    Placeholder for importing a database schema based on connection config.
+    """
+    try:
+        # imported_schema_data = db_inspector.import_schema(
+        #     config=import_request.config,
+        #     # tables=import_request.tables # if you allow specific table import
+        # )
+        # if not imported_schema_data:
+        #     raise HTTPException(status_code=400, detail="Failed to import schema.")
+        # For now, just acknowledge
+        logger.info(f"Schema import request for: {import_request.config.db_type}")
+        return {
+            "success": True,
+            "message": "Schema import request received (simulated).",
+            "config_received": import_request.config.model_dump()
+            # "imported_schema": imported_schema_data # if you return the schema
+        }
+    except Exception as e:
+        logger.exception("Error during schema import")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
