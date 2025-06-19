@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: schemasage-postgres
+    environment:
+      POSTGRES_DB: schemasage
+      POSTGRES_USER: schemasage
+      POSTGRES_PASSWORD: schemasage123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - schemasage-network
+
+  # API Gateway
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - SCHEMA_DETECTION_URL=http://schema-detection:8001
+      - CODE_GENERATION_URL=http://code-generation:8002
+      - AI_CHAT_URL=http://ai-chat:8003
+      - PROJECT_MANAGEMENT_URL=http://project-management:8004
+    depends_on:
+      - schema-detection
+      - code-generation
+      - ai-chat
+      - project-management
+    networks:
+      - schemasage-network
+  # Schema Detection Service
+  schema-detection:
+    build: ./services/schema-detection
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - schemasage-network
+
+  # Code Generation Service
+  code-generation:
+    build: ./services/code-generation
+    ports:
+      - "8002:8002"
+    environment:
+      - ENV=development
+      - SCHEMA_DETECTION_URL=http://schema-detection:8001
+    networks:
+      - schemasage-network
+  # AI Chat Service
+  ai-chat:
+    build: ./services/ai-chat
+    ports:
+      - "8003:8003"
+    environment:
+      - ENV=development
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_MODEL=gemini-2.0-flash
+    networks:
+      - schemasage-network
+
+  # Project Management Service
+  project-management:
+    build: ./services/project-management
+    ports:
+      - "8004:8004"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://project_user:password@postgres-projects:5432/project_management
+    depends_on:
+      - postgres-projects
+    networks:
+      - schemasage-network
+
+  # Authentication Service
+  authentication:
+    build: ./services/authentication
+    ports:
+      - "8005:8005"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://auth_user:password@postgres-auth:5432/authentication
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
+    depends_on:
+      - postgres-auth
+    networks:
+      - schemasage-network
+
+  # Analytics Service
+  analytics:
+    build: ./services/analytics
+    ports:
+      - "8006:8006"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://analytics_user:password@postgres-analytics:5432/analytics
+    depends_on:
+      - postgres-analytics
+    networks:
+      - schemasage-network
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api-gateway
+    networks:
+      - schemasage-network
+
+  # Database Services
+  postgres-schema:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: schema_detection
+      POSTGRES_USER: schema_user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_schema_data:/var/lib/postgresql/data
+    networks:
+      - schemasage-network
+
+  postgres-projects:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: project_management
+      POSTGRES_USER: project_user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_projects_data:/var/lib/postgresql/data
+    networks:
+      - schemasage-network
+
+  postgres-auth:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: authentication
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    networks:
+      - schemasage-network
+
+  postgres-analytics:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_analytics_data:/var/lib/postgresql/data
+    networks:
+      - schemasage-network
+
+  # Shared Services
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - schemasage-network
+
+  # Message Queue (for event-driven communication)
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: schemasage
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - schemasage-network
+
+volumes:
+  postgres_schema_data:
+  postgres_projects_data:
+  postgres_auth_data:
+  postgres_analytics_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  schemasage-network:
+    driver: bridge
