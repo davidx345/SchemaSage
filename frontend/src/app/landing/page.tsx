@@ -198,8 +198,7 @@ export default function LandingPage() {
             </div>
             <span className="text-xl font-bold">SchemaSage</span>
           </motion.div>
-          
-          <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-8">
             <Link href="#features" className="hover:text-purple-300 transition-colors">Features</Link>
             <Link href="#pricing" className="hover:text-purple-300 transition-colors">Pricing</Link>
             <Link href="#docs" className="hover:text-purple-300 transition-colors">Docs</Link>
@@ -207,6 +206,14 @@ export default function LandingPage() {
               <Link href="/auth/login">
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
                   Get Started
+                </Button>
+              </Link>
+            </motion.div>
+            {/* TEMPORARY DEVELOPMENT BUTTON - REMOVE IN PRODUCTION */}
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link href="/dashboard">
+                <Button variant="outline" className="border-purple-400 text-purple-300 hover:bg-purple-500 hover:text-white">
+                  Dashboard (Dev)
                 </Button>
               </Link>
             </motion.div>

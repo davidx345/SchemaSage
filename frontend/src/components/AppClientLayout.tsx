@@ -18,12 +18,13 @@ export default function AppClientLayout({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
   const isAuthPage = pathname.startsWith("/auth");
+  const isDashboardPage = pathname === "/dashboard"; // Add dashboard check
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={fontClassName}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          {isLandingPage || isAuthPage ? (
+          {isLandingPage || isAuthPage || isDashboardPage ? (
             <>
               {children}
               <Toaster position="bottom-right" />

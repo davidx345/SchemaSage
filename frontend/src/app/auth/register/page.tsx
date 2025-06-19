@@ -10,45 +10,57 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import axios from "axios";
-import { Eye, EyeOff, Sparkles, ArrowRight, Shield, Zap } from "lucide-react";
+import { Eye, EyeOff, Sparkles, ArrowRight, Shield, Zap, Users, CheckCircle } from "lucide-react";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { setToken } = useAuth();  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const { setToken } = useAuth();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+
+    // Basic validation still in place
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
     setIsLoading(true);
 
     // TEMPORARY DEVELOPMENT BYPASS - REMOVE IN PRODUCTION
-    console.log("Development mode: Bypassing authentication");
+    console.log("Development mode: Bypassing registration");
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
     setIsLoading(false);
     router.push("/dashboard");
     return;
 
-    // Original authentication logic (commented out for development)
+    // Original registration logic (commented out for development)
     /*
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
-
     try {
-      const response = await api.post("/auth/login", formData, {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+      const response = await api.post("/auth/register", {
+        name,
+        email,
+        password,
       });
 
       if (response.data.access_token) {
         setToken(response.data.access_token);
         router.push("/dashboard");
       } else {
-        setError("Login failed: No access token received.");
+        setError("Registration failed: No access token received.");
       }
     } catch (err) {
       if (
@@ -61,9 +73,9 @@ export default function LoginPage() {
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("An unexpected error occurred during login.");
+        setError("An unexpected error occurred during registration.");
       }
-      console.error("Login error:", err);
+      console.error("Registration error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -75,8 +87,9 @@ export default function LoginPage() {
       {/* Animated background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
         <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute bottom-0 right-20 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-6000"></div>
       </div>
 
       {/* Grid pattern overlay */}
@@ -100,7 +113,7 @@ export default function LoginPage() {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="p-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl"
+                className="p-3 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-xl"
               >
                 <Sparkles className="w-8 h-8 text-white" />
               </motion.div>
@@ -108,7 +121,7 @@ export default function LoginPage() {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent"
+                className="text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent"
               >
                 SchemaSage
               </motion.h1>
@@ -120,7 +133,7 @@ export default function LoginPage() {
               transition={{ delay: 0.6, duration: 0.6 }}
               className="text-3xl font-bold mb-4"
             >
-              Welcome Back
+              Join the Revolution
             </motion.h2>
             
             <motion.p 
@@ -129,32 +142,63 @@ export default function LoginPage() {
               transition={{ delay: 0.8, duration: 0.6 }}
               className="text-lg text-gray-300 max-w-md"
             >
-              Transform your data into intelligent schemas with the power of AI. Continue your journey towards smarter database design.
+              Start your journey with AI-powered schema generation. Transform your data into intelligent database designs in minutes, not hours.
             </motion.p>
 
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 1, duration: 0.6 }}
-              className="flex items-center justify-center space-x-8 mt-12"
+              className="grid grid-cols-2 gap-4 mt-12"
             >
               <div className="flex items-center space-x-2 text-sm text-gray-300">
                 <Shield className="w-5 h-5 text-green-400" />
-                <span>Secure</span>
+                <span>Secure & Private</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-300">
                 <Zap className="w-5 h-5 text-yellow-400" />
-                <span>Fast</span>
+                <span>Lightning Fast</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-300">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                <span>Smart</span>
+                <span>AI-Powered</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-gray-300">
+                <Users className="w-5 h-5 text-cyan-400" />
+                <span>Team Friendly</span>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 1.2, duration: 0.6 }}
+              className="mt-8 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
+            >
+              <h3 className="text-lg font-semibold mb-3 text-cyan-300">What you'll get:</h3>
+              <div className="space-y-2 text-sm text-gray-300">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>Unlimited schema generation</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>Multi-format export (SQL, JSON, etc.)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>AI-powered optimizations</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span>Real-time collaboration</span>
+                </div>
               </div>
             </motion.div>
           </motion.div>
         </motion.div>
 
-        {/* Right side - Login form */}
+        {/* Right side - Register form */}
         <motion.div 
           initial={{ x: 100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -175,8 +219,8 @@ export default function LoginPage() {
                 transition={{ delay: 0.4, duration: 0.5 }}
                 className="text-center mb-8"
               >
-                <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
-                <p className="text-gray-300">Access your SchemaSage account</p>
+                <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
+                <p className="text-gray-300">Start your SchemaSage journey today</p>
               </motion.div>
 
               {error && (
@@ -194,6 +238,27 @@ export default function LoginPage() {
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
+                  className="space-y-2"
+                >
+                  <Label htmlFor="name" className="text-white font-medium">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12"
+                    placeholder="John Doe"
+                  />
+                </motion.div>
+
+                <motion.div 
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.6, duration: 0.5 }}
                   className="space-y-2"
                 >
                   <Label htmlFor="email" className="text-white font-medium">
@@ -214,7 +279,7 @@ export default function LoginPage() {
                 <motion.div 
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
+                  transition={{ delay: 0.7, duration: 0.5 }}
                   className="space-y-2"
                 >
                   <Label htmlFor="password" className="text-white font-medium">
@@ -242,57 +307,89 @@ export default function LoginPage() {
                 </motion.div>
 
                 <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.7, duration: 0.5 }}
-                  className="flex items-center justify-between text-sm"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                  className="space-y-2"
                 >
-                  <Link 
-                    href="/auth/forgot-password" 
-                    className="text-purple-300 hover:text-purple-200 transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
+                  <Label htmlFor="confirmPassword" className="text-white font-medium">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12 pr-12"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </motion.div>
 
                 <motion.div 
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
+                  transition={{ delay: 0.9, duration: 0.5 }}
                 >
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold rounded-xl h-12 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-purple-500/25 group"
+                    className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold rounded-xl h-12 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-purple-500/25 group"
                   >
                     {isLoading ? (
                       <div className="flex items-center space-x-2">
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        <span>Signing in...</span>
+                        <span>Creating account...</span>
                       </div>
                     ) : (
                       <div className="flex items-center space-x-2">
-                        <span>Sign In</span>
+                        <span>Create Account</span>
                         <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                       </div>
                     )}
                   </Button>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1, duration: 0.5 }}
+                  className="text-center text-xs text-gray-400"
+                >
+                  By creating an account, you agree to our{" "}
+                  <Link href="/terms" className="text-purple-300 hover:text-purple-200 transition-colors">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="text-purple-300 hover:text-purple-200 transition-colors">
+                    Privacy Policy
+                  </Link>
                 </motion.div>
               </form>
 
               <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.9, duration: 0.5 }}
+                transition={{ delay: 1.1, duration: 0.5 }}
                 className="mt-8 text-center"
               >
                 <p className="text-gray-300">
-                  Don't have an account?{" "}
+                  Already have an account?{" "}
                   <Link 
-                    href="/auth/register" 
+                    href="/auth/login" 
                     className="text-purple-300 hover:text-purple-200 transition-colors font-semibold"
                   >
-                    Sign up
+                    Sign in
                   </Link>
                 </p>
               </motion.div>
