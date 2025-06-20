@@ -2,7 +2,6 @@
 
 import { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -28,8 +27,6 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, title, subtitle, currentPage }: MainLayoutProps) {
-  const router = useRouter();
-
   const navigationItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
     { id: "upload", label: "Upload Data", icon: Upload, href: "/upload" },

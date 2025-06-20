@@ -24,7 +24,6 @@ import {
   Users,
   BarChart3,
   FileText,
-  Settings,
   Bell,
   Search
 } from "lucide-react";

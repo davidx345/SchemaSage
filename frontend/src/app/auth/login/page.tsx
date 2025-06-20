@@ -7,9 +7,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/store";
-import { api } from "@/lib/api";
-import axios from "axios";
 import { Eye, EyeOff, Sparkles, ArrowRight, Shield, Zap } from "lucide-react";
 
 export default function LoginPage() {
@@ -19,7 +16,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { setToken } = useAuth();  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -283,7 +281,7 @@ export default function LoginPage() {
                 className="mt-8 text-center"
               >
                 <p className="text-gray-300">
-                  Don't have an account?{" "}                  <Link 
+                  Don&apos;t have an account?{" "}                  <Link 
                     href="/auth/register" 
                     className="text-blue-300 hover:text-blue-200 transition-colors font-semibold"
                   >

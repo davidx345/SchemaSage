@@ -1,17 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { PricingCard } from "@/components/pricing-card";
-import { Testimonial } from "@/components/testimonial";
-import { FeatureCard } from "@/components/feature-card";
-import { FAQ } from "@/components/faq";
 import {
   Database,
   Code2,
-  Wand2,
   Zap,
   Shield,
-  LineChart,
   ArrowRight,
   Sparkles,
   Brain,
@@ -23,7 +17,6 @@ import {
   Github,
   Twitter,
   Award,
-  TrendingUp,
   Globe,
   Layers,
 } from "lucide-react";
@@ -38,18 +31,6 @@ const fadeInUp = {
   transition: { duration: 0.6 }
 };
 
-const fadeInLeft = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.6 }
-};
-
-const fadeInRight = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.6 }
-};
-
 const staggerContainer = {
   animate: {
     transition: {
@@ -59,6 +40,29 @@ const staggerContainer = {
 };
 
 export default function LandingPage() {
+  const testimonials = [
+    {
+      name: "Sarah Chen",
+      role: "Lead Developer at TechCorp",
+      content: "SchemaSage saved us weeks of work. The AI-powered schema detection is incredibly accurate.",
+      avatar: "SC",
+      rating: 5
+    },
+    {
+      name: "Marcus Johnson",
+      role: "Data Architect at DataFlow",
+      content: "The code generation feature is a game-changer. Perfect TypeScript interfaces every time.",
+      avatar: "MJ",
+      rating: 5
+    },
+    {
+      name: "Emily Rodriguez",
+      role: "Full Stack Engineer",
+      content: "Finally, a tool that understands complex data relationships. The ER diagrams are beautiful!",
+      avatar: "ER",
+      rating: 5
+    }
+  ];
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
@@ -85,31 +89,8 @@ export default function LandingPage() {
       clearInterval(testimonialInterval);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, []);
+  }, [testimonials.length]);
 
-  const testimonials = [
-    {
-      name: "Sarah Chen",
-      role: "Lead Developer at TechCorp",
-      content: "SchemaSage saved us weeks of work. The AI-powered schema detection is incredibly accurate.",
-      avatar: "SC",
-      rating: 5
-    },
-    {
-      name: "Marcus Johnson",
-      role: "Data Architect at DataFlow",
-      content: "The code generation feature is a game-changer. Perfect TypeScript interfaces every time.",
-      avatar: "MJ",
-      rating: 5
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Full Stack Engineer",
-      content: "Finally, a tool that understands complex data relationships. The ER diagrams are beautiful!",
-      avatar: "ER",
-      rating: 5
-    }
-  ];
   const features = [
     {
       icon: Brain,
@@ -203,8 +184,8 @@ export default function LandingPage() {
                 <Button className="bg-gradient-to-r from-slate-600 to-blue-600 hover:from-slate-700 hover:to-blue-700 text-white border-0">
                   Get Started
                 </Button>
-              </Link>
-            </motion.div>
+                </Link>
+              </motion.div>
             {/* TEMPORARY DEVELOPMENT BUTTON - REMOVE IN PRODUCTION */}
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link href="/dashboard">
@@ -317,7 +298,7 @@ export default function LandingPage() {
               { label: "Schemas Generated", value: "2M+", icon: Database },
               { label: "Hours Saved", value: "100K+", icon: Clock },
               { label: "Enterprise Clients", value: "500+", icon: Award },
-            ].map((stat, index) => (
+            ].map((stat) => (
               <motion.div
                 key={stat.label}
                 className="text-center"
@@ -360,7 +341,7 @@ export default function LandingPage() {
             whileInView="animate"
             viewport={{ once: true }}
           >
-            {features.map((feature, index) => (
+            {features.map((feature) => (
               <motion.div
                 key={feature.title}
                 className="group p-8 rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300"
@@ -392,7 +373,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent">
-              Loved by Developers Worldwide
+              &quot;Loved by Developers Worldwide&quot;
             </h2>
             <p className="text-xl text-gray-300">
               Join thousands of developers who trust SchemaSage for their database needs.
@@ -415,7 +396,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <blockquote className="text-2xl md:text-3xl font-medium text-gray-200 mb-8 leading-relaxed">
-                  "{testimonials[currentTestimonial].content}"
+                  &quot;{testimonials[currentTestimonial].content}&quot;
                 </blockquote>
                 <div className="flex items-center justify-center gap-4">                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-slate-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
                     {testimonials[currentTestimonial].avatar}

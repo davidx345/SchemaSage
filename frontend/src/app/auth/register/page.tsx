@@ -7,9 +7,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/store";
-import { api } from "@/lib/api";
-import axios from "axios";
 import { Eye, EyeOff, Sparkles, ArrowRight, Shield, Zap, Users, CheckCircle } from "lucide-react";
 
 export default function RegisterPage() {
@@ -22,7 +19,6 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { setToken } = useAuth();
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -173,7 +169,7 @@ export default function RegisterPage() {
               transition={{ delay: 1.2, duration: 0.6 }}
               className="mt-8 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
             >
-              <h3 className="text-lg font-semibold mb-3 text-teal-300">What you'll get:</h3>
+              <h3 className="text-lg font-semibold mb-3 text-teal-300">What&apos;s included:</h3>
               <div className="space-y-2 text-sm text-gray-300">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-400" />
