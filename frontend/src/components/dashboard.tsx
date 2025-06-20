@@ -122,10 +122,9 @@ export default function Dashboard() {
     { id: 1, description: "Created project 'Sample Project'", timestamp: new Date().toLocaleString() },
     { id: 2, description: "Updated schema for 'Orders'", timestamp: new Date(Date.now() - 3600 * 1000).toLocaleString() },
     { id: 3, description: "Generated code for 'Users'", timestamp: new Date(Date.now() - 2 * 3600 * 1000).toLocaleString() },
-  ];
-  if (loading) {
+  ];  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -134,17 +133,16 @@ export default function Dashboard() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 mx-auto mb-4 border-4 border-purple-400 border-t-transparent rounded-full"
+            className="w-16 h-16 mx-auto mb-4 border-4 border-blue-400 border-t-transparent rounded-full"
           />
           <p className="text-lg">Loading your dashboard...</p>
         </motion.div>
       </div>
     );
   }
-  
-  if (error) {
+    if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center text-red-400 bg-red-500/10 p-8 rounded-2xl border border-red-500/20">
           <p className="text-lg">{error}</p>
         </div>
@@ -153,14 +151,13 @@ export default function Dashboard() {
   }
   
   if (!stats) return null;  return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 relative overflow-hidden">
+    <TooltipProvider>      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 dark:bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-cyan-300 dark:bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 dark:bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-4000"></div>
-        <div className="absolute bottom-0 right-20 w-72 h-72 bg-yellow-300 dark:bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-6000"></div>
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-300 dark:bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-teal-300 dark:bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-slate-300 dark:bg-slate-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-4000"></div>
+        <div className="absolute bottom-0 right-20 w-72 h-72 bg-sky-300 dark:bg-sky-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 dark:opacity-30 animate-blob animation-delay-6000"></div>
       </div>
 
       {/* Grid pattern overlay */}
@@ -178,7 +175,7 @@ export default function Dashboard() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="p-3 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-xl shadow-lg"
+              className="p-3 bg-gradient-to-r from-slate-600 to-sky-600 rounded-xl shadow-lg"
             >
               <Sparkles className="w-8 h-8 text-white" />
             </motion.div>
@@ -192,10 +189,9 @@ export default function Dashboard() {
             {/* Search Bar */}
             <div className="hidden md:flex items-center space-x-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />                <Input
                   placeholder="Search projects..."
-                  className="pl-10 w-64 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl"
+                  className="pl-10 w-64 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
                 />
               </div>
             </div>
@@ -215,7 +211,7 @@ export default function Dashboard() {
             {/* New Project Button */}
             <Button
               onClick={() => setNewProjectDialog(true)}
-              className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold rounded-xl px-6 py-3 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25 group"
+              className="bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white font-semibold rounded-xl px-6 py-3 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-slate-500/25 group"
             >
               <Plus className="w-5 h-5 mr-2" />
               New Project
@@ -230,13 +226,13 @@ export default function Dashboard() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.6 }}
           >
-            <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-6 hover:bg-white/90 dark:hover:bg-white/15 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-purple-500/10">
+            <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-6 hover:bg-white/90 dark:hover:bg-white/15 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500 dark:text-gray-400 mb-1">Active Projects</p>
                   <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.activeProjects}</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl">
                   <FolderOpen className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -248,13 +244,13 @@ export default function Dashboard() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-6 hover:bg-white/90 dark:hover:bg-white/15 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-cyan-500/10">
+            <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-6 hover:bg-white/90 dark:hover:bg-white/15 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-teal-500/10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500 dark:text-gray-400 mb-1">Tables Processed</p>
                   <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.tablesProcessed}</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-cyan-400 to-blue-400 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-sky-500 to-sky-600 rounded-xl">
                   <BarChart3 className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -272,7 +268,7 @@ export default function Dashboard() {
                   <p className="text-sm text-slate-500 dark:text-gray-400 mb-1">Success Rate</p>
                   <p className="text-3xl font-bold text-slate-900 dark:text-white">98%</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -290,7 +286,7 @@ export default function Dashboard() {
                   <p className="text-sm text-slate-500 dark:text-gray-400 mb-1">Time Saved</p>
                   <p className="text-3xl font-bold text-slate-900 dark:text-white">24h</p>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-slate-400 to-slate-500 rounded-xl">
                   <Clock className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -314,10 +310,10 @@ export default function Dashboard() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleUpload}
-                    className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 dark:from-purple-500/20 dark:to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
+                    className="bg-gradient-to-r from-slate-500/20 to-sky-500/20 dark:from-slate-500/20 dark:to-sky-500/20 hover:from-slate-500/30 hover:to-sky-500/30 border border-slate-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
                   >
                     <div className="flex flex-col items-center space-y-3">
-                      <Upload className="w-8 h-8 text-purple-600 dark:text-purple-300 group-hover:text-purple-500 dark:group-hover:text-purple-200" />
+                      <Upload className="w-8 h-8 text-slate-600 dark:text-slate-300 group-hover:text-slate-500 dark:group-hover:text-slate-200" />
                       <span>Upload Data</span>
                       <p className="text-xs text-slate-500 dark:text-gray-400 text-center">Import JSON, CSV, or Excel files</p>
                     </div>
@@ -330,10 +326,10 @@ export default function Dashboard() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleConnectDb}
-                    className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 dark:from-cyan-500/20 dark:to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
+                    className="bg-gradient-to-r from-sky-500/20 to-teal-500/20 dark:from-sky-500/20 dark:to-teal-500/20 hover:from-sky-500/30 hover:to-teal-500/30 border border-sky-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
                   >
                     <div className="flex flex-col items-center space-y-3">
-                      <Database className="w-8 h-8 text-cyan-600 dark:text-cyan-300 group-hover:text-cyan-500 dark:group-hover:text-cyan-200" />
+                      <Database className="w-8 h-8 text-teal-600 dark:text-teal-300 group-hover:text-teal-500 dark:group-hover:text-teal-200" />
                       <span>Connect Database</span>
                       <p className="text-xs text-slate-500 dark:text-gray-400 text-center">Import from existing databases</p>
                     </div>
@@ -346,7 +342,7 @@ export default function Dashboard() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleGenerateCode}
-                    className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 dark:from-green-500/20 dark:to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
+                    className="bg-gradient-to-r from-teal-500/20 to-slate-500/20 dark:from-teal-500/20 dark:to-slate-500/20 hover:from-teal-500/30 hover:to-slate-500/30 border border-teal-500/50 text-slate-900 dark:text-white font-semibold rounded-xl p-6 h-auto transition-all duration-300 transform hover:scale-105 group backdrop-blur-sm"
                   >
                     <div className="flex flex-col items-center space-y-3">
                       <Code className="w-8 h-8 text-green-600 dark:text-green-300 group-hover:text-green-500 dark:group-hover:text-green-200" />
@@ -372,13 +368,13 @@ export default function Dashboard() {
             <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-8 h-full">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center">
-                  <FolderOpen className="w-6 h-6 mr-3 text-purple-600 dark:text-purple-400" />
+                  <FolderOpen className="w-6 h-6 mr-3 text-slate-600 dark:text-slate-400" />
                   Recent Projects
                 </h2>
                 <Button
                   onClick={() => setNewProjectDialog(true)}
                   size="sm"
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg"
+                  className="bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white rounded-lg"
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   New
@@ -407,7 +403,7 @@ export default function Dashboard() {
                               Updated {new Date(proj.updatedAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <div className="p-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg">
+                          <div className="p-2 bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg">
                             <FileText className="w-4 h-4 text-white" />
                           </div>
                         </div>
@@ -427,7 +423,7 @@ export default function Dashboard() {
           >
             <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 p-8 h-full">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center">
-                <Activity className="w-6 h-6 mr-3 text-cyan-600 dark:text-cyan-400" />
+                <Activity className="w-6 h-6 mr-3 text-teal-600 dark:text-teal-400" />
                 Activity Feed
               </h2>
               <div className="space-y-4">
@@ -446,7 +442,7 @@ export default function Dashboard() {
                       transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
                     >
                       <div className="flex items-start space-x-3 p-3 bg-white/50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                        <div className="p-2 bg-gradient-to-r from-cyan-400 to-blue-400 rounded-lg">
+                        <div className="p-2 bg-gradient-to-r from-sky-500 to-sky-600 rounded-lg">
                           <Activity className="w-4 h-4 text-white" />
                         </div>
                         <div className="flex-1">
@@ -475,21 +471,21 @@ export default function Dashboard() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center space-y-4">
-                <div className="p-4 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
+                <div className="p-4 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
                   <Shield className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Secure & Private</h3>
                 <p className="text-slate-600 dark:text-gray-400 text-sm">Your data is encrypted and never stored on our servers</p>
               </div>
               <div className="text-center space-y-4">
-                <div className="p-4 bg-gradient-to-r from-cyan-400 to-blue-400 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
+                <div className="p-4 bg-gradient-to-r from-sky-500 to-sky-600 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
                   <Zap className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Lightning Fast</h3>
                 <p className="text-slate-600 dark:text-gray-400 text-sm">Generate complex schemas in seconds with AI assistance</p>
               </div>
               <div className="text-center space-y-4">
-                <div className="p-4 bg-gradient-to-r from-green-400 to-emerald-400 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
+                <div className="p-4 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl w-16 h-16 mx-auto flex items-center justify-center">
                   <Users className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Team Collaboration</h3>
@@ -513,7 +509,7 @@ export default function Dashboard() {
                 placeholder="Enter project name"
                 value={newProject.name}
                 onChange={e => setNewProject({ ...newProject, name: e.target.value })}
-                className="bg-white/50 dark:bg-white/10 border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl"
+                className="bg-white/50 dark:bg-white/10 border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
               />
             </div>
             <div className="space-y-2">
@@ -522,7 +518,7 @@ export default function Dashboard() {
                 placeholder="Describe your project..."
                 value={newProject.description}
                 onChange={e => setNewProject({ ...newProject, description: e.target.value })}
-                className="bg-white/50 dark:bg-white/10 border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl min-h-[100px]"
+                className="bg-white/50 dark:bg-white/10 border-slate-200 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl min-h-[100px]"
               />
             </div>
           </div>
@@ -538,7 +534,7 @@ export default function Dashboard() {
             <Button 
               onClick={handleCreateProject} 
               disabled={creating || !newProject.name.trim()}
-              className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold"
+              className="bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white font-semibold"
             >
               {creating ? (
                 <div className="flex items-center space-x-2">

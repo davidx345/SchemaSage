@@ -43,10 +43,18 @@ export function SchemaForm() {
 
     setIsLoading(true);
     setError(null);
-    
-    try {
+      try {
       const result = await schemaApi.detectSchema(input);
-      setSchema(result);
+      if (result.success && result.data) {
+        setSchema(result.data.schema);
+      } else {
+        setError({
+          message: result.error?.message || "Failed to detect schema",
+          details: {
+            error: result.error?.message || "Schema detection returned no data",
+          }
+        });
+      }
     } catch (error: unknown) {
       console.error("Schema detection error:", error);
       const apiError = error as ApiError;
@@ -80,13 +88,21 @@ export function SchemaForm() {
       return value.includes(",") && value.includes("\n");
     }
   };
-
   const handleFileData = async (data: string) => {
     setError(null);
     setIsLoading(true);
     try {
       const response = await schemaApi.detectSchema(data);
-      setSchema(response); // response is SchemaResponse
+      if (response.success && response.data) {
+        setSchema(response.data.schema);
+      } else {
+        setError({
+          message: response.error?.message || "Failed to detect schema from file",
+          details: {
+            error: response.error?.message || "Schema detection returned no data",
+          }
+        });
+      }
     } catch (err) {
       const errorObj = err as ApiError;
       setError({
@@ -162,7 +178,7 @@ export function SchemaForm() {
           <ERDiagram schema={schema} />
         </TabsContent>
         <TabsContent value="chat">
-          <ChatInterface />
+          {schema && <ChatInterface schema={schema} />}
         </TabsContent>
       </Tabs>
     </Card>

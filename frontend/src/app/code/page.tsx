@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -20,6 +20,7 @@ import { useStore } from "@/lib/store";
 import { schemaApi } from "@/lib/api";
 import { CodeGenFormat } from "@/lib/types";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { MainLayout } from "@/components/main-layout";
 
 export default function CodePage() {
   const router = useRouter();
@@ -98,148 +99,170 @@ export default function CodePage() {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  // If no schema data, show loading or empty state
+  };  // If no schema data, show loading or empty state
   if (!currentSchema) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No Schema Data</h2>
-          <p className="text-muted-foreground mb-4">
-            You need to upload data or connect to a database first.<br />
-            <span className="text-xs">Tip: Try the sample project from onboarding to explore code generation features.</span>
-          </p>
-          <Button onClick={() => router.push("/upload")}>Upload Data</Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Code Generation</h1>
-        <p className="text-muted-foreground">
-          Generate code for your database schema in multiple languages and formats.
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-12">
-        <Card className="p-6 md:col-span-4">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Generation Options</h2>
-              
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="language">Language</Label>
-                  <div className="flex gap-4 items-end">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Select value={language} onValueChange={handleLanguageChange}>
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Select language" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="typescript">TypeScript</SelectItem>
-                            <SelectItem value="python">Python</SelectItem>
-                            <SelectItem value="sql">SQL</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TooltipTrigger>
-                      <TooltipContent>Select code generation language</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="format">Format</Label>
-                  <Select
-                    value={format}
-                    onValueChange={handleFormatChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {language === "typescript" && (
-                        <>
-                          <SelectItem value="typescript-types">TypeScript Interfaces</SelectItem>
-                          <SelectItem value="typescript-zod">TypeScript with Zod</SelectItem>
-                          <SelectItem value="typescript-class">TypeScript Classes</SelectItem>
-                        </>
-                      )}
-                      {language === "python" && (
-                        <>
-                          <SelectItem value="python-dataclass">Python Dataclasses</SelectItem>
-                          <SelectItem value="python-pydantic">Python Pydantic</SelectItem>
-                        </>
-                      )}
-                      {language === "sql" && (
-                        <>
-                          <SelectItem value="sql-table">SQL Create Tables</SelectItem>
-                          <SelectItem value="sql-migration">SQL Migration</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="comments"
-                      checked={includeComments}
-                      onCheckedChange={(checked: boolean) => setIncludeComments(checked)}
-                    />
-                    <Label htmlFor="comments">Include comments</Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="validation"
-                      checked={includeValidation}
-                      onCheckedChange={(checked: boolean) => setIncludeValidation(checked)}
-                    />
-                    <Label htmlFor="validation">Include validation</Label>
-                  </div>
-                </div>
+      <MainLayout title="Code Generation" currentPage="code">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center max-w-md">
+            <div className="mb-6">              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-teal-100 to-slate-100 dark:from-teal-900/20 dark:to-slate-900/20 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-teal-600 dark:text-teal-400" />
               </div>
-            </div>
-
-            <div>
-              <h2 className="text-lg font-semibold mb-3">Schema Summary</h2>
-              <div className="rounded-md bg-muted p-4 text-sm">
-                <p className="font-medium">Tables: {currentSchema.tables.length}</p>
-                <p>Columns: {currentSchema.tables.reduce((sum, table) => sum + table.columns.length, 0)}</p>
-                <p>Relationships: {currentSchema.relationships?.length || 0}</p>
-              </div>
-            </div>
-
-            <Button 
-              className="w-full" 
-              onClick={handleGenerateCode}
-              disabled={isGenerating}
+              <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-teal-600 to-slate-600 bg-clip-text text-transparent">
+                No Schema Data
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                You need to upload data or connect to a database first.
+              </p>
+              <p className="text-xs text-muted-foreground/70 mb-6">
+                💡 Tip: Try the sample project from onboarding to explore code generation features.
+              </p>
+            </div>            <Button 
+              onClick={() => router.push("/upload")}
+              className="bg-gradient-to-r from-teal-600 to-slate-600 hover:from-teal-700 hover:to-slate-700 text-white"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : "Generate Code"}
+              Upload Data
             </Button>
           </div>
-        </Card>
+        </div>
+      </MainLayout>
+    );
+  }  return (
+    <MainLayout 
+      title="Code Generation"
+      subtitle="Generate code for your database schema in multiple languages and formats"
+      currentPage="code"
+    >
+      <div className="space-y-8">
+        <div>          <h1 className="text-3xl font-bold mb-3 bg-gradient-to-r from-teal-600 to-slate-600 bg-clip-text text-transparent">
+            Code Generation
+          </h1>
+          <p className="text-muted-foreground">
+            Generate code for your database schema in multiple languages and formats.
+          </p>
+        </div>
 
-        <div className="md:col-span-8 h-[800px]">
-          <CodePreview 
-            code={generatedCode || `// Select options and click "Generate Code" to get started\n\n// Your ${language} code will appear here`} 
-            language={language}
-            onLanguageChange={handleLanguageChange}
-          />
+        <div className="grid gap-8 md:grid-cols-12">
+          <Card className="p-8 md:col-span-4 bg-background/50 backdrop-blur-sm border-border/50 shadow-lg">
+            <div className="space-y-6">
+              <div className="space-y-4">                <h2 className="text-lg font-semibold bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
+                  Generation Options
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="language" className="text-sm font-medium">Language</Label>
+                    <div className="flex gap-4 items-end">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Select value={language} onValueChange={handleLanguageChange}>
+                            <SelectTrigger className="w-[150px] bg-background/50">
+                              <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="typescript">TypeScript</SelectItem>
+                              <SelectItem value="python">Python</SelectItem>
+                              <SelectItem value="sql">SQL</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TooltipTrigger>
+                        <TooltipContent>Select code generation language</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="format" className="text-sm font-medium">Format</Label>
+                    <Select
+                      value={format}
+                      onValueChange={handleFormatChange}
+                    >
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue placeholder="Select format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {language === "typescript" && (
+                          <>
+                            <SelectItem value="typescript-types">TypeScript Interfaces</SelectItem>
+                            <SelectItem value="typescript-zod">TypeScript with Zod</SelectItem>
+                            <SelectItem value="typescript-class">TypeScript Classes</SelectItem>
+                          </>
+                        )}
+                        {language === "python" && (
+                          <>
+                            <SelectItem value="python-dataclass">Python Dataclasses</SelectItem>
+                            <SelectItem value="python-pydantic">Python Pydantic</SelectItem>
+                          </>
+                        )}
+                        {language === "sql" && (
+                          <>
+                            <SelectItem value="sql-table">SQL Create Tables</SelectItem>
+                            <SelectItem value="sql-migration">SQL Migration</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3 pt-2 border-t border-border/30">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="comments"
+                        checked={includeComments}
+                        onCheckedChange={(checked: boolean) => setIncludeComments(checked)}
+                      />
+                      <Label htmlFor="comments" className="text-sm">Include comments</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="validation"
+                        checked={includeValidation}
+                        onCheckedChange={(checked: boolean) => setIncludeValidation(checked)}
+                      />
+                      <Label htmlFor="validation" className="text-sm">Include validation</Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/30 pt-6">                <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-slate-600 to-teal-600 bg-clip-text text-transparent">
+                  Schema Summary
+                </h3>
+                <div className="rounded-lg bg-background/30 border border-border/30 p-4 text-sm">
+                  <div className="space-y-2">                    <p className="font-medium">📊 Tables: <span className="text-slate-600 dark:text-slate-400">{currentSchema.tables.length}</span></p>
+                    <p className="font-medium">📋 Columns: <span className="text-teal-600 dark:text-teal-400">{currentSchema.tables.reduce((sum, table) => sum + table.columns.length, 0)}</span></p>
+                    <p className="font-medium">🔗 Relationships: <span className="text-sky-600 dark:text-sky-400">{currentSchema.relationships?.length || 0}</span></p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full bg-gradient-to-r from-teal-600 to-slate-600 hover:from-teal-700 hover:to-slate-700 text-white" 
+                onClick={handleGenerateCode}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : "Generate Code"}
+              </Button>
+            </div>
+          </Card>
+
+          <div className="md:col-span-8">
+            <Card className="h-[800px] bg-background/50 backdrop-blur-sm border-border/50 shadow-lg">
+              <CodePreview 
+                code={generatedCode || `// Select options and click "Generate Code" to get started\n\n// Your ${language} code will appear here`} 
+                language={language}
+                onLanguageChange={handleLanguageChange}
+              />
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 }

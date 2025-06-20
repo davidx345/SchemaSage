@@ -15,6 +15,7 @@ import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { databaseApi } from "@/lib/api";
 import type { DatabaseConfig, SchemaResponse, ApiResponse } from "@/lib/types";
+import { MainLayout } from "@/components/main-layout";
 
 export default function UploadPage() {
   // File upload state
@@ -100,43 +101,60 @@ export default function UploadPage() {
       setConnectionStatus("idle");
     }
   };
-
   // Show empty state if no schema has been imported and not currently connecting
   if (!importedSchema && !isConnecting) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No Data Uploaded</h2>
-          <p className="text-muted-foreground mb-4">
-            Start by uploading a JSON, SQL, or YAML file, or connect to your database.<br />
-            <span className="text-xs">Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600'>read the docs</a> for more info.</span>
-          </p>
+      <MainLayout 
+        title="Upload Data" 
+        subtitle="Import schemas from files or connect to existing databases"
+        currentPage="upload"
+      >
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center max-w-md">
+            <div className="mb-6">              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-slate-100 to-sky-100 dark:from-slate-900/20 dark:to-sky-900/20 flex items-center justify-center">
+                <FileJson className="w-8 h-8 text-slate-600 dark:text-slate-400" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
+                Ready to Upload
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                Start by uploading a JSON, SQL, or YAML file, or connect to your database.
+              </p>
+              <p className="text-xs text-muted-foreground/70 mb-6">
+                💡 Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600 hover:text-blue-700'>read the docs</a> for more info.
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
-
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Import Schema</h1>
-
+    <MainLayout 
+      title="Upload Data" 
+      subtitle="Import schemas from files or connect to existing databases"
+      currentPage="upload"
+    >
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8">
-          <TabsTrigger value="file" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 mb-8 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20">          <TabsTrigger 
+            value="file" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-sky-600 data-[state=active]:text-white"
+          >
             <FileJson className="h-4 w-4" />
             <span>From File</span>
           </TabsTrigger>
-          <TabsTrigger value="database" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="database" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-sky-600 data-[state=active]:text-white"
+          >
             <Database className="h-4 w-4" />
             <span>From Database</span>
           </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="file" className="mt-0">
-          <Card>
+        </TabsList>        <TabsContent value="file" className="mt-0">
+          <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
             <CardHeader>
-              <CardTitle>Upload SQL or JSON Schema File</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-slate-900 dark:text-white">Upload SQL or JSON Schema File</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-gray-400">
                 Upload a SQL dump file, JSON Schema, or other supported format to detect your database schema.
               </CardDescription>
             </CardHeader>
@@ -167,13 +185,11 @@ export default function UploadPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="database" className="mt-0">
-          <Card>
+        </TabsContent>        <TabsContent value="database" className="mt-0">
+          <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
             <CardHeader>
-              <CardTitle>Connect to Database</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-slate-900 dark:text-white">Connect to Database</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-gray-400">
                 Connect directly to your database to import the schema.
               </CardDescription>
             </CardHeader>
@@ -302,9 +318,8 @@ export default function UploadPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
-        </TabsContent>
+          </Card>        </TabsContent>
       </Tabs>
-    </div>
+    </MainLayout>
   );
 }

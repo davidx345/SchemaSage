@@ -18,13 +18,22 @@ export default function AppClientLayout({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
   const isAuthPage = pathname.startsWith("/auth");
-  const isDashboardPage = pathname === "/dashboard"; // Add dashboard check
+  
+  // Apply full-screen layout to all main interface pages
+  const isMainInterfacePage = pathname === "/dashboard" || 
+                             pathname === "/upload" || 
+                             pathname === "/schema" || 
+                             pathname === "/code" || 
+                             pathname === "/settings" ||
+                             pathname.startsWith("/upload") ||
+                             pathname.startsWith("/schema") ||
+                             pathname.startsWith("/code");
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={fontClassName}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          {isLandingPage || isAuthPage || isDashboardPage ? (
+          {isLandingPage || isAuthPage || isMainInterfacePage ? (
             <>
               {children}
               <Toaster position="bottom-right" />

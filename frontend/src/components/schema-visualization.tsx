@@ -142,7 +142,7 @@ const getRelationshipStyle = (type: string): {
     case 'many_to_many':
       return {
         ...base,
-        style: { ...base.style, stroke: 'var(--purple-500)', strokeDasharray: '0' },
+        style: { ...base.style, stroke: 'var(--blue-500)', strokeDasharray: '0' },
         type: 'step' as ConnectionLineType,
       };
     case 'one_to_one':
@@ -183,7 +183,7 @@ function RelationshipLegend() {
         <span>One-to-Many (1:N)</span>
       </div>
       <div className="flex items-center gap-2">
-        <span style={{ width: 24, height: 0, borderTop: '3px solid var(--purple-500)', display: 'inline-block' }} />
+        <span style={{ width: 24, height: 0, borderTop: '3px solid var(--blue-500)', display: 'inline-block' }} />
         <span>Many-to-Many (N:M)</span>
       </div>
       <div className="flex items-center gap-2">

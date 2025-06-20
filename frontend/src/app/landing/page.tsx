@@ -110,53 +110,51 @@ export default function LandingPage() {
       rating: 5
     }
   ];
-
   const features = [
     {
       icon: Brain,
       title: "AI-Powered Detection",
       description: "Advanced machine learning algorithms analyze your data patterns and automatically infer optimal database schemas.",
-      gradient: "from-purple-500 to-pink-500"
+      gradient: "from-slate-500 to-blue-500"
     },
     {
       icon: Code2,
       title: "Multi-Language Code Gen",
       description: "Generate TypeScript, Python, SQL, Go, and more with perfect type safety and industry best practices.",
-      gradient: "from-blue-500 to-cyan-500"
+      gradient: "from-blue-500 to-teal-500"
     },
     {
       icon: Zap,
       title: "Lightning Fast",
       description: "Process thousands of records in seconds. Our optimized engine handles large datasets effortlessly.",
-      gradient: "from-yellow-500 to-orange-500"
+      gradient: "from-teal-500 to-slate-500"
     },
     {
       icon: Layers,
       title: "Visual Schema Builder",
       description: "Interactive drag-and-drop interface with real-time preview and relationship mapping.",
-      gradient: "from-green-500 to-teal-500"
+      gradient: "from-slate-600 to-teal-600"
     },
     {
       icon: Shield,
       title: "Enterprise Security",
       description: "Bank-grade encryption, SOC 2 compliant, with role-based access control and audit logging.",
-      gradient: "from-red-500 to-pink-500"
+      gradient: "from-blue-600 to-slate-600"
     },
     {
       icon: Globe,
       title: "Team Collaboration",
       description: "Real-time collaboration with version control, comments, and approval workflows.",
-      gradient: "from-indigo-500 to-purple-500"
+      gradient: "from-teal-600 to-blue-600"
     }
   ];
 
-  return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
+  return (    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
           animate={{
             x: mousePosition.x * 20,
             y: mousePosition.y * 20,
@@ -164,7 +162,7 @@ export default function LandingPage() {
           transition={{ type: "spring", damping: 50, stiffness: 100 }}
         />
         <motion.div
-          className="absolute top-3/4 right-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+          className="absolute top-3/4 right-1/4 w-96 h-96 bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
           animate={{
             x: mousePosition.x * -15,
             y: mousePosition.y * -15,
@@ -172,7 +170,7 @@ export default function LandingPage() {
           transition={{ type: "spring", damping: 50, stiffness: 100 }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+          className="absolute top-1/2 left-1/2 w-96 h-96 bg-slate-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
           animate={{
             x: mousePosition.x * 10,
             y: mousePosition.y * 10,
@@ -188,23 +186,21 @@ export default function LandingPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <motion.div 
+        <div className="max-w-7xl mx-auto flex items-center justify-between">          <motion.div 
             className="flex items-center space-x-2"
             whileHover={{ scale: 1.05 }}
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-blue-500 rounded-lg flex items-center justify-center">
               <Database className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold">SchemaSage</span>
-          </motion.div>
-            <div className="hidden md:flex items-center space-x-8">
-            <Link href="#features" className="hover:text-purple-300 transition-colors">Features</Link>
-            <Link href="#pricing" className="hover:text-purple-300 transition-colors">Pricing</Link>
-            <Link href="#docs" className="hover:text-purple-300 transition-colors">Docs</Link>
+          </motion.div>            <div className="hidden md:flex items-center space-x-8">
+            <Link href="#features" className="hover:text-blue-300 transition-colors">Features</Link>
+            <Link href="#pricing" className="hover:text-blue-300 transition-colors">Pricing</Link>
+            <Link href="#docs" className="hover:text-blue-300 transition-colors">Docs</Link>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link href="/auth/login">
-                <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
+                <Button className="bg-gradient-to-r from-slate-600 to-blue-600 hover:from-slate-700 hover:to-blue-700 text-white border-0">
                   Get Started
                 </Button>
               </Link>
@@ -212,7 +208,7 @@ export default function LandingPage() {
             {/* TEMPORARY DEVELOPMENT BUTTON - REMOVE IN PRODUCTION */}
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link href="/dashboard">
-                <Button variant="outline" className="border-purple-400 text-purple-300 hover:bg-purple-500 hover:text-white">
+                <Button variant="outline" className="border-blue-400 text-blue-300 hover:bg-blue-500 hover:text-white">
                   Dashboard (Dev)
                 </Button>
               </Link>
@@ -236,20 +232,17 @@ export default function LandingPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              <Sparkles className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-medium">AI-Powered Schema Generation</span>
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 text-xs px-2 py-1 rounded-full">NEW</span>
-            </motion.div>
-
-            <motion.h1
-              className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent leading-tight"
+              <Sparkles className="w-4 h-4 text-yellow-400" />              <span className="text-sm font-medium">AI-Powered Schema Generation</span>
+              <span className="bg-gradient-to-r from-blue-400 to-teal-400 text-xs px-2 py-1 rounded-full">NEW</span>
+            </motion.div>            <motion.h1
+              className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent leading-tight"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >
               Transform Data Into
               <br />
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
                 Perfect Schemas
               </span>
             </motion.h1>
@@ -271,9 +264,8 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link href="/auth/login">
-                  <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-8 py-4 text-lg font-semibold">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>                <Link href="/auth/login">
+                  <Button size="lg" className="bg-gradient-to-r from-slate-600 to-blue-600 hover:from-slate-700 hover:to-blue-700 text-white border-0 px-8 py-4 text-lg font-semibold">
                     Start Building Free
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
@@ -331,9 +323,8 @@ export default function LandingPage() {
                 className="text-center"
                 variants={fadeInUp}
                 whileHover={{ scale: 1.05 }}
-              >
-                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
-                  <stat.icon className="w-8 h-8 text-purple-300" />
+              >                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-slate-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                  <stat.icon className="w-8 h-8 text-blue-300" />
                 </div>
                 <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                   {stat.value}
@@ -354,8 +345,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+          >            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent">
               Powerful Features for Modern Development
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
@@ -382,8 +372,7 @@ export default function LandingPage() {
               >
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                   <feature.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-white group-hover:text-purple-300 transition-colors">
+                </div>                <h3 className="text-2xl font-bold mb-4 text-white group-hover:text-blue-300 transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-gray-300 leading-relaxed">
@@ -393,10 +382,8 @@ export default function LandingPage() {
             ))}
           </motion.div>
         </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="relative z-10 py-32 bg-gradient-to-r from-purple-900/20 to-pink-900/20 backdrop-blur-sm">
+      </section>      {/* Testimonials Section */}
+      <section className="relative z-10 py-32 bg-gradient-to-r from-slate-900/20 to-blue-900/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
             className="text-center mb-20"
@@ -404,8 +391,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+          >            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent">
               Loved by Developers Worldwide
             </h2>
             <p className="text-xl text-gray-300">
@@ -431,8 +417,7 @@ export default function LandingPage() {
                 <blockquote className="text-2xl md:text-3xl font-medium text-gray-200 mb-8 leading-relaxed">
                   "{testimonials[currentTestimonial].content}"
                 </blockquote>
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                <div className="flex items-center justify-center gap-4">                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-slate-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
                     {testimonials[currentTestimonial].avatar}
                   </div>
                   <div className="text-left">
@@ -451,10 +436,9 @@ export default function LandingPage() {
             <div className="flex justify-center gap-2 mt-8">
               {testimonials.map((_, index) => (
                 <button
-                  key={index}
-                  className={`w-3 h-3 rounded-full transition-colors ${
+                  key={index}                  className={`w-3 h-3 rounded-full transition-colors ${
                     index === currentTestimonial 
-                      ? 'bg-purple-400' 
+                      ? 'bg-blue-400' 
                       : 'bg-white/20 hover:bg-white/40'
                   }`}
                   onClick={() => setCurrentTestimonial(index)}
@@ -474,8 +458,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+          >            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent">
               Simple, Transparent Pricing
             </h2>
             <p className="text-xl text-gray-300">
@@ -518,14 +501,12 @@ export default function LandingPage() {
                   Get Started Free
                 </Button>
               </div>
-            </motion.div>
-
-            <motion.div
-              className="p-8 rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border-2 border-purple-500/50 relative overflow-hidden"
+            </motion.div>            <motion.div
+              className="p-8 rounded-3xl bg-gradient-to-br from-blue-500/20 to-teal-500/20 backdrop-blur-sm border-2 border-blue-500/50 relative overflow-hidden"
               variants={fadeInUp}
               whileHover={{ scale: 1.02 }}
             >
-              <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full">
+              <div className="absolute top-4 right-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white text-xs px-3 py-1 rounded-full">
                 Most Popular
               </div>
               <div className="text-center">
@@ -548,8 +529,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                
-                <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                  <Button className="w-full bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white">
                   Start Pro Trial
                 </Button>
               </div>
@@ -598,8 +578,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+          >            <h2 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-white via-blue-200 to-teal-200 bg-clip-text text-transparent">
               Ready to Transform Your Workflow?
             </h2>
             <p className="text-xl md:text-2xl text-gray-300 mb-12 leading-relaxed">
@@ -611,9 +590,8 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link href="/auth/login">
-                  <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 px-8 py-4 text-lg font-semibold">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>                <Link href="/auth/login">
+                  <Button size="lg" className="bg-gradient-to-r from-slate-600 to-blue-600 hover:from-slate-700 hover:to-blue-700 text-white border-0 px-8 py-4 text-lg font-semibold">
                     Start Building Today
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
@@ -636,46 +614,41 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div>
               <h3 className="font-semibold text-white mb-6">Product</h3>
-              <ul className="space-y-3">
-                <li><a href="#features" className="text-gray-400 hover:text-purple-300 transition-colors">Features</a></li>
-                <li><a href="#pricing" className="text-gray-400 hover:text-purple-300 transition-colors">Pricing</a></li>
-                <li><a href="#docs" className="text-gray-400 hover:text-purple-300 transition-colors">Documentation</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">API Reference</a></li>
+              <ul className="space-y-3">                <li><a href="#features" className="text-gray-400 hover:text-blue-300 transition-colors">Features</a></li>
+                <li><a href="#pricing" className="text-gray-400 hover:text-blue-300 transition-colors">Pricing</a></li>
+                <li><a href="#docs" className="text-gray-400 hover:text-blue-300 transition-colors">Documentation</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">API Reference</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-white mb-6">Company</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">About</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Blog</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Careers</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Press</a></li>
+              <ul className="space-y-3">                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">About</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Blog</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Careers</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Press</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-white mb-6">Resources</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Community</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Help Center</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Partners</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Status</a></li>
+              <ul className="space-y-3">                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Community</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Help Center</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Partners</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Status</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold text-white mb-6">Legal</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Security</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">Cookie Policy</a></li>
+              <ul className="space-y-3">                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Security</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">Cookie Policy</a></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-white/10 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-blue-500 rounded-lg flex items-center justify-center">
                   <Database className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-bold text-white">SchemaSage</span>
@@ -685,14 +658,13 @@ export default function LandingPage() {
                 © 2025 SchemaSage. All rights reserved.
               </p>
               
-              <div className="flex gap-6">
-                <a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">
+              <div className="flex gap-6">                <a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">
                   <Twitter className="w-5 h-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">
                   <Github className="w-5 h-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-purple-300 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-blue-300 transition-colors">
                   <Users className="w-5 h-5" />
                 </a>
               </div>

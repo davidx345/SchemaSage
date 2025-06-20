@@ -82,14 +82,12 @@ export default function RegisterPage() {
     */
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+  return (    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-        <div className="absolute bottom-0 right-20 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-6000"></div>
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-slate-600 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-sky-600 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-slate-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute bottom-0 right-20 w-72 h-72 bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-6000"></div>
       </div>
 
       {/* Grid pattern overlay */}
@@ -113,7 +111,7 @@ export default function RegisterPage() {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="p-3 bg-gradient-to-r from-purple-400 to-cyan-400 rounded-xl"
+                className="p-3 bg-gradient-to-r from-slate-600 to-sky-600 rounded-xl"
               >
                 <Sparkles className="w-8 h-8 text-white" />
               </motion.div>
@@ -121,7 +119,7 @@ export default function RegisterPage() {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent"
+                className="text-4xl font-bold bg-gradient-to-r from-white via-slate-200 to-sky-200 bg-clip-text text-transparent"
               >
                 SchemaSage
               </motion.h1>
@@ -160,11 +158,11 @@ export default function RegisterPage() {
                 <span>Lightning Fast</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+                <Sparkles className="w-5 h-5 text-blue-400" />
                 <span>AI-Powered</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <Users className="w-5 h-5 text-cyan-400" />
+                <Users className="w-5 h-5 text-teal-400" />
                 <span>Team Friendly</span>
               </div>
             </motion.div>
@@ -175,7 +173,7 @@ export default function RegisterPage() {
               transition={{ delay: 1.2, duration: 0.6 }}
               className="mt-8 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
             >
-              <h3 className="text-lg font-semibold mb-3 text-cyan-300">What you'll get:</h3>
+              <h3 className="text-lg font-semibold mb-3 text-teal-300">What you'll get:</h3>
               <div className="space-y-2 text-sm text-gray-300">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-400" />
@@ -247,10 +245,9 @@ export default function RegisterPage() {
                     id="name"
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
+                    onChange={(e) => setName(e.target.value)}                    required
                     disabled={isLoading}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12"
                     placeholder="John Doe"
                   />
                 </motion.div>
@@ -268,10 +265,9 @@ export default function RegisterPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+                    onChange={(e) => setEmail(e.target.value)}                    required
                     disabled={isLoading}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12"
                     placeholder="you@example.com"
                   />
                 </motion.div>
@@ -285,15 +281,14 @@ export default function RegisterPage() {
                   <Label htmlFor="password" className="text-white font-medium">
                     Password
                   </Label>
-                  <div className="relative">
-                    <Input
+                  <div className="relative">                    <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12 pr-12"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12 pr-12"
                       placeholder="••••••••"
                     />
                     <button
@@ -315,15 +310,14 @@ export default function RegisterPage() {
                   <Label htmlFor="confirmPassword" className="text-white font-medium">
                     Confirm Password
                   </Label>
-                  <div className="relative">
-                    <Input
+                  <div className="relative">                    <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 rounded-xl h-12 pr-12"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12 pr-12"
                       placeholder="••••••••"
                     />
                     <button
@@ -344,7 +338,7 @@ export default function RegisterPage() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold rounded-xl h-12 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-purple-500/25 group"
+                    className="w-full bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white font-semibold rounded-xl h-12 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-slate-500/25 group"
                   >
                     {isLoading ? (
                       <div className="flex items-center space-x-2">
@@ -365,13 +359,12 @@ export default function RegisterPage() {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 1, duration: 0.5 }}
                   className="text-center text-xs text-gray-400"
-                >
-                  By creating an account, you agree to our{" "}
-                  <Link href="/terms" className="text-purple-300 hover:text-purple-200 transition-colors">
+                >                  By creating an account, you agree to our{" "}
+                  <Link href="/terms" className="text-blue-300 hover:text-blue-200 transition-colors">
                     Terms of Service
                   </Link>{" "}
                   and{" "}
-                  <Link href="/privacy" className="text-purple-300 hover:text-purple-200 transition-colors">
+                  <Link href="/privacy" className="text-blue-300 hover:text-blue-200 transition-colors">
                     Privacy Policy
                   </Link>
                 </motion.div>
@@ -384,10 +377,9 @@ export default function RegisterPage() {
                 className="mt-8 text-center"
               >
                 <p className="text-gray-300">
-                  Already have an account?{" "}
-                  <Link 
+                  Already have an account?{" "}                  <Link 
                     href="/auth/login" 
-                    className="text-purple-300 hover:text-purple-200 transition-colors font-semibold"
+                    className="text-blue-300 hover:text-blue-200 transition-colors font-semibold"
                   >
                     Sign in
                   </Link>
