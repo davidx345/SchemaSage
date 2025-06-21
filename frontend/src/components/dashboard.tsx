@@ -171,13 +171,6 @@ export default function Dashboard() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center space-x-4">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="p-3 bg-gradient-to-r from-slate-600 to-sky-600 rounded-xl shadow-lg"
-            >
-              <Sparkles className="w-8 h-8 text-white" />
-            </motion.div>
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
               <p className="text-slate-600 dark:text-gray-300">Welcome back to SchemaSage</p>

@@ -1,0 +1,21 @@
+# Root-level gitignore
+.env
+*.env
+*.log
+__pycache__/
+.DS_Store
+node_modules/
+.vscode/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.egg-info/
+dist/
+build/
+coverage/
+*.bak
+*.swp
+*.swo
+.idea/
