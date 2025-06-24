@@ -28,6 +28,10 @@ SERVICES = {
     "project-management": {
         "url": os.getenv("PROJECT_MANAGEMENT_URL", "http://localhost:8004"),
         "health_endpoint": "/health"
+    },
+    "authentication": {
+        "url": os.getenv("AUTHENTICATION_URL", "http://authentication:8005"),
+        "health_endpoint": "/health"
     }
 }
 
@@ -42,6 +46,8 @@ ROUTE_MAPPINGS = {
     "/api/chat/": "ai-chat",
     "/api/database/projects": "project-management",
     "/api/projects": "project-management",
+    "/api/auth/signup": "authentication",
+    "/api/auth/login": "authentication",
 }
 
 @asynccontextmanager

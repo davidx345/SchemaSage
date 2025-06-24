@@ -18,7 +18,6 @@ import type { DatabaseConfig, SchemaResponse, ApiResponse } from "@/lib/types";
 import { MainLayout } from "@/components/main-layout";
 
 export default function UploadPage() {
-  // File upload state
   const router = useRouter();
   const { setCurrentSchema } = useStore();
   const [activeTab, setActiveTab] = useState<string>("file");
@@ -38,10 +37,8 @@ export default function UploadPage() {
   // Test database connection
   const testDbConnection = async () => {
     setConnectionStatus("testing");
-
     try {
       const response = await databaseApi.testConnection(dbConfig);
-
       if (response.success) {
         setConnectionStatus("success");
         toast.success("Database connection successful!");
@@ -59,16 +56,12 @@ export default function UploadPage() {
 
   // Import schema from database
   const importFromDatabase = async () => {
-    // Test connection first if not already tested successfully
     if (connectionStatus !== "success") {
       await testDbConnection();
-
-      // If connection test failed, don't proceed with import
       if (connectionStatus === "error" || connectionStatus === "testing") {
         return;
       }
     }
-
     setIsConnecting(true);
     setErrorMessage("");
     setImportedSchema(null);
@@ -92,43 +85,13 @@ export default function UploadPage() {
     }
   };
 
-  // Handle form input changes
   const handleConfigChange = (key: keyof DatabaseConfig, value: string | number) => {
     setDbConfig((prev) => ({ ...prev, [key]: value }));
-
-    // Reset connection status when configuration changes
     if (connectionStatus !== "idle") {
       setConnectionStatus("idle");
     }
   };
-  // Show empty state if no schema has been imported and not currently connecting
-  if (!importedSchema && !isConnecting) {
-    return (
-      <MainLayout 
-        title="Upload Data" 
-        subtitle="Import schemas from files or connect to existing databases"
-        currentPage="upload"
-      >
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center max-w-md">
-            <div className="mb-6">              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-slate-100 to-sky-100 dark:from-slate-900/20 dark:to-sky-900/20 flex items-center justify-center">
-                <FileJson className="w-8 h-8 text-slate-600 dark:text-slate-400" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
-                Ready to Upload
-              </h2>
-              <p className="text-muted-foreground mb-6">
-                Start by uploading a JSON, SQL, or YAML file, or connect to your database.
-              </p>
-              <p className="text-xs text-muted-foreground/70 mb-6">
-                💡 Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600 hover:text-blue-700'>read the docs</a> for more info.
-              </p>
-            </div>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
+
   return (
     <MainLayout 
       title="Upload Data" 
@@ -136,7 +99,8 @@ export default function UploadPage() {
       currentPage="upload"
     >
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20">          <TabsTrigger 
+        <TabsList className="grid w-full grid-cols-2 mb-8 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20">
+          <TabsTrigger 
             value="file" 
             className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-sky-600 data-[state=active]:text-white"
           >
@@ -150,7 +114,8 @@ export default function UploadPage() {
             <Database className="h-4 w-4" />
             <span>From Database</span>
           </TabsTrigger>
-        </TabsList>        <TabsContent value="file" className="mt-0">
+        </TabsList>
+        <TabsContent value="file" className="mt-0">
           <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
             <CardHeader>
               <CardTitle className="text-slate-900 dark:text-white">Upload SQL or JSON Schema File</CardTitle>
@@ -159,6 +124,23 @@ export default function UploadPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Empty state inside the tab */}
+              {!importedSchema && !isConnecting && (
+                <div className="text-center max-w-md mx-auto mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-slate-100 to-sky-100 dark:from-slate-900/20 dark:to-sky-900/20 flex items-center justify-center">
+                    <FileJson className="w-8 h-8 text-slate-600 dark:text-slate-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
+                    Ready to Upload
+                  </h2>
+                  <p className="text-muted-foreground mb-6">
+                    Start by uploading a JSON, SQL, or YAML file, or connect to your database.
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mb-6">
+                    💡 Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600 hover:text-blue-700'>read the docs</a> for more info.
+                  </p>
+                </div>
+              )}
               <FileUploader
                 onDataReady={() => {
                   // We'll handle the schema detection in handleFileUpload
@@ -175,7 +157,6 @@ export default function UploadPage() {
                   'application/yaml': ['.yml', '.yaml']
                 }}
               />
-
               {errorMessage && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -185,7 +166,8 @@ export default function UploadPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>        <TabsContent value="database" className="mt-0">
+        </TabsContent>
+        <TabsContent value="database" className="mt-0">
           <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
             <CardHeader>
               <CardTitle className="text-slate-900 dark:text-white">Connect to Database</CardTitle>
@@ -212,7 +194,6 @@ export default function UploadPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="host">Host</Label>
                   <Input
@@ -222,7 +203,6 @@ export default function UploadPage() {
                     placeholder="localhost"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="port">Port</Label>
                   <Input
@@ -232,7 +212,6 @@ export default function UploadPage() {
                     onChange={(e) => handleConfigChange("port", parseInt(e.target.value))}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="database">Database Name</Label>
                   <Input
@@ -242,7 +221,6 @@ export default function UploadPage() {
                     placeholder="my_database"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <Input
@@ -251,7 +229,6 @@ export default function UploadPage() {
                     onChange={(e) => handleConfigChange("username", e.target.value)}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <Input
@@ -262,7 +239,6 @@ export default function UploadPage() {
                   />
                 </div>
               </div>
-
               {connectionStatus === "success" && (
                 <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
                   <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -272,7 +248,6 @@ export default function UploadPage() {
                   </AlertDescription>
                 </Alert>
               )}
-
               {connectionStatus === "error" && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -280,7 +255,6 @@ export default function UploadPage() {
                   <AlertDescription>{errorMessage}</AlertDescription>
                 </Alert>
               )}
-
               <div className="flex gap-4">
                 <Button
                   variant="outline"
@@ -318,7 +292,8 @@ export default function UploadPage() {
                 </div>
               )}
             </CardContent>
-          </Card>        </TabsContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </MainLayout>
   );

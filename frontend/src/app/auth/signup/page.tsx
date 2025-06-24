@@ -6,70 +6,54 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/store";
-import { api } from "@/lib/api";
-import axios from "axios";
+import { Sparkles } from "lucide-react";
+import { authApi } from "@/lib/api";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState(""); // Optional: add if your backend supports it
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { setToken } = useAuth();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
     setIsLoading(true);
-
     try {
-      const response = await api.post("/auth/signup", {
-        email,
-        password,
-        full_name: fullName, // Send if you have this field
-      });
-
-      if (response.data.access_token) {
-        setToken(response.data.access_token);
-        router.push("/dashboard"); // Redirect to dashboard on successful signup
-      } else {
-        setError("Signup failed: No access token received.");
-      }
+      await authApi.signup(email, password, fullName);
+      router.push("/auth/login");
     } catch (err) {
-      // Type guard for AxiosError
-      if (axios.isAxiosError(err) && err.response && err.response.data && typeof err.response.data.detail === 'string') {
-        setError(err.response.data.detail);
-      } else if (err instanceof Error) { // Check if it's a generic Error
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred during signup.");
-      }
-      console.error("Signup error:", err);
+      setError((err as Error).message || "Signup failed");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md p-8 space-y-6 bg-card shadow-lg rounded-lg">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-card-foreground">Create Account</h1>
-          <p className="text-muted-foreground">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-slate-600 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-sky-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+      <div className="relative z-10 w-full max-w-md p-8 bg-white/90 dark:bg-slate-900/90 rounded-xl shadow-xl backdrop-blur-lg">
+        <div className="text-center mb-8">
+          <Sparkles className="mx-auto mb-2 text-blue-500" />
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            Create your account
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400">
             Join SchemaSage today
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name (Optional)</Label>
+            <Label htmlFor="fullName">Full Name (optional)</Label>
             <Input
               id="fullName"
               type="text"
@@ -84,10 +68,11 @@ export default function SignupPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="you@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               disabled={isLoading}
             />
           </div>
@@ -96,41 +81,33 @@ export default function SignupPage() {
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
+              autoComplete="new-password"
               disabled={isLoading}
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-              {error}
-            </p>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating Account..." : "Create Account"}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full font-semibold"
+          >
+            {isLoading ? "Signing up..." : "Sign Up"}
           </Button>
         </form>
-        <div className="text-center text-sm">
-          <p>
-            Already have an account?{" "}
-            <Link href="/auth/login" className="font-medium text-primary hover:underline">
-              Log in
-            </Link>
-          </p>
+        <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+          Already have an account?{" "}
+          <Link
+            href="/auth/login"
+            className="text-blue-600 dark:text-blue-400 underline font-medium"
+          >
+            Sign in
+          </Link>
         </div>
       </div>
     </div>

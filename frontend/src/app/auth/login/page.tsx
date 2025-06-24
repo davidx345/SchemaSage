@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Sparkles, ArrowRight, Shield, Zap } from "lucide-react";
+import { authApi } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,54 +22,19 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
     setIsLoading(true);
-
-    // TEMPORARY DEVELOPMENT BYPASS - REMOVE IN PRODUCTION
-    console.log("Development mode: Bypassing authentication");
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
-    setIsLoading(false);
-    router.push("/dashboard");
-    return;
-
-    // Original authentication logic (commented out for development)
-    /*
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
-
     try {
-      const response = await api.post("/auth/login", formData, {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
-
-      if (response.data.access_token) {
-        setToken(response.data.access_token);
-        router.push("/dashboard");
-      } else {
-        setError("Login failed: No access token received.");
-      }
+      const data = await authApi.login(email, password);
+      localStorage.setItem("token", data.access_token);
+      router.push("/dashboard");
     } catch (err) {
-      if (
-        axios.isAxiosError(err) &&
-        err.response &&
-        err.response.data &&
-        typeof err.response.data.detail === "string"
-      ) {
-        setError(err.response.data.detail);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred during login.");
-      }
-      console.error("Login error:", err);
+      setError((err as Error).message || "Login failed");
     } finally {
       setIsLoading(false);
     }
-    */
   };
 
-  return (    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-slate-600 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
@@ -79,218 +45,79 @@ export default function LoginPage() {
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
 
-      <div className="relative z-10 flex min-h-screen">
-        {/* Left side - Branding */}
-        <motion.div 
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12 text-white"
+      <div className="relative z-10 flex items-center justify-center min-h-screen">
+        <motion.div
+          className="w-full max-w-md p-8 bg-white/90 dark:bg-slate-900/90 rounded-xl shadow-xl backdrop-blur-lg"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-center space-y-8"
-          >
-            <div className="flex items-center justify-center space-x-3 mb-8">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="p-3 bg-gradient-to-r from-slate-600 to-sky-600 rounded-xl"
-              >
-                <Sparkles className="w-8 h-8 text-white" />
-              </motion.div>
-              <motion.h1 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-                className="text-4xl font-bold bg-gradient-to-r from-white via-slate-200 to-sky-200 bg-clip-text text-transparent"
-              >
-                SchemaSage
-              </motion.h1>
+          <div className="mb-8 text-center">
+            <Sparkles className="mx-auto mb-2 text-blue-500" />
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              Sign in to SchemaSage
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              Welcome back! Please enter your details.
+            </p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={isLoading}
+              />
             </div>
-            
-            <motion.h2 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.6 }}
-              className="text-3xl font-bold mb-4"
-            >
-              Welcome Back
-            </motion.h2>
-            
-            <motion.p 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.8, duration: 0.6 }}
-              className="text-lg text-gray-300 max-w-md"
-            >
-              Transform your data into intelligent schemas with the power of AI. Continue your journey towards smarter database design.
-            </motion.p>
-
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 1, duration: 0.6 }}
-              className="flex items-center justify-center space-x-8 mt-12"
-            >
-              <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <Shield className="w-5 h-5 text-green-400" />
-                <span>Secure</span>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500"
+                  onClick={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <Zap className="w-5 h-5 text-yellow-400" />
-                <span>Fast</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <Sparkles className="w-5 h-5 text-blue-400" />
-                <span>Smart</span>
-              </div>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-
-        {/* Right side - Login form */}
-        <motion.div 
-          initial={{ x: 100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="flex-1 flex items-center justify-center p-8"
-        >
-          <motion.div 
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="w-full max-w-md"
-          >
-            {/* Glass card */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                className="text-center mb-8"
-              >
-                <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
-                <p className="text-gray-300">Access your SchemaSage account</p>
-              </motion.div>
-
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-200 text-sm"
-                >
-                  {error}
-                </motion.div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <motion.div 
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.5, duration: 0.5 }}
-                  className="space-y-2"
-                >
-                  <Label htmlFor="email" className="text-white font-medium">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}                    required
-                    disabled={isLoading}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12"
-                    placeholder="you@example.com"
-                  />
-                </motion.div>
-
-                <motion.div 
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
-                  className="space-y-2"
-                >
-                  <Label htmlFor="password" className="text-white font-medium">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}                      required
-                      disabled={isLoading}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-12 pr-12"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.7, duration: 0.5 }}
-                  className="flex items-center justify-between text-sm"
-                >                  <Link 
-                    href="/auth/forgot-password" 
-                    className="text-blue-300 hover:text-blue-200 transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
-                </motion.div>
-
-                <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white font-semibold rounded-xl h-12 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-slate-500/25 group"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        <span>Signing in...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <span>Sign In</span>
-                        <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                      </div>
-                    )}
-                  </Button>
-                </motion.div>
-              </form>
-
-              <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.9, duration: 0.5 }}
-                className="mt-8 text-center"
-              >
-                <p className="text-gray-300">
-                  Don&apos;t have an account?{" "}                  <Link 
-                    href="/auth/register" 
-                    className="text-blue-300 hover:text-blue-200 transition-colors font-semibold"
-                  >
-                    Sign up
-                  </Link>
-                </p>
-              </motion.div>
             </div>
-          </motion.div>
+            {error && (
+              <div className="text-red-500 text-sm text-center">{error}</div>
+            )}
+            <Button type="submit" disabled={isLoading} className="w-full font-semibold">
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+          <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/signup"
+              className="text-blue-600 dark:text-blue-400 underline font-medium"
+            >
+              Sign up
+            </Link>
+          </div>
         </motion.div>
       </div>
     </div>
