@@ -91,7 +91,7 @@ services:
       - "8005:8005"
     environment:
       - ENV=development
-      - DATABASE_URL=postgresql://auth_user:password@postgres-auth:5432/authentication
+      - DATABASE_URL=postgresql+asyncpg://schemasage:260307@localhost:5432/schemasage_db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
     depends_on:
       - postgres-auth

@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 import time
 import logging
+import httpx
 from .models.schemas import (
     SchemaResponse, TableInfo, ColumnInfo, ColumnStatistics, 
     Relationship, SchemaSettings, RelationshipType
@@ -72,6 +73,31 @@ class SchemaDetector:
         self.settings = detection_settings or SchemaSettings()
         self.processing_start_time = None
         
+    async def _call_gemini(self, data: str) -> dict:
+        """Call Gemini API to infer schema as a fallback."""
+        from config import settings
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not api_key:
+            raise SchemaValidationError("No Gemini API key configured for AI fallback.")
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        headers = {"Content-Type": "application/json"}
+        params = {"key": api_key}
+        prompt = (
+            "Infer a database schema from the following data. "
+            "Return a JSON object with tables, columns, and types.\n"
+            f"Data:\n{data[:2000]}{'...' if len(data) > 2000 else ''}"
+        )
+        data_json = {"contents": [{"parts": [{"text": prompt}]}]}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, headers=headers, params=params, json=data_json, timeout=30)
+            resp.raise_for_status()
+            result = resp.json()
+            try:
+                text = result["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(text)
+            except Exception:
+                raise SchemaValidationError("Gemini API response parsing failed.", {"response": result})
+
     async def detect_schema(self, data: str, format_hint: Optional[str] = None) -> Dict[str, Any]:
         """Main entry point for schema detection."""
         self.processing_start_time = time.time()
@@ -100,6 +126,11 @@ class SchemaDetector:
             
         except Exception as e:
             logger.error(f"Schema detection failed: {str(e)}")
+            # Fallback to Gemini if enabled
+            from config import settings
+            if getattr(settings, 'GEMINI_API_KEY', None):
+                logger.info("Falling back to Gemini API for schema detection.")
+                return await self._call_gemini(data)
             raise SchemaValidationError(f"Schema detection failed: {str(e)}")
     
     async def _parse_data(self, data: str, format_hint: Optional[str] = None) -> Any:
