@@ -6,9 +6,9 @@ services:
     image: postgres:15
     container_name: schemasage-postgres
     environment:
-      POSTGRES_DB: schemasage
+      POSTGRES_DB: schemasage_db
       POSTGRES_USER: schemasage
-      POSTGRES_PASSWORD: schemasage123
+      POSTGRES_PASSWORD: 260307
     ports:
       - "5432:5432"
     volumes:
@@ -78,9 +78,11 @@ services:
       - "8004:8004"
     environment:
       - ENV=development
-      - DATABASE_URL=postgresql://project_user:password@postgres-projects:5432/project_management
+      - DATABASE_URL=postgresql://schemasage:260307@postgres:5432/schemasage_db
     depends_on:
-      - postgres-projects
+      - postgres
+    volumes:
+      - ./services/project-management/uploads:/app/uploads
     networks:
       - schemasage-network
 
@@ -91,10 +93,10 @@ services:
       - "8005:8005"
     environment:
       - ENV=development
-      - DATABASE_URL=postgresql+asyncpg://schemasage:260307@localhost:5432/schemasage_db
+      - DATABASE_URL=postgresql+asyncpg://schemasage:260307@postgres:5432/schemasage_db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
     depends_on:
-      - postgres-auth
+      - postgres
     networks:
       - schemasage-network
 
