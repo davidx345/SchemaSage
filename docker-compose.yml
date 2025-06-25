@@ -196,6 +196,7 @@ services:
       - schemasage-network
 
 volumes:
+  postgres_data:
   postgres_schema_data:
   postgres_projects_data:
   postgres_auth_data:
