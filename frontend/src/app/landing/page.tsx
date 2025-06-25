@@ -133,26 +133,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-40 dark:opacity-100 [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 dark:bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 dark:opacity-20"
-          animate={{ x: mousePosition.x * 20, y: mousePosition.y * 20 }}
-          transition={{ type: "spring", damping: 50, stiffness: 100 }}
-        />
-        <motion.div
-          className="absolute top-3/4 right-1/4 w-96 h-96 bg-teal-100 dark:bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 dark:opacity-20"
-          animate={{ x: mousePosition.x * -15, y: mousePosition.y * -15 }}
-          transition={{ type: "spring", damping: 50, stiffness: 100 }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-96 h-96 bg-slate-100 dark:bg-slate-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 dark:opacity-20"
-          animate={{ x: mousePosition.x * 10, y: mousePosition.y * 10 }}
-          transition={{ type: "spring", damping: 50, stiffness: 100 }}
-        />
-      </div>
-
+      {/* Removed animated/rotating background blobs for clean layout */}
       {/* Navigation */}
       <motion.nav 
         className="relative z-50 p-6"

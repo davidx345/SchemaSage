@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -31,15 +30,15 @@ export default function AppClientLayout({ children }: PropsWithChildren) {
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={fontClassName}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <body className={fontClassName + " bg-background text-foreground transition-colors duration-300"}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
           {isLandingPage || isAuthPage || isMainInterfacePage ? (
             <>
               {children}
               <Toaster position="bottom-right" />
             </>
           ) : (
-            <div className="relative flex min-h-screen">
+            <div className="relative flex min-h-screen bg-background">
               <Sidebar />
               <div className="flex-1">
                 <Header />
@@ -49,9 +48,8 @@ export default function AppClientLayout({ children }: PropsWithChildren) {
               </div>
             </div>
           )}
-          {!isLandingPage && !isAuthPage && <AIChatDialog />}
-          {!isLandingPage && !isAuthPage && <Notifications />}
-          <Toaster position="bottom-right" />
+          <AIChatDialog />
+          <Notifications />
         </ThemeProvider>
       </body>
     </html>

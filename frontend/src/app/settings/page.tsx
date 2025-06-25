@@ -97,27 +97,23 @@ export default function SettingsPage() {
       currentPage="settings"
     >
       <div className="max-w-5xl mx-auto space-y-8">
-        <div>          <h1 className="text-3xl font-bold mb-3 bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
-            Settings
-          </h1>
+        <div>
+          <h1 className="text-3xl font-bold mb-3">Settings</h1>
           <p className="text-muted-foreground">
             Configure your application preferences and API settings
           </p>
         </div>
-        
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 bg-background/50 backdrop-blur-sm">
-            <TabsTrigger value="general" className="data-[state=active]:bg-background/80">General</TabsTrigger>
-            <TabsTrigger value="api" className="data-[state=active]:bg-background/80">API Keys</TabsTrigger>
-            <TabsTrigger value="schema" className="data-[state=active]:bg-background/80">Schema Preferences</TabsTrigger>
+          <TabsList className="grid grid-cols-3 glass border-divider">
+            <TabsTrigger value="general" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold text-lg">General</TabsTrigger>
+            <TabsTrigger value="api" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold text-lg">API Keys</TabsTrigger>
+            <TabsTrigger value="schema" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold text-lg">Schema Preferences</TabsTrigger>
           </TabsList>
-          
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <TabsContent value="general" className="space-y-6">
-              <Card className="bg-background/50 backdrop-blur-sm border-border/50 shadow-lg">
-                <CardHeader>                  <CardTitle className="bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
-                    General Settings
-                  </CardTitle>
+              <Card className="card shadow-card">
+                <CardHeader>
+                  <CardTitle>General Settings</CardTitle>
                   <CardDescription>
                     Configure appearance and behavior settings for the application
                   </CardDescription>
@@ -129,32 +125,17 @@ export default function SettingsPage() {
                       value={form.watch("defaultTheme")}
                       onValueChange={(value: "light" | "dark" | "system") => form.setValue("defaultTheme", value)}
                     >
-                      <SelectTrigger className="bg-background/50">
+                      <SelectTrigger className="bg-muted">
                         <SelectValue placeholder="Select theme" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="light">
-                          <div className="flex items-center gap-2">
-                            <Sun className="h-4 w-4" />
-                            <span>Light</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="dark">
-                          <div className="flex items-center gap-2">
-                            <Moon className="h-4 w-4" />
-                            <span>Dark</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="system">
-                          <div className="flex items-center gap-2">
-                            <span>System</span>
-                          </div>
-                        </SelectItem>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">Dark</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-background/30 border border-border/30">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted border border-divider">
                     <div className="space-y-0.5">
                       <Label htmlFor="autosave" className="text-sm font-medium">Auto-save changes</Label>
                       <p className="text-sm text-muted-foreground">
@@ -167,13 +148,10 @@ export default function SettingsPage() {
                       onCheckedChange={(checked) => form.setValue("autoSave", checked)}
                     />
                   </div>
-                  
-                  <Separator className="bg-border/30" />
-                  
+                  <Separator className="bg-divider" />
                   <div className="space-y-4">
-                    <div>                      <h3 className="text-lg font-medium bg-gradient-to-r from-teal-600 to-slate-600 bg-clip-text text-transparent">
-                        Export/Import Settings
-                      </h3>
+                    <div>
+                      <h3 className="text-lg font-medium">Export/Import Settings</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Export your settings to a file or import from a previously saved file
                       </p>
@@ -182,7 +160,7 @@ export default function SettingsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="bg-background/50 hover:bg-background/70"
+                        className="bg-muted hover:bg-muted/70"
                         onClick={() => {
                           // Export settings
                           const settingsJson = JSON.stringify({
@@ -193,7 +171,6 @@ export default function SettingsPage() {
                             detectForeignKeys: form.watch("detectForeignKeys"),
                             namingConvention: form.watch("namingConvention"),
                           });
-                          
                           const blob = new Blob([settingsJson], { type: 'application/json' });
                           const href = URL.createObjectURL(blob);
                           const link = document.createElement('a');
@@ -210,7 +187,7 @@ export default function SettingsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="relative bg-background/50 hover:bg-background/70"
+                        className="relative bg-muted hover:bg-muted/70"
                       >
                         Import Settings
                         <input
@@ -244,12 +221,11 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>            
+            </TabsContent>
             <TabsContent value="api" className="space-y-6">
-              <Card className="bg-background/50 backdrop-blur-sm border-border/50 shadow-lg">
-                <CardHeader>                  <CardTitle className="bg-gradient-to-r from-teal-600 to-slate-600 bg-clip-text text-transparent">
-                    API Key Management
-                  </CardTitle>
+              <Card className="card shadow-card">
+                <CardHeader>
+                  <CardTitle>API Key Management</CardTitle>
                   <CardDescription>
                     Manage your AI provider API keys for schema detection and code generation
                   </CardDescription>
@@ -265,30 +241,26 @@ export default function SettingsPage() {
                         type="password"
                         placeholder="Enter your Gemini API key"
                         {...form.register("apiKey")}
-                        className="flex-1 bg-background/50"
+                        className="flex-1 bg-muted"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground/70 mt-1">
-                      🔒 Your API key is stored securely in your browser and never sent to our servers
+                      Your API key is stored securely in your browser and never sent to our servers
                     </p>
                   </div>
-                  
-                  <Separator className="bg-border/30" />
-                  
+                  <Separator className="bg-divider" />
                   <div className="space-y-4">
-                    <div>                      <h3 className="text-lg font-medium bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
-                        AI Provider Settings
-                      </h3>
+                    <div>
+                      <h3 className="text-lg font-medium">AI Provider Settings</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Configure AI model settings for schema detection and code generation
                       </p>
                     </div>
-                    
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="model" className="text-sm font-medium">Preferred Model</Label>
                         <Select defaultValue="gemini-pro">
-                          <SelectTrigger className="bg-background/50">
+                          <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Select model" />
                           </SelectTrigger>
                           <SelectContent>
@@ -297,12 +269,11 @@ export default function SettingsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="flex items-center justify-between p-4 rounded-lg bg-background/30 border border-border/30">
+                      <div className="flex items-center justify-between p-4 rounded-lg bg-muted border border-divider">
                         <div className="space-y-0.5">
                           <Label htmlFor="streaming" className="text-sm font-medium">Stream AI responses</Label>
                           <p className="text-sm text-muted-foreground">
-                            Show AI responses as they&apos;re generated
+                            Show AI responses as they're generated
                           </p>
                         </div>
                         <Switch id="streaming" defaultChecked />
@@ -312,19 +283,17 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
             <TabsContent value="schema" className="space-y-6">
-              <Card className="bg-background/50 backdrop-blur-sm border-border/50 shadow-lg">
-                <CardHeader>                  <CardTitle className="bg-gradient-to-r from-slate-600 to-teal-600 bg-clip-text text-transparent">
-                    Schema Detection Settings
-                  </CardTitle>
+              <Card className="card shadow-card">
+                <CardHeader>
+                  <CardTitle>Schema Detection Settings</CardTitle>
                   <CardDescription>
                     Configure how schemas are detected and relationships are inferred
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-background/30 border border-border/30">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted border border-divider">
                       <div className="space-y-0.5">
                         <Label htmlFor="inferRelationships" className="text-sm font-medium">Infer Relationships</Label>
                         <p className="text-sm text-muted-foreground">
@@ -337,8 +306,7 @@ export default function SettingsPage() {
                         onCheckedChange={(checked) => form.setValue("inferRelationships", checked)}
                       />
                     </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-background/30 border border-border/30">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted border border-divider">
                       <div className="space-y-0.5">
                         <Label htmlFor="detectPrimaryKeys" className="text-sm font-medium">Detect Primary Keys</Label>
                         <p className="text-sm text-muted-foreground">
@@ -351,8 +319,7 @@ export default function SettingsPage() {
                         onCheckedChange={(checked) => form.setValue("detectPrimaryKeys", checked)}
                       />
                     </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-background/30 border border-border/30">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted border border-divider">
                       <div className="space-y-0.5">
                         <Label htmlFor="detectForeignKeys" className="text-sm font-medium">Detect Foreign Keys</Label>
                         <p className="text-sm text-muted-foreground">
@@ -366,9 +333,7 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
-                  
-                  <Separator className="bg-border/30" />
-                  
+                  <Separator className="bg-divider" />
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="namingConvention" className="text-sm font-medium">Naming Convention</Label>
@@ -378,7 +343,7 @@ export default function SettingsPage() {
                           form.setValue("namingConvention", value)
                         }
                       >
-                        <SelectTrigger className="bg-background/50">
+                        <SelectTrigger className="bg-muted">
                           <SelectValue placeholder="Select naming convention" />
                         </SelectTrigger>
                         <SelectContent>
@@ -392,23 +357,19 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   </div>
-                  
-                  <Separator className="bg-border/30" />
-                  
+                  <Separator className="bg-divider" />
                   <div className="space-y-4">
-                    <div>                      <h3 className="text-lg font-medium bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">
-                        Code Generation Defaults
-                      </h3>
+                    <div>
+                      <h3 className="text-lg font-medium">Code Generation Defaults</h3>
                       <p className="text-sm text-muted-foreground mt-1 mb-4">
                         Default settings for code generation
                       </p>
                     </div>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="defaultLanguage" className="text-sm font-medium">Default Language</Label>
                         <Select defaultValue="typescript">
-                          <SelectTrigger className="bg-background/50">
+                          <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Select default language" />
                           </SelectTrigger>
                           <SelectContent>
@@ -418,11 +379,10 @@ export default function SettingsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      
                       <div className="space-y-2">
                         <Label htmlFor="defaultFormat" className="text-sm font-medium">Default Format</Label>
                         <Select defaultValue="typescript-zod">
-                          <SelectTrigger className="bg-background/50">
+                          <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Select default format" />
                           </SelectTrigger>
                           <SelectContent>
@@ -438,11 +398,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
             <div className="mt-8 flex justify-end">
               <Button 
                 type="submit" 
-                className="flex gap-2 items-center bg-gradient-to-r from-slate-600 to-sky-600 hover:from-slate-700 hover:to-sky-700 text-white"
+                className="flex gap-2 items-center cta"
               >
                 <Save className="h-4 w-4" />
                 Save Settings

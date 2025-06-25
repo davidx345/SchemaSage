@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from ..config import settings, CodeGenFormat
 from ..models.schemas import TableInfo, Relationship, SchemaResponse, ColumnStatistics
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -258,13 +259,34 @@ class CodeGenerator:
                 {"error": str(e)}
             )
 
+    async def _call_gemini(self, prompt: str, api_key: Optional[str] = None) -> str:
+        """Call Gemini API to generate code as a fallback."""
+        api_key = api_key or settings.GEMINI_API_KEY
+        if not api_key:
+            raise CodeGenerationError("No Gemini API key configured.", "llm_fallback")
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        headers = {"Content-Type": "application/json"}
+        params = {"key": api_key}
+        data = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, headers=headers, params=params, json=data, timeout=30)
+            resp.raise_for_status()
+            result = resp.json()
+            # Extract generated code from Gemini response
+            try:
+                return result["candidates"][0]["content"]["parts"][0]["text"]
+            except Exception:
+                raise CodeGenerationError("Gemini API response parsing failed.", "llm_fallback", {"response": result})
+
     async def generate_code(
         self, 
         schema: SchemaResponse, 
         format: CodeGenFormat,
         options: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Generate code in the specified format with customization options."""
+        """Generate code in the specified format with customization options. Uses Gemini as fallback if enabled."""
         try:
             logger.info(f"Generating code in format: {format}")
             logger.debug(f"Schema contains {len(schema.tables)} tables")
@@ -278,6 +300,7 @@ class CodeGenerator:
                     {"error": "No tables found in schema"}
                 )
 
+            # Try template-based generation first
             if format == CodeGenFormat.SQLALCHEMY:
                 logger.debug("Generating SQLAlchemy models")
                 return await self.generate_sqlalchemy_models(schema, options)
@@ -297,11 +320,23 @@ class CodeGenerator:
                 logger.error(f"Unsupported format: {format}")
                 raise ValueError(f"Unsupported format: {format}")
         except Exception as e:
+            logger.warning(f"Template-based code generation failed: {e}")
+            # Fallback to Gemini if enabled
+            if settings.GEMINI_API_KEY:
+                logger.info("Falling back to Gemini API for code generation.")
+                prompt = self._build_llm_prompt(schema, format, options)
+                return await self._call_gemini(prompt)
             if isinstance(e, (CodeGenerationError, NotImplementedError)):
                 raise e
-            logger.error(f"Code generation failed: {str(e)}", exc_info=True)
             raise CodeGenerationError(
                 f"Code generation failed: {str(e)}",
                 format.value,
                 {"error": str(e)}
             )
+
+    def _build_llm_prompt(self, schema: SchemaResponse, format: CodeGenFormat, options: Optional[Dict[str, Any]] = None) -> str:
+        """Build a prompt for Gemini code generation fallback."""
+        return (
+            f"Generate {format.value} code for the following database schema. "
+            f"Schema (JSON):\n{json.dumps(schema.dict(), indent=2)}"
+        )

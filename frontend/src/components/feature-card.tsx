@@ -13,13 +13,12 @@ export function FeatureCard({
   description,
 }: FeatureCardProps) {
   return (
-    <Card className="p-6 flex flex-col items-start gap-4 transition-all hover:shadow-md">
-      <div className="p-3 rounded-lg bg-primary/10">
+    <Card className="p-6 flex flex-col items-start gap-4 bg-card border border-border transition-all">
+      <div className="p-3 rounded-lg bg-muted">
         <Icon className="h-6 w-6 text-primary" />
       </div>
-
       <div>
-        <h3 className="font-semibold mb-2">{title}</h3>
+        <h3 className="font-semibold mb-2 text-foreground">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
     </Card>

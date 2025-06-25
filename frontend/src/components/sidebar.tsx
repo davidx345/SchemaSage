@@ -51,6 +51,7 @@ export function Sidebar() {
           className="flex items-center space-x-2"
           onClick={(e) => e.preventDefault()}
         >
+          {/* Removed blue blob/shadow, only show clean logo */}
           <Boxes className="h-6 w-6" />
           {!isCollapsed && <span className="font-semibold">Schema Sage</span>}
         </Link>

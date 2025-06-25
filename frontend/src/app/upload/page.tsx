@@ -99,27 +99,27 @@ export default function UploadPage() {
       currentPage="upload"
     >
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8 bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-slate-200 dark:border-white/20">
+        <TabsList className="grid w-full grid-cols-2 mb-8 glass border border-divider">
           <TabsTrigger 
             value="file" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-sky-600 data-[state=active]:text-white"
+            className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold text-lg"
           >
-            <FileJson className="h-4 w-4" />
+            <FileJson className="h-5 w-5" />
             <span>From File</span>
           </TabsTrigger>
           <TabsTrigger 
             value="database" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-sky-600 data-[state=active]:text-white"
+            className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold text-lg"
           >
-            <Database className="h-4 w-4" />
+            <Database className="h-5 w-5" />
             <span>From Database</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="file" className="mt-0">
-          <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
+          <Card className="card shadow-card">
             <CardHeader>
-              <CardTitle className="text-slate-900 dark:text-white">Upload SQL or JSON Schema File</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-gray-400">
+              <CardTitle className="text-2xl font-bold">Upload SQL or JSON Schema File</CardTitle>
+              <CardDescription className="text-secondary-foreground">
                 Upload a SQL dump file, JSON Schema, or other supported format to detect your database schema.
               </CardDescription>
             </CardHeader>
@@ -127,17 +127,15 @@ export default function UploadPage() {
               {/* Empty state inside the tab */}
               {!importedSchema && !isConnecting && (
                 <div className="text-center max-w-md mx-auto mb-6">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-slate-100 to-sky-100 dark:from-slate-900/20 dark:to-sky-900/20 flex items-center justify-center">
-                    <FileJson className="w-8 h-8 text-slate-600 dark:text-slate-400" />
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center shadow-card">
+                    <FileJson className="w-8 h-8 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-600 to-sky-600 bg-clip-text text-transparent">
-                    Ready to Upload
-                  </h2>
+                  <h2 className="text-2xl font-bold mb-3">Ready to Upload</h2>
                   <p className="text-muted-foreground mb-6">
                     Start by uploading a JSON, SQL, or YAML file, or connect to your database.
                   </p>
                   <p className="text-xs text-muted-foreground/70 mb-6">
-                    💡 Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-blue-600 hover:text-blue-700'>read the docs</a> for more info.
+                    Tip: You can try the sample project from onboarding, or <a href='/help' className='underline text-primary hover:text-cta-hover'>read the docs</a> for more info.
                   </p>
                 </div>
               )}
@@ -168,10 +166,10 @@ export default function UploadPage() {
           </Card>
         </TabsContent>
         <TabsContent value="database" className="mt-0">
-          <Card className="bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/20 shadow-lg">
+          <Card className="card shadow-card">
             <CardHeader>
-              <CardTitle className="text-slate-900 dark:text-white">Connect to Database</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-gray-400">
+              <CardTitle className="text-2xl font-bold">Connect to Database</CardTitle>
+              <CardDescription className="text-secondary-foreground">
                 Connect directly to your database to import the schema.
               </CardDescription>
             </CardHeader>
@@ -240,10 +238,10 @@ export default function UploadPage() {
                 </div>
               </div>
               {connectionStatus === "success" && (
-                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
-                  <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertTitle className="text-green-600 dark:text-green-400">Connected</AlertTitle>
-                  <AlertDescription className="text-green-600 dark:text-green-400">
+                <Alert className="bg-success/10 border-success">
+                  <Check className="h-4 w-4 text-success" />
+                  <AlertTitle className="text-success">Connected</AlertTitle>
+                  <AlertDescription className="text-success">
                     Successfully connected to the database.
                   </AlertDescription>
                 </Alert>
@@ -269,7 +267,7 @@ export default function UploadPage() {
                 <Button
                   onClick={importFromDatabase}
                   disabled={isConnecting}
-                  className="flex-1"
+                  className="flex-1 cta"
                 >
                   {isConnecting ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing...</>

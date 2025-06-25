@@ -57,13 +57,8 @@ export function MainLayout({ children, title, subtitle, currentPage }: MainLayou
           className="w-72 bg-white/80 dark:bg-white/10 backdrop-blur-xl border-r border-slate-200 dark:border-white/20 p-6"
         >
           {/* Logo */}
-          <div className="flex items-center space-x-3 mb-8">            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="p-2 bg-gradient-to-r from-slate-600 to-sky-600 rounded-lg shadow-lg"
-            >
-              <Sparkles className="w-6 h-6 text-white" />
-            </motion.div>
+          <div className="flex items-center space-x-3 mb-8">
+            {/* Removed rotating Sparkles blob */}
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">SchemaSage</h1>
               <p className="text-xs text-slate-600 dark:text-gray-400">AI-Powered Schema Design</p>
