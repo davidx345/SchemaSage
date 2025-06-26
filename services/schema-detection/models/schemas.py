@@ -97,3 +97,141 @@ class DetectionResponse(BaseModel):
     success: bool = True
     message: Optional[str] = None
     errors: List[str] = []
+
+
+class RelationshipSuggestionRequest(BaseModel):
+    """Request for AI-assisted relationship suggestions."""
+    tables: List[TableInfo]
+    settings: Optional[SchemaSettings] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class RelationshipSuggestionResponse(BaseModel):
+    """Response with suggested relationships."""
+    relationships: List[Relationship]
+    confidence: float = Field(ge=0.0, le=1.0, default=0.8)
+    message: Optional[str] = None
+    warnings: List[str] = []
+
+
+class CrossDatasetRelationshipRequest(BaseModel):
+    """Request for cross-dataset relationship inference."""
+    datasets: List[List[TableInfo]]
+    settings: Optional[SchemaSettings] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class CrossDatasetRelationshipResponse(BaseModel):
+    """Response with cross-dataset relationship suggestions."""
+    relationships: List[Relationship]
+    confidence: float = Field(ge=0.0, le=1.0, default=0.7)
+    message: Optional[str] = None
+    warnings: List[str] = []
+
+
+class LineageNodeModel(BaseModel):
+    id: str
+    table: str
+    column: Optional[str] = None
+
+
+class LineageEdgeModel(BaseModel):
+    source: str
+    target: str
+    relationship: Optional[Relationship] = None
+
+
+class TableLineageResponse(BaseModel):
+    table: str
+    upstream: List[str]
+    downstream: List[str]
+    business_term: Optional[dict] = None
+    context: Optional[Any] = None
+
+
+class ColumnLineageResponse(BaseModel):
+    column: str
+    upstream: List[str]
+    downstream: List[str]
+    business_term: Optional[dict] = None
+    context: Optional[Any] = None
+
+
+class ImpactAnalysisResponse(BaseModel):
+    changed: str
+    impacted: List[str]
+    business_term: Optional[dict] = None
+    context: Optional[Any] = None
+
+
+class SchemaSnapshotModel(BaseModel):
+    id: str
+    timestamp: str
+    schema: SchemaResponse
+
+
+class SchemaHistoryResponse(BaseModel):
+    history: List[SchemaSnapshotModel]
+
+
+class SchemaDiffResponse(BaseModel):
+    tables_added: List[str]
+    tables_removed: List[str]
+    columns_added: List[Any]
+    columns_removed: List[Any]
+    relationships_added: List[Any]
+    relationships_removed: List[Any]
+    error: Optional[str] = None
+
+
+class DocumentationRequest(BaseModel):
+    schema: SchemaResponse
+    table: Optional[str] = None
+    column: Optional[str] = None
+    relationship: Optional[dict] = None
+    glossary_term: Optional[str] = None
+    regenerate: bool = False
+    context: Optional[Any] = None
+
+
+class DocumentationResponse(BaseModel):
+    object_type: str  # table, column, relationship, glossary
+    object_id: str
+    documentation: str
+    generated: bool = True
+    last_updated: Optional[str] = None
+    warnings: Optional[List[str]] = None
+
+
+class DataCleaningRequest(BaseModel):
+    table: str
+    data: List[dict]
+    columns: Optional[List[str]] = None
+    context: Optional[Any] = None
+
+
+class CleaningSuggestion(BaseModel):
+    column: str
+    issue: str
+    suggestion: str
+    fix_code: Optional[str] = None  # SQL or Python code
+    confidence: float = 1.0
+
+
+class DataCleaningResponse(BaseModel):
+    table: str
+    suggestions: List[CleaningSuggestion]
+    warnings: Optional[List[str]] = None
+
+
+class ApplyCleaningRequest(BaseModel):
+    table: str
+    data: List[dict]
+    actions: List[dict]  # e.g., [{column, action, params}]
+
+
+class ApplyCleaningResponse(BaseModel):
+    table: str
+    cleaned_data: List[dict]
+    applied_actions: List[dict]
+    warnings: Optional[List[str]] = None

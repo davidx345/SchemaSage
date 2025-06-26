@@ -357,29 +357,29 @@ export default function Dashboard() {
                       <p className="text-sm text-muted-foreground mt-2">Create your first project to get started</p>
                     </div>
                   ) : (
-                    stats.recentProjects.map((proj, index) => (
-                      <motion.div
-                        key={proj.id}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
-                      >
-                        <Card className="bg-muted border border-border p-4 hover:bg-card transition-all duration-300 cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-semibold text-foreground">{proj.name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                Updated {new Date(proj.updatedAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="p-2 bg-card rounded-lg">
-                              <FileText className="w-4 h-4 text-primary" />
-                            </div>
+                  stats.recentProjects.map((proj, index) => (
+                    <motion.div
+                      key={proj.id}
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
+                    >
+                      <Card className="bg-muted border border-border p-4 hover:bg-card transition-all duration-300 cursor-pointer">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{proj.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Updated {new Date(proj.updatedAt).toLocaleDateString()}
+                            </p>
                           </div>
-                        </Card>
-                      </motion.div>
-                    ))
-                  }
+                          <div className="p-2 bg-card rounded-lg">
+                            <FileText className="w-4 h-4 text-primary" />
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))
+                  )}
                 </div>
               </Card>
             </motion.div>

@@ -12,7 +12,10 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from models.schemas import (
-    Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest
+    Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest,
+    ApiHealthResponse, ProjectListResponse,  # <-- add these
+    GlossaryTerm, GlossaryRequest, GlossaryResponse,
+    SchemaConsistencyCheckRequest, SchemaConsistencyCheckResponse
 )
 from core.project_manager import ProjectManager, ProjectError
 
@@ -202,6 +205,36 @@ async def get_project_stats():
         logger.error(f"Failed to get project stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/glossary", response_model=GlossaryResponse)
+async def list_glossary_terms():
+    """List all glossary terms"""
+    terms = await project_manager.list_glossary_terms()
+    return GlossaryResponse(terms=terms, total=len(terms))
+
+@app.post("/glossary", response_model=GlossaryTerm)
+async def add_glossary_term(request: GlossaryRequest):
+    """Add a new glossary term"""
+    term = await project_manager.add_glossary_term(request)
+    return term
+
+@app.put("/glossary/{term_id}", response_model=GlossaryTerm)
+async def update_glossary_term(term_id: str, request: GlossaryRequest):
+    """Update an existing glossary term"""
+    term = await project_manager.update_glossary_term(term_id, request)
+    return term
+
+@app.delete("/glossary/{term_id}")
+async def delete_glossary_term(term_id: str):
+    """Delete a glossary term"""
+    await project_manager.delete_glossary_term(term_id)
+    return {"success": True}
+
+@app.post("/schema/consistency-check", response_model=SchemaConsistencyCheckResponse)
+async def schema_consistency_check(request: SchemaConsistencyCheckRequest):
+    """Check schema consistency"""
+    result = await project_manager.schema_consistency_check(request)
+    return result
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -217,7 +250,12 @@ async def root():
             "delete_project": "DELETE /projects/{project_id}",
             "search_projects": "GET /projects/search/{query}",
             "project_stats": "GET /stats",
-            "health": "GET /health"
+            "health": "GET /health",
+            "list_glossary_terms": "GET /glossary",
+            "add_glossary_term": "POST /glossary",
+            "update_glossary_term": "PUT /glossary/{term_id}",
+            "delete_glossary_term": "DELETE /glossary/{term_id}",
+            "schema_consistency_check": "POST /schema/consistency-check"
         }
     }
 

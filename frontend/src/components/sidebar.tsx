@@ -15,7 +15,9 @@ import {
   Settings,
   HelpCircle,
   Boxes,
-  User
+  User,
+  BarChart3,
+  Shield
 } from "lucide-react";
 import { useAuth } from "@/lib/store";
 import { useRouter } from "next/navigation";
@@ -25,6 +27,11 @@ const navigation = [
   { name: "Upload Data", href: "/upload", icon: Upload },
   { name: "Schema View", href: "/schema", icon: Database },
   { name: "Code Generation", href: "/code", icon: Code2 },
+  { name: "Cross-Dataset", href: "/cross-dataset", icon: Boxes },
+  { name: "Glossary", href: "/glossary", icon: User },
+  { name: "Consistency Check", href: "/consistency-check", icon: Settings },
+  { name: "Lineage Explorer", href: "/lineage", icon: BarChart3 },
+  { name: "Data Cleaning", href: "/data-cleaning", icon: Shield }, // <-- new link
 ];
 
 const secondaryNavigation = [

@@ -14,7 +14,8 @@ import logging
 import httpx
 from models.schemas import (
     SchemaResponse, TableInfo, ColumnInfo, ColumnStatistics, 
-    Relationship, SchemaSettings, RelationshipType
+    Relationship, SchemaSettings, RelationshipType,
+    RelationshipSuggestionResponse, CrossDatasetRelationshipResponse
 )
 from config import get_settings
 
@@ -73,8 +74,63 @@ class SchemaDetector:
         self.settings = detection_settings or SchemaSettings()
         self.processing_start_time = None
         
-    async def _call_gemini(self, data: str) -> dict:
-        """Call Gemini API to infer schema as a fallback."""
+    def build_schema_inference_prompt(
+        data: str,
+        tables: Optional[List[TableInfo]] = None,
+        datasets: Optional[List[List[TableInfo]]] = None,
+        glossary: Optional[List[dict]] = None,
+        context: Optional[dict] = None,
+        max_data_chars: int = 2000
+    ) -> str:
+        """
+        Build a highly detailed, robust, and efficient prompt for schema, relationship, and context inference.
+        """
+        prompt = [
+            "You are an expert data architect and database designer. Your task is to infer the most accurate, business-relevant, and normalized database schema from the provided data and context.",
+            "",
+            "Instructions:",
+            "1. Analyze the data and context to identify tables, columns, data types, primary keys, foreign keys, and all possible relationships (one-to-one, one-to-many, many-to-many, etc.).",
+            "2. For each relationship, provide:",
+            "   - source_table, source_column, target_table, target_column, type (one-to-one, one-to-many, many-to-one, many-to-many), confidence (0.0-1.0), and a concise business-oriented description.",
+            "3. Use glossary terms (if provided) to improve naming, context, and business meaning. Match columns/tables to glossary terms where possible.",
+            "4. If datasets are provided, infer cross-dataset relationships and highlight any business or referential links.",
+            "5. If context is provided, use it to improve accuracy and relevance.",
+            "6. Output only valid, minified JSON (no markdown, no explanations, no comments).",
+            "7. The output JSON schema MUST be:",
+            "   {",
+            "     tables: [",
+            "       { name: string, columns: [ { name: string, type: string, nullable: bool, primary_key: bool, foreign_key: string|null, unique: bool, default: any|null, length: int|null, precision: int|null, scale: int|null, format: string|null, validation: string|null, description: string|null } ], primary_keys: [string], foreign_keys: [ { column: string, references: { table: string, column: string } } ], indexes: [string], statistics: object, estimated_rows: int|null, description: string|null }",
+            "     ],",
+            "     relationships: [",
+            "       { source_table: string, source_column: string, target_table: string, target_column: string, type: string, confidence: float, description: string }",
+            "     ],",
+            "     metadata: object,",
+            "     confidence: float,",
+            "     processing_time: float|null,",
+            "     warnings: [string]",
+            "   }",
+            "8. If you are unsure, use best practices and reasonable defaults. Never hallucinate columns or relationships not supported by the data/context.",
+            "9. If any error or ambiguity is detected, include a warning in the 'warnings' array and proceed with best effort.",
+            "10. Be efficient: do not repeat information, and keep the output as concise as possible while fully representing the schema and relationships.",
+            "",
+        ]
+        if glossary:
+            prompt.append("Glossary terms (use for business context and naming):\n" + json.dumps(glossary, indent=2))
+        if context:
+            prompt.append("Additional context:\n" + json.dumps(context, indent=2))
+        if datasets:
+            prompt.append("Infer relationships across the following datasets. Each dataset is an array of tables. Consider cross-dataset keys and business meaning.")
+            for i, ds in enumerate(datasets):
+                prompt.append(f"Dataset {i+1}:\n" + json.dumps([t.dict() for t in ds], indent=2))
+        elif tables:
+            prompt.append("Tables:\n" + json.dumps([t.dict() for t in tables], indent=2))
+        else:
+            prompt.append("Data sample:\n" + data[:max_data_chars] + ("..." if len(data) > max_data_chars else ""))
+        prompt.append("\nReturn only valid, minified JSON. Do not include explanations, markdown, or comments. Output must match the schema above exactly.")
+        return "\n".join(prompt)
+
+    async def _call_gemini(self, data: str, tables: Optional[List[TableInfo]] = None, datasets: Optional[List[List[TableInfo]]] = None, glossary: Optional[List[dict]] = None, context: Optional[dict] = None) -> dict:
+        """Call Gemini API to infer schema, relationships, and context."""
         from config import settings
         api_key = getattr(settings, 'GEMINI_API_KEY', None)
         if not api_key:
@@ -82,14 +138,16 @@ class SchemaDetector:
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
         headers = {"Content-Type": "application/json"}
         params = {"key": api_key}
-        prompt = (
-            "Infer a database schema from the following data. "
-            "Return a JSON object with tables, columns, and types.\n"
-            f"Data:\n{data[:2000]}{'...' if len(data) > 2000 else ''}"
+        prompt = build_schema_inference_prompt(
+            data=data,
+            tables=tables,
+            datasets=datasets,
+            glossary=glossary,
+            context=context
         )
         data_json = {"contents": [{"parts": [{"text": prompt}]}]}
         async with httpx.AsyncClient() as client:
-            resp = await client.post(url, headers=headers, params=params, json=data_json, timeout=30)
+            resp = await client.post(url, headers=headers, params=params, json=data_json, timeout=60)
             resp.raise_for_status()
             result = resp.json()
             try:
@@ -448,6 +506,63 @@ class SchemaDetector:
                 ))
         
         return relationships
+    
+    async def suggest_relationships(self, tables: List[TableInfo], context: Optional[dict] = None) -> RelationshipSuggestionResponse:
+        """Suggest relationships between tables using heuristics and AI extension points."""
+        suggestions = []
+        # Heuristic: match columns with similar names and types, e.g., id/user_id/project_id
+        for i, table_a in enumerate(tables):
+            for table_b in tables[i+1:]:
+                for col_a in table_a.columns:
+                    for col_b in table_b.columns:
+                        if (
+                            col_a.name.lower() == col_b.name.lower() or
+                            col_a.name.lower().endswith('_id') and col_b.name.lower().endswith('_id')
+                        ) and col_a.type == col_b.type:
+                            suggestions.append(Relationship(
+                                source_table=table_a.name,
+                                source_column=col_a.name,
+                                target_table=table_b.name,
+                                target_column=col_b.name,
+                                type=RelationshipType.ONE_TO_MANY,
+                                confidence=0.7,
+                                description=f"Heuristic match: {col_a.name} <-> {col_b.name}"
+                            ))
+        # TODO: Integrate AI prompt here for advanced suggestions
+        return RelationshipSuggestionResponse(
+            relationships=suggestions,
+            confidence=0.7 if suggestions else 0.0,
+            message="Heuristic relationship suggestions. AI extension point available.",
+            warnings=[] if suggestions else ["No relationships found by heuristics."]
+        )
+
+    async def cross_dataset_relationships(self, datasets: List[List[TableInfo]], context: Optional[dict] = None) -> CrossDatasetRelationshipResponse:
+        """Infer relationships across multiple datasets using heuristics and AI extension points."""
+        suggestions = []
+        # Heuristic: match columns with same name/type across datasets
+        for i, tables_a in enumerate(datasets):
+            for tables_b in datasets[i+1:]:
+                for table_a in tables_a:
+                    for table_b in tables_b:
+                        for col_a in table_a.columns:
+                            for col_b in table_b.columns:
+                                if col_a.name.lower() == col_b.name.lower() and col_a.type == col_b.type:
+                                    suggestions.append(Relationship(
+                                        source_table=table_a.name,
+                                        source_column=col_a.name,
+                                        target_table=table_b.name,
+                                        target_column=col_b.name,
+                                        type=RelationshipType.ONE_TO_ONE,
+                                        confidence=0.6,
+                                        description=f"Cross-dataset match: {col_a.name} <-> {col_b.name}"
+                                    ))
+        # TODO: Integrate AI prompt here for advanced cross-dataset suggestions
+        return CrossDatasetRelationshipResponse(
+            relationships=suggestions,
+            confidence=0.6 if suggestions else 0.0,
+            message="Heuristic cross-dataset relationship suggestions. AI extension point available.",
+            warnings=[] if suggestions else ["No cross-dataset relationships found by heuristics."]
+        )
     
     def _calculate_statistics(self, values: List[Any]) -> ColumnStatistics:
         """Calculate comprehensive column statistics."""

@@ -7,6 +7,7 @@ import json
 import logging
 from datetime import datetime
 from models.schemas import Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest
+from models.schemas import GlossaryTerm, GlossaryRequest, SchemaConsistencyCheckRequest, SchemaConsistencyCheckResponse
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class ProjectManager:
     def __init__(self):
         # In-memory storage (replace with database in production)
         self._projects: Dict[str, Project] = {}
+        self._glossary: Dict[str, GlossaryTerm] = {}
         logger.info("ProjectManager initialized")
     
     async def create_project(self, request: CreateProjectRequest) -> Project:
@@ -174,3 +176,59 @@ class ProjectManager:
         except Exception as e:
             logger.error(f"Failed to search projects: {str(e)}")
             raise ProjectError(f"Failed to search projects: {str(e)}")
+    
+    async def list_glossary_terms(self) -> List[GlossaryTerm]:
+        return list(self._glossary.values())
+
+    async def add_glossary_term(self, request: GlossaryRequest) -> GlossaryTerm:
+        import uuid
+        now = datetime.utcnow()
+        term_id = str(uuid.uuid4())
+        term = GlossaryTerm(
+            id=term_id,
+            term=request.term,
+            definition=request.definition,
+            synonyms=request.synonyms or [],
+            created_at=now,
+            updated_at=now
+        )
+        self._glossary[term_id] = term
+        return term
+
+    async def update_glossary_term(self, term_id: str, request: GlossaryRequest) -> GlossaryTerm:
+        term = self._glossary.get(term_id)
+        if not term:
+            raise ProjectError(f"Glossary term {term_id} not found")
+        term.term = request.term
+        term.definition = request.definition
+        term.synonyms = request.synonyms or []
+        term.updated_at = datetime.utcnow()
+        self._glossary[term_id] = term
+        return term
+
+    async def delete_glossary_term(self, term_id: str) -> None:
+        if term_id in self._glossary:
+            del self._glossary[term_id]
+
+    async def schema_consistency_check(self, request: SchemaConsistencyCheckRequest) -> SchemaConsistencyCheckResponse:
+        # Simple checks: duplicate column names, missing foreign keys, etc.
+        issues = []
+        suggestions = []
+        seen_columns = set()
+        for table in request.tables:
+            for col in getattr(table, 'columns', []):
+                col_key = (table.name, col.name)
+                if col_key in seen_columns:
+                    issues.append(f"Duplicate column: {col.name} in table {table.name}")
+                else:
+                    seen_columns.add(col_key)
+                if col.foreign_key and not col.foreign_key:
+                    issues.append(f"Column {col.name} in {table.name} is marked as foreign key but has no reference.")
+        consistent = len(issues) == 0
+        if not consistent:
+            suggestions.append("Review issues and update schema definitions.")
+        return SchemaConsistencyCheckResponse(
+            consistent=consistent,
+            issues=issues,
+            suggestions=suggestions
+        )

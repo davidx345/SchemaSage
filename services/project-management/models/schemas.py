@@ -64,3 +64,35 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Detailed error information")
     code: Optional[str] = Field(None, description="Error code")
+
+class GlossaryTerm(BaseModel):
+    """Business glossary term."""
+    id: Optional[str] = Field(None, description="Glossary term ID")
+    term: str = Field(..., description="Glossary term")
+    definition: str = Field(..., description="Definition of the term")
+    synonyms: Optional[List[str]] = Field(default_factory=list, description="Synonyms for the term")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class GlossaryRequest(BaseModel):
+    """Request to add or update a glossary term."""
+    term: str
+    definition: str
+    synonyms: Optional[List[str]] = None
+
+class GlossaryResponse(BaseModel):
+    """Response for glossary term(s)."""
+    terms: List[GlossaryTerm]
+    total: int
+
+class SchemaConsistencyCheckRequest(BaseModel):
+    """Request for schema consistency check."""
+    project_id: str
+    tables: List[Any]  # Accepts TableInfo or similar structure
+    relationships: Optional[List[Any]] = None
+
+class SchemaConsistencyCheckResponse(BaseModel):
+    """Response for schema consistency check."""
+    consistent: bool
+    issues: List[str]
+    suggestions: Optional[List[str]] = None

@@ -22,6 +22,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Maximize2, MinusSquare } from 'lucide-react';
 import { SchemaResponse, Table, Column, Relationship } from '@/lib/types';
+import { RelationshipSuggestions } from "@/components/schema-detection/RelationshipSuggestions";
+import { DocumentationEditor } from "@/components/documentation/DocumentationEditor";
 import 'reactflow/dist/style.css';
 
 interface SchemaVisualizationProps {
@@ -203,6 +205,10 @@ function SchemaVisualizationInner({ schema }: SchemaVisualizationProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [zoom, setZoom] = useState(1);
   const flowRef = useRef(null);
+  const [relationships, setRelationships] = useState<Relationship[]>(schema.relationships || []);
+  const [doc, setDoc] = useState<string>("");
+  const [loadingDoc, setLoadingDoc] = useState(false);
+  const [errorDoc, setErrorDoc] = useState<string | null>(null);
 
   // Transform schema into nodes and edges
   useEffect(() => {
@@ -298,6 +304,11 @@ function SchemaVisualizationInner({ schema }: SchemaVisualizationProps) {
     [setEdges]
   );
 
+  // Handler to apply suggested relationships
+  const handleApplySuggestions = (suggested: Relationship[]) => {
+    setRelationships(suggested);
+  };
+
   // UI control handlers
   const handleZoomIn = () => setZoom((z) => Math.min(z * 1.2, 2));
   const handleZoomOut = () => setZoom((z) => Math.max(z / 1.2, 0.5));
@@ -306,6 +317,48 @@ function SchemaVisualizationInner({ schema }: SchemaVisualizationProps) {
       // @ts-expect-error - ReactFlow instance type is not properly exposed
       flowRef.current.fitView({ padding: 0.2 });
     }
+  };
+
+  // Auto-fetch or generate documentation for the schema
+  useEffect(() => {
+    async function fetchDoc() {
+      setLoadingDoc(true);
+      setErrorDoc(null);
+      try {
+        const res = await fetch(`/api/schema-detection/documentation/get?object_id=schema`);
+        if (res.ok) {
+          const data = await res.json();
+          setDoc(data.documentation);
+        } else if (res.status === 404) {
+          // Auto-generate if not found
+          const genRes = await fetch(`/api/schema-detection/documentation/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ schema })
+          });
+          const data = await genRes.json();
+          setDoc(data.documentation);
+        } else {
+          throw new Error("Failed to fetch documentation");
+        }
+      } catch (e: any) {
+        setErrorDoc(e.message);
+      } finally {
+        setLoadingDoc(false);
+      }
+    }
+    fetchDoc();
+  }, [schema]);
+
+  // Export to Markdown
+  const handleExportMarkdown = () => {
+    const blob = new Blob([doc], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "schema-documentation.md";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (!schema) {
@@ -358,6 +411,20 @@ function SchemaVisualizationInner({ schema }: SchemaVisualizationProps) {
         </ReactFlow>
       </Card>
       <RelationshipLegend />
+      <RelationshipSuggestions tables={schema.tables} onApply={handleApplySuggestions} />
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">Schema Documentation</h2>
+          <Button size="sm" onClick={handleExportMarkdown} disabled={!doc}>Export Markdown</Button>
+        </div>
+        {loadingDoc ? (
+          <div>Loading documentation...</div>
+        ) : errorDoc ? (
+          <div className="text-red-500">{errorDoc}</div>
+        ) : (
+          <DocumentationEditor objectId="schema" initialDoc={doc} />
+        )}
+      </div>
     </>
   );
 }
