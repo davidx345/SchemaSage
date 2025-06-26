@@ -18,7 +18,9 @@ services:
 
   # API Gateway
   api-gateway:
-    build: ./services/api-gateway
+    build: 
+      context: ./services/api-gateway
+      network: host
     ports:
       - "8000:8000"
     environment:
@@ -101,17 +103,17 @@ services:
       - schemasage-network
 
   # Analytics Service
-  analytics:
-    build: ./services/analytics
-    ports:
-      - "8006:8006"
-    environment:
-      - ENV=development
-      - DATABASE_URL=postgresql://analytics_user:password@postgres-analytics:5432/analytics
-    depends_on:
-      - postgres-analytics
-    networks:
-      - schemasage-network
+  # analytics:
+  #   build: ./services/analytics
+  #   ports:
+  #     - "8006:8006"
+  #   environment:
+  #     - ENV=development
+  #     - DATABASE_URL=postgresql://analytics_user:password@postgres-analytics:5432/analytics
+  #   depends_on:
+  #     - postgres-analytics
+  #   networks:
+  #     - schemasage-network
 
   # Frontend
   frontend:
@@ -160,16 +162,16 @@ services:
     networks:
       - schemasage-network
 
-  postgres-analytics:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: analytics
-      POSTGRES_USER: analytics_user
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_analytics_data:/var/lib/postgresql/data
-    networks:
-      - schemasage-network
+  # postgres-analytics:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: analytics
+  #     POSTGRES_USER: analytics_user
+  #     POSTGRES_PASSWORD: password
+  #   volumes:
+  #     - postgres_analytics_data:/var/lib/postgresql/data
+  #   networks:
+  #     - schemasage-network
 
   # Shared Services
   redis:
@@ -200,7 +202,7 @@ volumes:
   postgres_schema_data:
   postgres_projects_data:
   postgres_auth_data:
-  postgres_analytics_data:
+  # postgres_analytics_data:
   redis_data:
   rabbitmq_data:
 

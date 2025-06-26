@@ -12,11 +12,11 @@ from datetime import datetime
 import time
 import logging
 import httpx
-from .models.schemas import (
+from models.schemas import (
     SchemaResponse, TableInfo, ColumnInfo, ColumnStatistics, 
     Relationship, SchemaSettings, RelationshipType
 )
-from .config import get_settings
+from config import get_settings
 
 try:
     import json5
@@ -101,7 +101,7 @@ class SchemaDetector:
     async def detect_schema(self, data: str, format_hint: Optional[str] = None) -> Dict[str, Any]:
         """Main entry point for schema detection."""
         self.processing_start_time = time.time()
-        
+        warnings = []
         try:
             if not data or not data.strip():
                 raise SchemaValidationError("Input data cannot be empty")
@@ -121,9 +121,19 @@ class SchemaDetector:
                 'processing_timestamp': datetime.utcnow().isoformat(),
                 'service_version': settings.VERSION
             }
-            
+            schema_result['warnings'] = warnings
             return schema_result
             
+        except SchemaValidationError as e:
+            warnings.append(str(e))
+            return {
+                'tables': [],
+                'relationships': [],
+                'metadata': {},
+                'confidence': 0.0,
+                'processing_time': time.time() - self.processing_start_time,
+                'warnings': warnings
+            }
         except Exception as e:
             logger.error(f"Schema detection failed: {str(e)}")
             # Fallback to Gemini if enabled
@@ -139,6 +149,14 @@ class SchemaDetector:
             return await self._parse_json(data)
         elif format_hint == 'csv':
             return await self._parse_csv(data)
+        elif format_hint == 'excel' or format_hint == 'xlsx':
+            import pandas as pd
+            from io import BytesIO
+            try:
+                df = pd.read_excel(BytesIO(data.encode('utf-8')))
+                return df.to_dict('records')
+            except Exception as e:
+                raise SchemaValidationError(f"Invalid Excel file: {str(e)}")
         else:
             # Auto-detect format
             return await self._auto_parse(data)
@@ -221,8 +239,9 @@ class SchemaDetector:
             raise SchemaValidationError("Data must be an object or array of objects")
     
     async def _analyze_array(self, data: List[Any]) -> Dict[str, Any]:
-        """Analyze array of objects."""
+        warnings = []
         if not data:
+            warnings.append("Empty array provided.")
             raise SchemaValidationError("Empty array provided")
         
         # Sample data if too large
@@ -260,10 +279,24 @@ class SchemaDetector:
         if self.settings.detect_relations and settings.ENABLE_RELATIONSHIP_DETECTION:
             relationships = await self._detect_relationships(sample, columns)
         
+        # Add warning for high null columns
+        for key, stats in statistics.items():
+            if stats.null_count > 0 and stats.null_count / stats.total_count > 0.3:
+                warnings.append(f"Column '{key}' has more than 30% missing values.")
+        
+        # Add confidence indicator
+        confidence = 1.0
+        if len(data) < 10:
+            confidence = 0.5
+            warnings.append("Low sample size, confidence reduced.")
+        
         return {
-            "tables": [table],
-            "relationships": relationships,
-            "confidence": self._calculate_confidence(columns, statistics)
+            'tables': [table],
+            'relationships': relationships,
+            'metadata': {},
+            'confidence': confidence,
+            'processing_time': time.time() - self.processing_start_time,
+            'warnings': warnings
         }
     
     async def _analyze_object(self, data: Dict[str, Any]) -> Dict[str, Any]:

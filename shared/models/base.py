@@ -55,3 +55,8 @@ class PaginatedResponse(BaseResponse):
     total_pages: int = 0
     has_next: bool = False
     has_prev: bool = False
+
+
+class ApiHealthResponse(BaseModel):
+    status: str = "ok"
+    version: str = "1.0.0"

@@ -2,7 +2,8 @@
 
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -32,9 +33,14 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # API Keys
+    OPENAI_API_KEY: str = Field(default="")
+    GEMINI_API_KEY: str = Field(default="")
+    
+    # Database
+    DATABASE_URL: str = Field(default="postgresql://schema_user:password@postgres-schema:5432/schema_detection")
+    
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 # Global settings instance

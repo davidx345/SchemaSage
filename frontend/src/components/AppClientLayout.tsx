@@ -9,6 +9,7 @@ import { Toaster } from "sonner";
 import { AIChatDialog } from "@/components/ai-chat-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Notifications } from "@/components/notifications";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Use a system font stack instead of Google Fonts for offline usage
 const fontClassName = "font-sans";
@@ -32,24 +33,26 @@ export default function AppClientLayout({ children }: PropsWithChildren) {
     <html lang="en" suppressHydrationWarning>
       <body className={fontClassName + " bg-background text-foreground transition-colors duration-300"}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
-          {isLandingPage || isAuthPage || isMainInterfacePage ? (
-            <>
-              {children}
-              <Toaster position="bottom-right" />
-            </>
-          ) : (
-            <div className="relative flex min-h-screen bg-background">
-              <Sidebar />
-              <div className="flex-1">
-                <Header />
-                <main className="p-6">
-                  <ErrorBoundary>{children}</ErrorBoundary>
-                </main>
+          <TooltipProvider>
+            {isLandingPage || isAuthPage || isMainInterfacePage ? (
+              <>
+                {children}
+                <Toaster position="bottom-right" />
+              </>
+            ) : (
+              <div className="relative flex min-h-screen bg-background">
+                <Sidebar />
+                <div className="flex-1">
+                  <Header />
+                  <main className="p-6">
+                    <ErrorBoundary>{children}</ErrorBoundary>
+                  </main>
+                </div>
               </div>
-            </div>
-          )}
-          <AIChatDialog />
-          <Notifications />
+            )}
+            <AIChatDialog />
+            <Notifications />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -65,7 +65,6 @@ export default function LandingPage() {
     }
   ];
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -76,19 +75,8 @@ export default function LandingPage() {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
 
-    // Mouse position tracking for parallax effect
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth) * 2 - 1,
-        y: (e.clientY / window.innerHeight) * 2 - 1,
-      });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-
     return () => {
       clearInterval(testimonialInterval);
-      window.removeEventListener('mousemove', handleMouseMove);
     };
   }, [testimonials.length]);
 
@@ -352,7 +340,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-4xl md:text-5xl font-extrabold mb-6 bg-gradient-to-r from-blue-700 via-blue-500 to-teal-500 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-teal-200">
-              "Loved by Developers Worldwide"
+              &quot;Loved by Developers Worldwide&quot;
             </h2>
             <p className="text-xl text-slate-700 dark:text-gray-300 max-w-3xl mx-auto font-medium">
               Join thousands of developers who trust SchemaSage for their database needs.
@@ -374,7 +362,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <blockquote className="text-2xl md:text-3xl font-semibold text-slate-800 dark:text-gray-200 mb-8 leading-relaxed">
-                  "{testimonials[currentTestimonial].content}"
+                  &quot;{testimonials[currentTestimonial].content}&quot;
                 </blockquote>
                 <div className="flex items-center justify-center gap-4">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-teal-400 flex items-center justify-center text-white font-bold text-lg">

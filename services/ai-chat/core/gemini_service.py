@@ -7,8 +7,8 @@ import json
 import logging
 import google.generativeai as genai
 from typing import Dict, List, Any, Optional
-from ..config import settings
-from ..models.schemas import ChatResponse, ChatMessage
+from config import settings
+from models.schemas import ChatResponse, ChatMessage
 
 logger = logging.getLogger(__name__)
 

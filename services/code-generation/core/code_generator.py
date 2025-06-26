@@ -7,8 +7,8 @@ import os
 import json
 import logging
 from datetime import datetime
-from ..config import settings, CodeGenFormat
-from ..models.schemas import TableInfo, Relationship, SchemaResponse, ColumnStatistics
+from config import settings, CodeGenFormat
+from models.schemas import TableInfo, Relationship, SchemaResponse, ColumnStatistics
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -318,7 +318,7 @@ class CodeGenerator:
                 raise NotImplementedError("DBML format generation not yet implemented")
             else:
                 logger.error(f"Unsupported format: {format}")
-                raise ValueError(f"Unsupported format: {format}")
+                raise CodeGenerationError(f"Unsupported format: {format}")
         except Exception as e:
             logger.warning(f"Template-based code generation failed: {e}")
             # Fallback to Gemini if enabled

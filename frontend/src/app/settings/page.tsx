@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, Moon, Sun } from "lucide-react";
+import { Save } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,7 +273,7 @@ export default function SettingsPage() {
                         <div className="space-y-0.5">
                           <Label htmlFor="streaming" className="text-sm font-medium">Stream AI responses</Label>
                           <p className="text-sm text-muted-foreground">
-                            Show AI responses as they're generated
+                            Show AI responses as they&apos;re generated
                           </p>
                         </div>
                         <Switch id="streaming" defaultChecked />

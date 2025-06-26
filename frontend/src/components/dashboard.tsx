@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ModeToggle } from "@/components/mode-toggle";
 import { 
   Activity, 
@@ -15,7 +15,6 @@ import {
   Upload, 
   Database, 
   Code, 
-  Sparkles, 
   TrendingUp, 
   Clock, 
   FolderOpen,
@@ -380,7 +379,7 @@ export default function Dashboard() {
                         </Card>
                       </motion.div>
                     ))
-                  )}
+                  }
                 </div>
               </Card>
             </motion.div>

@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request, status, UploadFile, File, B
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from typing import Optional, Dict, Any
+from typing import Optional
 import logging
 from contextlib import asynccontextmanager
 import time

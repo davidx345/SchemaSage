@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from models.schemas import (
-    ChatRequest, ChatResponse, ApiHealthResponse, ErrorResponse
+    ChatResponse, ChatMessage, ChatRequest, ChatErrorResponse
 )
 from core.chat_service import OpenAIChatService, ChatError
 from core.gemini_service import GeminiChatService, GeminiServiceError
@@ -215,7 +215,6 @@ async def test_providers():
     if settings.is_openai_configured():
         try:
             # Simple test request
-            from models.schemas import ChatMessage
             test_response = await openai_service.get_response(
                 schema=None,
                 messages=[],

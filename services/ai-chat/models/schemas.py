@@ -35,3 +35,8 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Detailed error information")
     code: Optional[str] = Field(None, description="Error code")
+
+class ChatErrorResponse(BaseModel):
+    """Chat error response model"""
+    detail: str = Field(..., description="Error details")
+    error_type: str = Field("chat_error", description="Type of the error")

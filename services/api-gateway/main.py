@@ -179,6 +179,18 @@ async def proxy_handler(path: str, request: Request):
     
     return await proxy_request(service_name, service_path, request)
 
+@app.post("/api/schema/detect-file")
+async def proxy_detect_file(request: Request):
+    return await proxy_request("schema-detection", "/detect-file", request)
+
+@app.post("/api/code/generate")
+async def proxy_generate_code(request: Request):
+    return await proxy_request("code-generation", "/generate", request)
+
+@app.post("/api/projects")
+async def proxy_create_project(request: Request):
+    return await proxy_request("project-management", "/projects", request)
+
 @app.get("/")
 async def root():
     """Root endpoint"""

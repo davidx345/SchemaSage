@@ -4,8 +4,8 @@ OpenAI Chat Service
 from typing import List, Dict, Any
 import aiohttp
 import logging
-from ..config import settings
-from ..models.schemas import ChatResponse, ChatMessage
+from config import settings
+from models.schemas import ChatResponse, ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +82,7 @@ class OpenAIChatService:
         except Exception as e:
             logger.error(f"Failed to get OpenAI chat response: {str(e)}")
             raise ChatError(f"Failed to get chat response: {str(e)}")
+    
+    async def suggest_schema(self, data):
+        # Use LLM to suggest schema
+        pass
