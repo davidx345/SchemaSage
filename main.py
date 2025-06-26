@@ -12,8 +12,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from models.schemas import (
-    Project, CreateProjectRequest, UpdateProjectRequest, ProjectListResponse,
-    ApiHealthResponse, ErrorResponse, ProjectStatus, ProjectType
+    Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest
 )
 from core.project_manager import ProjectManager, ProjectError
 

@@ -6,7 +6,7 @@ import uuid
 import json
 import logging
 from datetime import datetime
-from ..models.schemas import Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest
+from models.schemas import Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,22 @@ class ProjectManager:
         except Exception as e:
             logger.error(f"Failed to delete project {project_id}: {str(e)}")
             raise ProjectError(f"Failed to delete project: {str(e)}")
+    
+    def save_project(self, project):
+        # Save project to storage (file/db)
+        pass
+    def load_project(self, project_id):
+        # Load project from storage
+        pass
+    def list_projects(self, user_id=None):
+        # List projects for user
+        pass
+    def update_project(self, project_id, data):
+        # Update project
+        pass
+    def delete_project(self, project_id):
+        # Delete project
+        pass
     
     async def list_projects(
         self, 
