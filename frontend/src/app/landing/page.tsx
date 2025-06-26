@@ -119,6 +119,69 @@ export default function LandingPage() {
     }
   ];
 
+  const howItWorks = [
+    {
+      icon: <Database className="w-8 h-8 text-blue-500" />,
+      title: "Connect & Upload",
+      desc: "Securely connect your databases or upload your schema/data files."
+    },
+    {
+      icon: <Brain className="w-8 h-8 text-teal-500" />,
+      title: "AI Analysis",
+      desc: "Our AI analyzes, profiles, and visualizes your data instantly."
+    },
+    {
+      icon: <Layers className="w-8 h-8 text-blue-400" />,
+      title: "Explore & Clean",
+      desc: "Visualize relationships, lineage, and get cleaning suggestions."
+    },
+    {
+      icon: <Zap className="w-8 h-8 text-yellow-400" />,
+      title: "Automate & Integrate",
+      desc: "Enable integrations, automate workflows, and export results."
+    }
+  ];
+
+  const expandedFeatures = [
+    {
+      icon: <Sparkles className="w-7 h-7 text-yellow-400" />,
+      title: "AI Schema Intelligence",
+      desc: "Smart detection, relationship inference, and context-aware suggestions."
+    },
+    {
+      icon: <Layers className="w-7 h-7 text-blue-400" />,
+      title: "Data Lineage & Impact",
+      desc: "Interactive lineage explorer and impact analysis for every schema change."
+    },
+    {
+      icon: <Code2 className="w-7 h-7 text-teal-400" />,
+      title: "Auto-Documentation",
+      desc: "AI-powered, business-aware docs with Markdown export."
+    },
+    {
+      icon: <Shield className="w-7 h-7 text-blue-600" />,
+      title: "Data Cleaning",
+      desc: "AI-driven cleaning suggestions, preview, and one-click fixes."
+    },
+    {
+      icon: <Zap className="w-7 h-7 text-yellow-400" />,
+      title: "Integration Marketplace",
+      desc: "Webhooks, Slack, BI tools, cloud storage, and custom API connectors."
+    },
+    {
+      icon: <Users className="w-7 h-7 text-blue-500" />,
+      title: "Admin Dashboard & Security",
+      desc: "Role-based access, audit logs, and enterprise-grade controls."
+    }
+  ];
+
+  const logos = [
+    "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/a/a6/Logo_NIKE.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+    "https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg"
+  ];
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white overflow-hidden">
       {/* Removed animated/rotating background blobs for clean layout */}
@@ -282,54 +345,57 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="relative z-10 py-32 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-transparent">
+      {/* Expanded Features Section */}
+      <section id="features" className="py-20 bg-white dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4">
-          <motion.div
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 bg-gradient-to-r from-blue-700 via-blue-500 to-teal-500 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-teal-200">
-              Powerful Features for Modern Development
-            </h2>
-            <p className="text-xl text-slate-700 dark:text-gray-300 max-w-3xl mx-auto font-medium">
-              Everything you need to build, optimize, and maintain database schemas with confidence.
-            </p>
-          </motion.div>
-          <motion.div
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true }}
-          >
-            {features.map((feature) => (
-              <motion.div
-                key={feature.title}
-                className="group p-8 rounded-3xl bg-white dark:bg-white/5 shadow-lg dark:shadow-none border border-slate-200 dark:border-white/10 hover:border-blue-400 dark:hover:border-white/20 transition-all duration-300"
-                variants={fadeInUp}
-                whileHover={{ 
-                  scale: 1.02,
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.08)"
-                }}
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-blue-700 dark:text-white group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors">
-                  {feature.title}
-                </h3>
-                <p className="text-slate-700 dark:text-gray-300 leading-relaxed font-medium">
-                  {feature.description}
-                </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Why SchemaSage?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {expandedFeatures.map((f, i) => (
+              <motion.div key={f.title} className="bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-8 shadow-lg flex flex-col items-center text-center hover:scale-105 transition-transform"
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i }}>
+                <div className="mb-4">{f.icon}</div>
+                <div className="font-bold text-lg mb-2">{f.title}</div>
+                <div className="text-slate-600 dark:text-slate-300">{f.desc}</div>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
-      </section>      {/* Testimonials Section */}
+      </section>
+
+      {/* Screenshots/Demo Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-teal-50 dark:from-slate-800 dark:to-slate-900">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">See SchemaSage in Action</h2>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+            <img src="/dashboard-screenshot.png" alt="Dashboard Screenshot" className="rounded-xl shadow-xl w-full md:w-1/2 border-4 border-blue-200 dark:border-slate-700" />
+            <img src="/lineage-screenshot.png" alt="Lineage Explorer Screenshot" className="rounded-xl shadow-xl w-full md:w-1/2 border-4 border-blue-200 dark:border-slate-700" />
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/auth/login">
+              <Button className="bg-gradient-to-r from-blue-600 to-teal-500 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:scale-105 transition-transform">Try Live Demo</Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-white dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How It Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {howItWorks.map((step, i) => (
+              <motion.div key={step.title} className="flex flex-col items-center text-center p-6 rounded-xl bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 shadow-lg"
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i }}>
+                <div className="mb-4">{step.icon}</div>
+                <div className="font-bold text-lg mb-2">{step.title}</div>
+                <div className="text-slate-600 dark:text-slate-300">{step.desc}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
       <section className="relative z-10 py-32 bg-slate-100 dark:bg-slate-900/20 border-t border-slate-200 dark:border-white/10">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
@@ -530,70 +596,22 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            <div>
-              <h3 className="font-semibold text-blue-700 dark:text-white mb-6">Product</h3>
-              <ul className="space-y-3">
-                <li><a href="#features" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Features</a></li>
-                <li><a href="#pricing" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Pricing</a></li>
-                <li><a href="#docs" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Documentation</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">API Reference</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-700 dark:text-white mb-6">Company</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">About</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Blog</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Careers</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Press</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-700 dark:text-white mb-6">Resources</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Community</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Help Center</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Partners</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Status</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-700 dark:text-white mb-6">Legal</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Security</a></li>
-                <li><a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">Cookie Policy</a></li>
-              </ul>
-            </div>
+      <footer className="bg-slate-900 text-white py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Database className="w-6 h-6 text-blue-400" />
+            <span className="font-bold text-lg">SchemaSage</span>
           </div>
-          <div className="border-t border-slate-200 dark:border-white/10 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Database className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-blue-700 dark:text-white">SchemaSage</span>
-              </div>
-              <p className="text-sm text-slate-700 dark:text-gray-400">
-                © 2025 SchemaSage. All rights reserved.
-              </p>
-              <div className="flex gap-6">
-                <a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                  <Twitter className="w-5 h-5" />
-                </a>
-                <a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                  <Github className="w-5 h-5" />
-                </a>
-                <a href="#" className="text-slate-700 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                  <Users className="w-5 h-5" />
-                </a>
-              </div>
-            </div>
+          <div className="flex gap-6 text-slate-400 text-sm">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <a href="mailto:support@schemasage.com">Contact</a>
           </div>
+          <div className="flex gap-4">
+            <a href="https://github.com/your-org/schemasage" target="_blank" rel="noopener noreferrer"><Github className="w-5 h-5 hover:text-blue-400" /></a>
+            <a href="https://twitter.com/schemasage" target="_blank" rel="noopener noreferrer"><Twitter className="w-5 h-5 hover:text-blue-400" /></a>
+          </div>
+          <div className="text-xs text-slate-500 mt-4 md:mt-0">© {new Date().getFullYear()} SchemaSage. All rights reserved.</div>
         </div>
       </footer>
     </div>

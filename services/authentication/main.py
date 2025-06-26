@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security import OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
@@ -23,10 +23,16 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    is_admin = Column(Boolean, default=False)
 
 class UserCreate(BaseModel):
     username: str
     password: str
+    is_admin: bool = False
+
+class UserOut(BaseModel):
+    username: str
+    is_admin: bool
 
 class Token(BaseModel):
     access_token: str
@@ -41,7 +47,7 @@ def get_db():
 
 def create_user(db: Session, user: UserCreate):
     hashed_password = pwd_context.hash(user.password)
-    db_user = User(username=user.username, hashed_password=hashed_password)
+    db_user = User(username=user.username, hashed_password=hashed_password, is_admin=user.is_admin)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -76,6 +82,23 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     access_token = create_access_token({"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=["HS256"])
+        username = payload.get("sub")
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.get("/me", response_model=UserOut)
+def get_me(user: User = Depends(get_current_user)):
+    return {"username": user.username, "is_admin": user.is_admin}
 
 @app.on_event("startup")
 def on_startup():

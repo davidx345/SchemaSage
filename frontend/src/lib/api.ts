@@ -395,7 +395,15 @@ export const authApi = {
     if (!response.ok) {
       throw new Error(data.detail || data.message || 'Login failed');
     }
-    return data;
+    // Fetch user info after login
+    const userRes = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${data.access_token}` }
+    });
+    const user = await userRes.json();
+    if (!userRes.ok) {
+      throw new Error(user.detail || user.message || 'Failed to fetch user');
+    }
+    return { ...data, user };
   },
   getMe: async (token: string) => {
     const response = await fetch(`${API_BASE}/auth/me`, {

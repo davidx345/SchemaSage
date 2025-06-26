@@ -62,9 +62,9 @@ interface StoreState {
 
 interface AuthState {
   token: string | null;
-  user: { email: string; fullName?: string } | null;
+  user: { email: string; fullName?: string; is_admin?: boolean } | null;
   setToken: (token: string | null) => void;
-  setUser: (user: { email: string; fullName?: string } | null) => void;
+  setUser: (user: { email: string; fullName?: string; is_admin?: boolean } | null) => void;
   logout: () => void;
 }
 

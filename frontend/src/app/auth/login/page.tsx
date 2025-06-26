@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { authApi } from "@/lib/api";
+import { useAuth } from "@/lib/store";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { setToken, setUser } = useAuth();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,7 +27,13 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(email, password);
       localStorage.setItem("token", data.access_token);
-      router.push("/dashboard");
+      setToken(data.access_token);
+      setUser({ email, is_admin: data.user.is_admin });
+      if (data.user.is_admin) {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError((err as Error).message || "Login failed");
     } finally {
