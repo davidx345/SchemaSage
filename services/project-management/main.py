@@ -18,11 +18,46 @@ from models.schemas import (
     SchemaConsistencyCheckRequest, SchemaConsistencyCheckResponse
 )
 from core.project_manager import ProjectManager, ProjectError
+from integrations.manager import IntegrationManager
+from integrations.webhook import WebhookIntegration
+from integrations.notification import NotificationIntegration
+from integrations.cloud_storage import CloudStorageIntegration
+from integrations.bi_tools import BIToolsIntegration
+from integrations.data_catalogs import DataCatalogsIntegration
+from integrations.custom_api import CustomAPIIntegration
+from fastapi import Body
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 # Service instance
 project_manager = ProjectManager()
+
+# Integration manager instance
+integration_manager = IntegrationManager()
+# Register webhook integration with default config (can be updated via API)
+default_webhook_config = {"enabled": False, "webhooks": [], "events": []}
+integration_manager.register("webhook", WebhookIntegration, default_webhook_config)
+
+# Register notification integration with default config
+notification_default_config = {"enabled": False, "channels": [], "events": []}
+integration_manager.register("notification", NotificationIntegration, notification_default_config)
+
+# Register cloud storage integration with default config
+cloud_storage_default_config = {"enabled": False, "providers": []}
+integration_manager.register("cloud_storage", CloudStorageIntegration, cloud_storage_default_config)
+
+# Register BI tools integration with default config
+bi_tools_default_config = {"enabled": False, "tools": []}
+integration_manager.register("bi_tools", BIToolsIntegration, bi_tools_default_config)
+
+# Register data catalogs integration with default config
+data_catalogs_default_config = {"enabled": False, "catalogs": []}
+integration_manager.register("data_catalogs", DataCatalogsIntegration, data_catalogs_default_config)
+
+# Register custom API integration with default config
+custom_api_default_config = {"enabled": False, "connectors": []}
+integration_manager.register("custom_api", CustomAPIIntegration, custom_api_default_config)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -235,6 +270,286 @@ async def schema_consistency_check(request: SchemaConsistencyCheckRequest):
     result = await project_manager.schema_consistency_check(request)
     return result
 
+class WebhookConfigRequest(BaseModel):
+    webhooks: list[str]
+    events: list[str]
+    enabled: bool = True
+
+class WebhookTriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/webhooks")
+async def get_webhook_config():
+    """Get current webhook integration config"""
+    webhook = integration_manager.integrations.get("webhook")
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook integration not found")
+    return {
+        "enabled": webhook.enabled,
+        "webhooks": webhook.webhooks,
+        "events": webhook.events
+    }
+
+@app.post("/integrations/webhooks")
+async def configure_webhook(config: WebhookConfigRequest):
+    """Configure webhook integration"""
+    webhook = integration_manager.integrations.get("webhook")
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook integration not found")
+    integration_manager.configure("webhook", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/webhooks/enable")
+async def enable_webhook():
+    integration_manager.enable("webhook")
+    return {"success": True}
+
+@app.post("/integrations/webhooks/disable")
+async def disable_webhook():
+    integration_manager.disable("webhook")
+    return {"success": True}
+
+@app.post("/integrations/webhooks/trigger")
+async def trigger_webhook(req: WebhookTriggerRequest):
+    webhook = integration_manager.integrations.get("webhook")
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook integration not found")
+    integration_manager.trigger("webhook", req.event, req.payload)
+    return {"success": True}
+
+class NotificationConfigRequest(BaseModel):
+    channels: list[dict]
+    events: list[str]
+    enabled: bool = True
+
+class NotificationTriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/notifications")
+async def get_notification_config():
+    """Get current notification integration config"""
+    notification = integration_manager.integrations.get("notification")
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification integration not found")
+    return {
+        "enabled": notification.enabled,
+        "channels": notification.channels,
+        "events": notification.events
+    }
+
+@app.post("/integrations/notifications")
+async def configure_notification(config: NotificationConfigRequest):
+    """Configure notification integration"""
+    notification = integration_manager.integrations.get("notification")
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification integration not found")
+    integration_manager.configure("notification", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/notifications/enable")
+async def enable_notification():
+    integration_manager.enable("notification")
+    return {"success": True}
+
+@app.post("/integrations/notifications/disable")
+async def disable_notification():
+    integration_manager.disable("notification")
+    return {"success": True}
+
+@app.post("/integrations/notifications/trigger")
+async def trigger_notification(req: NotificationTriggerRequest):
+    notification = integration_manager.integrations.get("notification")
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification integration not found")
+    integration_manager.trigger("notification", req.event, req.payload)
+    return {"success": True}
+
+class CloudStorageConfigRequest(BaseModel):
+    providers: list[dict]
+    enabled: bool = True
+
+class CloudStorageTriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/cloud-storage")
+async def get_cloud_storage_config():
+    """Get current cloud storage integration config"""
+    cloud_storage = integration_manager.integrations.get("cloud_storage")
+    if not cloud_storage:
+        raise HTTPException(status_code=404, detail="Cloud storage integration not found")
+    return {
+        "enabled": cloud_storage.enabled,
+        "providers": cloud_storage.providers
+    }
+
+@app.post("/integrations/cloud-storage")
+async def configure_cloud_storage(config: CloudStorageConfigRequest):
+    """Configure cloud storage integration"""
+    cloud_storage = integration_manager.integrations.get("cloud_storage")
+    if not cloud_storage:
+        raise HTTPException(status_code=404, detail="Cloud storage integration not found")
+    integration_manager.configure("cloud_storage", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/cloud-storage/enable")
+async def enable_cloud_storage():
+    integration_manager.enable("cloud_storage")
+    return {"success": True}
+
+@app.post("/integrations/cloud-storage/disable")
+async def disable_cloud_storage():
+    integration_manager.disable("cloud_storage")
+    return {"success": True}
+
+@app.post("/integrations/cloud-storage/trigger")
+async def trigger_cloud_storage(req: CloudStorageTriggerRequest):
+    cloud_storage = integration_manager.integrations.get("cloud_storage")
+    if not cloud_storage:
+        raise HTTPException(status_code=404, detail="Cloud storage integration not found")
+    integration_manager.trigger("cloud_storage", req.event, req.payload)
+    return {"success": True}
+
+class BIToolsConfigRequest(BaseModel):
+    tools: list[dict]
+    enabled: bool = True
+
+class BIToolsTriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/bi-tools")
+async def get_bi_tools_config():
+    """Get current BI tools integration config"""
+    bi_tools = integration_manager.integrations.get("bi_tools")
+    if not bi_tools:
+        raise HTTPException(status_code=404, detail="BI tools integration not found")
+    return {
+        "enabled": bi_tools.enabled,
+        "tools": bi_tools.tools
+    }
+
+@app.post("/integrations/bi-tools")
+async def configure_bi_tools(config: BIToolsConfigRequest):
+    """Configure BI tools integration"""
+    bi_tools = integration_manager.integrations.get("bi_tools")
+    if not bi_tools:
+        raise HTTPException(status_code=404, detail="BI tools integration not found")
+    integration_manager.configure("bi_tools", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/bi-tools/enable")
+async def enable_bi_tools():
+    integration_manager.enable("bi_tools")
+    return {"success": True}
+
+@app.post("/integrations/bi-tools/disable")
+async def disable_bi_tools():
+    integration_manager.disable("bi_tools")
+    return {"success": True}
+
+@app.post("/integrations/bi-tools/trigger")
+async def trigger_bi_tools(req: BIToolsTriggerRequest):
+    bi_tools = integration_manager.integrations.get("bi_tools")
+    if not bi_tools:
+        raise HTTPException(status_code=404, detail="BI tools integration not found")
+    integration_manager.trigger("bi_tools", req.event, req.payload)
+    return {"success": True}
+
+class DataCatalogsConfigRequest(BaseModel):
+    catalogs: list[dict]
+    enabled: bool = True
+
+class DataCatalogsTriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/data-catalogs")
+async def get_data_catalogs_config():
+    """Get current data catalogs integration config"""
+    data_catalogs = integration_manager.integrations.get("data_catalogs")
+    if not data_catalogs:
+        raise HTTPException(status_code=404, detail="Data catalogs integration not found")
+    return {
+        "enabled": data_catalogs.enabled,
+        "catalogs": data_catalogs.catalogs
+    }
+
+@app.post("/integrations/data-catalogs")
+async def configure_data_catalogs(config: DataCatalogsConfigRequest):
+    """Configure data catalogs integration"""
+    data_catalogs = integration_manager.integrations.get("data_catalogs")
+    if not data_catalogs:
+        raise HTTPException(status_code=404, detail="Data catalogs integration not found")
+    integration_manager.configure("data_catalogs", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/data-catalogs/enable")
+async def enable_data_catalogs():
+    integration_manager.enable("data_catalogs")
+    return {"success": True}
+
+@app.post("/integrations/data-catalogs/disable")
+async def disable_data_catalogs():
+    integration_manager.disable("data_catalogs")
+    return {"success": True}
+
+@app.post("/integrations/data-catalogs/trigger")
+async def trigger_data_catalogs(req: DataCatalogsTriggerRequest):
+    data_catalogs = integration_manager.integrations.get("data_catalogs")
+    if not data_catalogs:
+        raise HTTPException(status_code=404, detail="Data catalogs integration not found")
+    integration_manager.trigger("data_catalogs", req.event, req.payload)
+    return {"success": True}
+
+class CustomAPIConfigRequest(BaseModel):
+    connectors: list[dict]
+    enabled: bool = True
+
+class CustomAPITriggerRequest(BaseModel):
+    event: str
+    payload: dict
+
+@app.get("/integrations/custom-api")
+async def get_custom_api_config():
+    """Get current custom API integration config"""
+    custom_api = integration_manager.integrations.get("custom_api")
+    if not custom_api:
+        raise HTTPException(status_code=404, detail="Custom API integration not found")
+    return {
+        "enabled": custom_api.enabled,
+        "connectors": custom_api.connectors
+    }
+
+@app.post("/integrations/custom-api")
+async def configure_custom_api(config: CustomAPIConfigRequest):
+    """Configure custom API integration"""
+    custom_api = integration_manager.integrations.get("custom_api")
+    if not custom_api:
+        raise HTTPException(status_code=404, detail="Custom API integration not found")
+    integration_manager.configure("custom_api", config.dict())
+    return {"success": True}
+
+@app.post("/integrations/custom-api/enable")
+async def enable_custom_api():
+    integration_manager.enable("custom_api")
+    return {"success": True}
+
+@app.post("/integrations/custom-api/disable")
+async def disable_custom_api():
+    integration_manager.disable("custom_api")
+    return {"success": True}
+
+@app.post("/integrations/custom-api/trigger")
+async def trigger_custom_api(req: CustomAPITriggerRequest):
+    custom_api = integration_manager.integrations.get("custom_api")
+    if not custom_api:
+        raise HTTPException(status_code=404, detail="Custom API integration not found")
+    integration_manager.trigger("custom_api", req.event, req.payload)
+    return {"success": True}
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -255,7 +570,37 @@ async def root():
             "add_glossary_term": "POST /glossary",
             "update_glossary_term": "PUT /glossary/{term_id}",
             "delete_glossary_term": "DELETE /glossary/{term_id}",
-            "schema_consistency_check": "POST /schema/consistency-check"
+            "schema_consistency_check": "POST /schema/consistency-check",
+            "webhook_config": "GET /integrations/webhooks",
+            "configure_webhook": "POST /integrations/webhooks",
+            "enable_webhook": "POST /integrations/webhooks/enable",
+            "disable_webhook": "POST /integrations/webhooks/disable",
+            "trigger_webhook": "POST /integrations/webhooks/trigger",
+            "notification_config": "GET /integrations/notifications",
+            "configure_notification": "POST /integrations/notifications",
+            "enable_notification": "POST /integrations/notifications/enable",
+            "disable_notification": "POST /integrations/notifications/disable",
+            "trigger_notification": "POST /integrations/notifications/trigger",
+            "cloud_storage_config": "GET /integrations/cloud-storage",
+            "configure_cloud_storage": "POST /integrations/cloud-storage",
+            "enable_cloud_storage": "POST /integrations/cloud-storage/enable",
+            "disable_cloud_storage": "POST /integrations/cloud-storage/disable",
+            "trigger_cloud_storage": "POST /integrations/cloud-storage/trigger",
+            "bi_tools_config": "GET /integrations/bi-tools",
+            "configure_bi_tools": "POST /integrations/bi-tools",
+            "enable_bi_tools": "POST /integrations/bi-tools/enable",
+            "disable_bi_tools": "POST /integrations/bi-tools/disable",
+            "trigger_bi_tools": "POST /integrations/bi-tools/trigger",
+            "data_catalogs_config": "GET /integrations/data-catalogs",
+            "configure_data_catalogs": "POST /integrations/data-catalogs",
+            "enable_data_catalogs": "POST /integrations/data-catalogs/enable",
+            "disable_data_catalogs": "POST /integrations/data-catalogs/disable",
+            "trigger_data_catalogs": "POST /integrations/data-catalogs/trigger",
+            "custom_api_config": "GET /integrations/custom-api",
+            "configure_custom_api": "POST /integrations/custom-api",
+            "enable_custom_api": "POST /integrations/custom-api/enable",
+            "disable_custom_api": "POST /integrations/custom-api/disable",
+            "trigger_custom_api": "POST /integrations/custom-api/trigger"
         }
     }
 

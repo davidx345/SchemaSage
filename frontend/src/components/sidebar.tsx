@@ -31,7 +31,8 @@ const navigation = [
   { name: "Glossary", href: "/glossary", icon: User },
   { name: "Consistency Check", href: "/consistency-check", icon: Settings },
   { name: "Lineage Explorer", href: "/lineage", icon: BarChart3 },
-  { name: "Data Cleaning", href: "/data-cleaning", icon: Shield }, // <-- new link
+  { name: "Data Cleaning", href: "/data-cleaning", icon: Shield },
+  { name: "Integrations", href: "/integrations", icon: Boxes }, // <-- new link
 ];
 
 const secondaryNavigation = [
