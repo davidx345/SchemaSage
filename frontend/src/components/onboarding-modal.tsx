@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import "@/app/modal-override.css";
 
 export function OnboardingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { addRecentProject } = useStore();
@@ -68,12 +69,12 @@ export function OnboardingModal({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="modal-content-override bg-white text-black border border-border shadow-2xl dark:bg-neutral-900 dark:text-white">
         <DialogHeader>
           <DialogTitle>Welcome to SchemaSage!</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <p className="text-muted-foreground">
+          <p className="text-black dark:text-white">
             SchemaSage helps you design, visualize, and generate code for your database schemas using AI.<br />
             <span className="block mt-2">Get started in 3 easy steps:</span>
             <ol className="list-decimal ml-6 mt-2 text-sm">

@@ -20,6 +20,7 @@ import { schemaApi } from "@/lib/api";
 import { ChatMessage } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import "@/app/modal-override.css";
 
 export function AIChatDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,7 +112,9 @@ export function AIChatDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0">
+      <DialogContent
+        className="modal-content-override bg-white text-black border border-border shadow-2xl dark:bg-neutral-900 dark:text-white max-w-lg w-full max-h-[80vh] overflow-y-auto flex flex-col"
+      >
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
@@ -122,7 +125,7 @@ export function AIChatDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4 min-h-[120px] max-h-[50vh] overflow-y-auto">
           <div className="space-y-4">
             {chatHistory.map((message, index) => (
               <div
@@ -149,7 +152,7 @@ export function AIChatDialog() {
                     className={cn(
                       "rounded-lg p-3",
                       message.role === "assistant"
-                        ? "bg-muted"
+                        ? "bg-muted text-black dark:text-white"
                         : "bg-primary text-primary-foreground"
                     )}
                   >

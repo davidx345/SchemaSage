@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import AppClientLayout from "@/components/AppClientLayout"; // Import the new client layout component
+import { ThemeProvider } from "@/components/theme-provider";
+import AppClientLayout from "@/components/AppClientLayout";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,5 +13,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AppClientLayout>{children}</AppClientLayout>;
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true}>
+          <AppClientLayout>{children}</AppClientLayout>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
 }

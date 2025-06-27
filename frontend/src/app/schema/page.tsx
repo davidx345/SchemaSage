@@ -20,7 +20,9 @@ import { useStore } from "@/lib/store";
 import type { SchemaResponse, Relationship } from "@/lib/types";
 import { CodePreview } from "@/components/code-preview";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { MainLayout } from "@/components/main-layout";
+import { Sidebar } from "@/components/sidebar";
+import { Header } from "@/components/header";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function SchemaPage() {
   const router = useRouter();
@@ -35,13 +37,21 @@ export default function SchemaPage() {
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const codeDownloadRef = useRef<HTMLAnchorElement>(null);
 
-  // Redirect to upload page if no schema is present
+  // Only render content after schema check to prevent double sidebar flash
+  const [checked, setChecked] = useState(false);
+
   useEffect(() => {
     if (!currentSchema) {
       toast.error("No schema data found. Please upload data first.");
       router.push("/upload");
+    } else {
+      setChecked(true);
     }
   }, [currentSchema, router]);
+
+  if (!checked) {
+    return null; // or a loader if you prefer
+  }
 
   // Handle relationship updates
   const handleRelationshipUpdate = async (relationships: Relationship[]) => {
@@ -117,171 +127,185 @@ export default function SchemaPage() {
   };  // Show error state
   if (error) {
     return (
-      <MainLayout title="Schema Visualization" currentPage="schema">
-        <div className="space-y-6 max-w-2xl mx-auto pt-12">
-          <Alert variant="destructive" className="bg-destructive/10 border-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <div className="text-center">
-            <Button 
-              onClick={() => router.push("/upload")}
-              className="cta"
-            >
-              Back to Upload
-            </Button>
-          </div>
+      <div className="relative flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1">
+          <Header />
+          <main className="p-6">
+            <div className="space-y-6 max-w-2xl mx-auto pt-12">
+              <Alert variant="destructive" className="bg-destructive/10 border-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+              <div className="text-center">
+                <Button 
+                  onClick={() => router.push("/upload")}
+                  className="cta"
+                >
+                  Back to Upload
+                </Button>
+              </div>
+            </div>
+          </main>
         </div>
-      </MainLayout>
+      </div>
     );
   }
   if (!currentSchema) {
     return (
-      <MainLayout title="Schema Visualization" currentPage="schema">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center max-w-md">
-            <div className="mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center shadow-card">
-                <AlertCircle className="w-8 h-8 text-primary" />
+      <div className="relative flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1">
+          <Header />
+          <main className="p-6">
+            <div className="flex items-center justify-center h-[60vh]">
+              <div className="text-center max-w-md">
+                <div className="mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center shadow-card">
+                    <AlertCircle className="w-8 h-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-3">Ready to View Schema</h2>
+                  <p className="text-muted-foreground mb-6">
+                    You need to upload data or connect to a database first.
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mb-6">
+                    Tip: Try the sample project from onboarding to explore features.
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => router.push("/upload")}
+                  className="cta"
+                >
+                  Upload Data
+                </Button>
               </div>
-              <h2 className="text-2xl font-bold mb-3">Ready to View Schema</h2>
-              <p className="text-muted-foreground mb-6">
-                You need to upload data or connect to a database first.
-              </p>
-              <p className="text-xs text-muted-foreground/70 mb-6">
-                Tip: Try the sample project from onboarding to explore features.
-              </p>
             </div>
-            <Button 
-              onClick={() => router.push("/upload")}
-              className="cta"
-            >
-              Upload Data
-            </Button>
-          </div>
+          </main>
         </div>
-      </MainLayout>
+      </div>
     );
   }
   return (
-    <MainLayout 
-      title="Schema Visualization" 
-      subtitle="View and edit your database schema"
-      currentPage="schema"
-    >
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Schema Visualization</h1>
-            <p className="text-muted-foreground mt-2">
-              View and edit your database schema
-            </p>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Select defaultValue="current-project">
-                <SelectTrigger className="w-[200px] glass border-divider">
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current-project">Current Project</SelectItem>
-                </SelectContent>
-              </Select>
-            </TooltipTrigger>
-            <TooltipContent>Select a project to view its schema</TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="grid gap-8 grid-cols-1">
-          <Card className="col-span-1 card shadow-card">
-            {isUpdating ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
-                <span>Updating schema...</span>
+    <div className="relative flex min-h-screen bg-background">
+      <Sidebar />
+      <div className="flex-1">
+        <Header />
+        <main className="p-6">
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Schema Visualization</h1>
+                <p className="text-muted-foreground mt-2">
+                  View and edit your database schema
+                </p>
               </div>
-            ) : (
-              <SchemaVisualization schema={currentSchema} />
-            )}
-          </Card>
-          <div className="glass border border-divider rounded-lg shadow-card">
-            <RelationshipEditor 
-              schema={currentSchema} 
-              onUpdate={handleRelationshipUpdate}
-            />
-          </div>
-          {/* --- Code Generation Section --- */}
-          <Card className="col-span-1 p-8 card shadow-card">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold mb-2">Code Generation</h3>
-              <p className="text-muted-foreground text-sm">
-                Generate code from your schema in multiple languages and formats
-              </p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Select defaultValue="current-project">
+                    <SelectTrigger className="w-[200px] glass border-divider">
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="current-project">Current Project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TooltipTrigger>
+                <TooltipContent>Select a project to view its schema</TooltipContent>
+              </Tooltip>
             </div>
-            <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">Language</label>
-                <Select value={codeGenLanguage} onValueChange={setCodeGenLanguage}>
-                  <SelectTrigger className="w-40 bg-muted">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="typescript">TypeScript</SelectItem>
-                    <SelectItem value="sql">SQL</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Format</label>
-                <Select value={codeGenFormat} onValueChange={setCodeGenFormat}>
-                  <SelectTrigger className="w-56 bg-muted">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {codeGenLanguage === "python" && <>
-                      <SelectItem value="python-dataclass">Python Dataclass</SelectItem>
-                      <SelectItem value="python-pydantic">Pydantic Model</SelectItem>
-                    </>}
-                    {codeGenLanguage === "typescript" && <>
-                      <SelectItem value="typescript-types">TypeScript Types</SelectItem>
-                      <SelectItem value="typescript-zod">Zod Schema</SelectItem>
-                      <SelectItem value="typescript-class">Class</SelectItem>
-                    </>}
-                    {codeGenLanguage === "sql" && <>
-                      <SelectItem value="sql-table">SQL Table</SelectItem>
-                      <SelectItem value="sql-migration">SQL Migration</SelectItem>
-                    </>}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleGenerateCode} 
-                  disabled={isGeneratingCode} 
-                  className="cta"
-                >
-                  {isGeneratingCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Generate Code
-                </Button>
-                <a ref={codeDownloadRef} style={{ display: "none" }} />
-                {generatedCode && (
-                  <Button 
-                    variant="outline" 
-                    onClick={handleDownloadCode}
-                    className="bg-muted hover:bg-muted/70"
-                  >
-                    Download
-                  </Button>
+            <div className="grid gap-8 grid-cols-1">
+              <Card className="col-span-1 card shadow-card">
+                {isUpdating ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
+                    <span>Updating schema...</span>
+                  </div>
+                ) : (
+                  <SchemaVisualization schema={currentSchema} />
                 )}
+              </Card>
+              <div className="glass border border-divider rounded-lg shadow-card">
+                <RelationshipEditor 
+                  schema={currentSchema} 
+                  onUpdate={handleRelationshipUpdate}
+                />
               </div>
+              {/* --- Code Generation Section --- */}
+              <Card className="col-span-1 p-8 card shadow-card">
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold mb-2">Code Generation</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Generate code from your schema in multiple languages and formats
+                  </p>
+                </div>
+                <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Language</label>
+                    <Select value={codeGenLanguage} onValueChange={setCodeGenLanguage}>
+                      <SelectTrigger className="w-40 bg-muted">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="python">Python</SelectItem>
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="sql">SQL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Format</label>
+                    <Select value={codeGenFormat} onValueChange={setCodeGenFormat}>
+                      <SelectTrigger className="w-56 bg-muted">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {codeGenLanguage === "python" && <>
+                          <SelectItem value="python-dataclass">Python Dataclass</SelectItem>
+                          <SelectItem value="python-pydantic">Pydantic Model</SelectItem>
+                        </>}
+                        {codeGenLanguage === "typescript" && <>
+                          <SelectItem value="typescript-types">TypeScript Types</SelectItem>
+                          <SelectItem value="typescript-zod">Zod Schema</SelectItem>
+                          <SelectItem value="typescript-class">Class</SelectItem>
+                        </>}
+                        {codeGenLanguage === "sql" && <>
+                          <SelectItem value="sql-table">SQL Table</SelectItem>
+                          <SelectItem value="sql-migration">SQL Migration</SelectItem>
+                        </>}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleGenerateCode} 
+                      disabled={isGeneratingCode} 
+                      className="cta"
+                    >
+                      {isGeneratingCode ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Generate Code
+                    </Button>
+                    <a ref={codeDownloadRef} style={{ display: "none" }} />
+                    {generatedCode && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleDownloadCode}
+                        className="bg-muted hover:bg-muted/70"
+                      >
+                        Download
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {generatedCode && (
+                  <div className="bg-muted rounded-lg p-4 border border-divider">
+                    <CodePreview code={generatedCode} language={codeGenLanguage} />
+                  </div>
+                )}
+              </Card>
             </div>
-            {generatedCode && (
-              <div className="bg-muted rounded-lg p-4 border border-divider">
-                <CodePreview code={generatedCode} language={codeGenLanguage} />
-              </div>
-            )}
-          </Card>
-        </div>
+          </div>
+        </main>
       </div>
-    </MainLayout>
+    </div>
   );
 }

@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 
@@ -42,32 +42,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-slate-600 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-teal-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-sky-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      </div>
-
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-
-      <div className="relative z-10 flex items-center justify-center min-h-screen">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ fontFamily: 'Inter, sans-serif' }}>
+      {/* Animated SVG background */}
+      <svg className="absolute inset-0 w-full h-full -z-10" style={{ pointerEvents: 'none' }} aria-hidden fill="none">
+        <defs>
+          <radialGradient id="loginBg1" cx="80%" cy="0%" r="100%" gradientTransform="rotate(45)"><stop stopColor="#3A86FF" stopOpacity="0.10" /><stop offset="1" stopColor="#0a0a0a" stopOpacity="0" /></radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="#0a0a0a" />
+        <circle cx="80%" cy="10%" r="300" fill="url(#loginBg1)" />
+        <circle cx="20%" cy="90%" r="200" fill="#06D6A018" />
+      </svg>
+      <div className="relative z-10 flex items-center justify-center min-h-screen w-full">
         <motion.div
-          className="w-full max-w-md p-8 bg-white/90 dark:bg-slate-900/90 rounded-xl shadow-xl backdrop-blur-lg"
+          className="w-full max-w-md p-8 bg-white/10 dark:bg-slate-900/80 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl"
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <div className="mb-8 text-center">
-            <Sparkles className="mx-auto mb-2 text-blue-500" />
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-              Sign in to SchemaSage
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">
-              Welcome back! Please enter your details.
-            </p>
+            <h1 className="text-4xl font-bold mb-2 text-center">Sign in</h1>
+            <p className="text-lg text-center mb-8">Welcome back! Please enter your details.</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
@@ -98,7 +92,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-400"
                   onClick={() => setShowPassword((v) => !v)}
                   tabIndex={-1}
                 >
@@ -113,15 +107,15 @@ export default function LoginPage() {
             {error && (
               <div className="text-red-500 text-sm text-center">{error}</div>
             )}
-            <Button type="submit" disabled={isLoading} className="w-full font-semibold">
+            <Button type="submit" disabled={isLoading} className="w-full font-semibold bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow-lg rounded-xl">
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+          <div className="mt-6 text-center text-sm text-slate-400">
             Don&apos;t have an account?{" "}
             <Link
               href="/auth/signup"
-              className="text-blue-600 dark:text-blue-400 underline font-medium"
+              className="text-blue-400 underline font-medium"
             >
               Sign up
             </Link>
