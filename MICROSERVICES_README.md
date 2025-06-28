@@ -32,6 +32,22 @@ Your SchemaSage project has been successfully broken down into the following mic
                     └─────────────────────┘
 ```
 
+---
+
+# ⚡️ Frontend Now in Separate Repo/Folder
+
+The frontend codebase has been moved to a new folder (e.g., `../schemasage-frontend`).
+
+- To run the frontend:
+  1. Open a terminal in the new frontend folder.
+  2. Run `npm install` (if not already done).
+  3. Run `npm run dev` for local development.
+  4. Ensure `.env` in the frontend repo has `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+
+- The backend (microservices) can be started as before, but the frontend is now managed separately.
+
+- If deploying, set CORS in the API Gateway to allow your frontend's domain.
+
 ## 📦 Services
 
 ### 1. API Gateway (Port 8000)
