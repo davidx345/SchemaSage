@@ -2,13 +2,17 @@
 
 from fastapi import FastAPI, HTTPException, Request, status, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 from typing import Optional, List, Dict, Any
 import logging
 from contextlib import asynccontextmanager
 import time
 from datetime import datetime
+import tempfile
+import pdfkit
+import os
+import openai
 
 # Import local modules
 from models.schemas import (
@@ -33,6 +37,9 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# --- AI Query Builder Logic (stub with OpenAI, replace with your key) ---
+openai.api_key = os.getenv("OPENAI_API_KEY", "sk-...your-key...")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -584,24 +591,63 @@ async def export_markdown(schema: SchemaResponse = Body(...)):
 
 @app.post("/export/pdf")
 async def export_pdf(schema: SchemaResponse = Body(...)):
-    # TODO: Implement real PDF export
-    return {"success": True, "pdf_url": "/static/schema.pdf"}
+    # Render schema as HTML
+    html = f"<h1>Schema Documentation</h1><pre>{schema.json(indent=2)}</pre>"
+    # Generate PDF using pdfkit (requires wkhtmltopdf installed)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        pdfkit.from_string(html, tmp.name)
+        return FileResponse(tmp.name, media_type="application/pdf", filename="schema.pdf")
 
 @app.post("/export/html")
 async def export_html(schema: SchemaResponse = Body(...)):
-    # TODO: Implement real HTML export
-    return {"success": True, "html": "<h1>Schema Documentation</h1>... (stub)"}
+    html = f"<h1>Schema Documentation</h1><pre>{schema.json(indent=2)}</pre>"
+    return {"success": True, "html": html}
 
-# AI-assisted query builder (stub)
 @app.post("/query/generate")
 async def generate_query(schema: SchemaResponse = Body(...), question: str = Body(...)):
-    # TODO: Implement real AI query generation
-    return {"success": True, "query": "SELECT * FROM ... WHERE ... -- (AI-generated stub)"}
+    prompt = f"Given this schema: {schema.json()}\nGenerate an SQL query for: {question}"
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=150
+        )
+        query = response.choices[0].text.strip()
+    except Exception as e:
+        query = f"-- AI generation failed: {e}"
+    return {"success": True, "query": query}
 
 @app.post("/query/execute")
 async def execute_query(project_id: str = Body(...), query: str = Body(...)):
     # TODO: Implement real query execution
     return {"success": True, "results": []}
+
+# --- Save/Load User-Customized ER Diagram Layouts ---
+diagram_layout_store: Dict[str, Any] = {}
+
+@app.post("/schema/diagram/layout/save")
+async def save_diagram_layout(project_id: str = Body(...), layout: Dict[str, Any] = Body(...)):
+    diagram_layout_store[project_id] = layout
+    return {"success": True, "layout": layout}
+
+@app.get("/schema/diagram/layout/get")
+async def get_diagram_layout(project_id: str):
+    return {"layout": diagram_layout_store.get(project_id, {})}
+
+# --- Track User Approval/Edit of AI Schema Suggestions ---
+schema_suggestion_approval_store: Dict[str, Any] = {}
+
+@app.post("/schema/suggestion/approve")
+async def approve_schema_suggestion(project_id: str = Body(...), suggestion_id: str = Body(...), approved: bool = Body(...), edited_suggestion: Dict[str, Any] = Body(None)):
+    schema_suggestion_approval_store.setdefault(project_id, {})[suggestion_id] = {
+        "approved": approved,
+        "edited_suggestion": edited_suggestion
+    }
+    return {"success": True, "status": schema_suggestion_approval_store[project_id][suggestion_id]}
+
+@app.get("/schema/suggestion/approvals")
+async def get_schema_suggestion_approvals(project_id: str):
+    return {"approvals": schema_suggestion_approval_store.get(project_id, {})}
 
 if __name__ == "__main__":
     import uvicorn
