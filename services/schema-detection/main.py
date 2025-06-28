@@ -331,6 +331,16 @@ async def impact_analysis(
     graph = DataLineageGraph(schema.tables, schema.relationships, glossary=glossary, context=context)
     return graph.impact_analysis(node_id)
 
+@app.post("/impact/analysis", response_model=ImpactAnalysisResponse)
+async def visual_impact_analysis(
+    schema: SchemaResponse = Body(...),
+    relationships: Optional[List[Relationship]] = Body(None),
+    context: Optional[Dict[str, Any]] = Body(None)
+):
+    """Analyze and return the impact of proposed relationships on the schema (e.g., affected tables/columns)."""
+    graph = DataLineageGraph(schema.tables, relationships or schema.relationships, context=context)
+    return graph.impact_analysis_all()
+
 # Schema versioning and history endpoints
 # In-memory schema history for demo (replace with persistent storage in production)
 schema_history = SchemaHistory()
@@ -471,6 +481,127 @@ async def apply_data_cleaning(request: ApplyCleaningRequest):
         applied_actions=request.actions,
         warnings=[]
     )
+
+@app.get("/schema/diagram", response_model=SchemaResponse)
+async def get_schema_diagram(
+    file: Optional[UploadFile] = None,
+    data: Optional[str] = None,
+    settings: SchemaSettings = SchemaSettings()
+):
+    """Return tables and relationships for ER diagramming. Accepts file upload or raw data."""
+    detector = SchemaDetector(settings)
+    if file:
+        schema = await detector.detect_from_file(file)
+    elif data:
+        schema = await detector.detect_from_data(data)
+    else:
+        raise HTTPException(status_code=400, detail="No data or file provided.")
+    return schema
+
+@app.post("/schema/diagram/save", response_model=SchemaResponse)
+async def save_schema_diagram(schema: SchemaResponse):
+    """Save user-edited schema (tables and relationships). Stub: extend to persist as needed."""
+    # TODO: Implement persistence (e.g., save to DB or file)
+    # For now, just echo back
+    return schema
+
+@app.post("/schema/consistency-check", response_model=Dict[str, Any])
+async def schema_consistency_check(
+    schema: SchemaResponse = Body(...),
+    context: Optional[Dict[str, Any]] = Body(None)
+):
+    """Check for project-wide schema consistency: naming, types, missing keys, etc."""
+    detector = SchemaDetector(SchemaSettings())
+    return detector.consistency_check(schema, context=context)
+
+@app.post("/migration/generate", response_model=Dict[str, Any])
+async def generate_migration_script(
+    old_schema: SchemaResponse = Body(...),
+    new_schema: SchemaResponse = Body(...),
+    dry_run: bool = Body(False)
+):
+    """Generate migration script (SQL DDL) between two schema versions. If dry_run, do not apply."""
+    # TODO: Implement real migration logic
+    # For now, return a stub SQL diff
+    sql_diff = f"-- Migration from old to new schema (stub)\n-- TODO: Implement real diff logic"
+    return {"success": True, "migration_script": sql_diff, "dry_run": dry_run}
+
+@app.post("/migration/rollback", response_model=Dict[str, Any])
+async def rollback_migration(
+    schema_version_id: str = Body(...)
+):
+    """Rollback to a previous schema version (stub)."""
+    # TODO: Implement real rollback logic
+    return {"success": True, "message": f"Rolled back to version {schema_version_id} (stub)"}
+
+@app.post("/git/export", response_model=Dict[str, Any])
+async def export_schema_to_git(
+    schema: SchemaResponse = Body(...),
+    repo_url: str = Body(...)
+):
+    """Export schema as code to a Git repository (stub)."""
+    # TODO: Implement real Git integration
+    return {"success": True, "message": f"Schema exported to {repo_url} (stub)"}
+
+# --- Phase 5: Data Quality, Documentation, and Exploration ---
+
+# User-defined validation rules (in-memory for demo)
+validation_rules_store: Dict[str, Any] = {}
+
+@app.post("/validation/rules")
+async def add_validation_rule(project_id: str = Body(...), rule: Dict[str, Any] = Body(...)):
+    validation_rules_store.setdefault(project_id, []).append(rule)
+    return {"success": True, "rules": validation_rules_store[project_id]}
+
+@app.get("/validation/rules")
+async def get_validation_rules(project_id: str):
+    return {"rules": validation_rules_store.get(project_id, [])}
+
+@app.post("/validation/enforce")
+async def enforce_validation_rules(project_id: str = Body(...), schema: Dict[str, Any] = Body(...)):
+    # TODO: Implement real validation logic
+    # For now, just return all rules and a stub result
+    rules = validation_rules_store.get(project_id, [])
+    return {"success": True, "rules": rules, "result": "Validation run (stub)"}
+
+# Data dictionary endpoints (in-memory for demo)
+data_dictionary_store: Dict[str, Any] = {}
+
+@app.post("/data-dictionary/update")
+async def update_data_dictionary(project_id: str = Body(...), dictionary: Dict[str, Any] = Body(...)):
+    data_dictionary_store[project_id] = dictionary
+    return {"success": True, "dictionary": dictionary}
+
+@app.get("/data-dictionary/get")
+async def get_data_dictionary(project_id: str):
+    return {"dictionary": data_dictionary_store.get(project_id, {})}
+
+# Export documentation/schema as Markdown, PDF, HTML (stub)
+@app.post("/export/markdown")
+async def export_markdown(schema: SchemaResponse = Body(...)):
+    # TODO: Implement real Markdown export
+    return {"success": True, "markdown": "# Schema Documentation\n... (stub)"}
+
+@app.post("/export/pdf")
+async def export_pdf(schema: SchemaResponse = Body(...)):
+    # TODO: Implement real PDF export
+    return {"success": True, "pdf_url": "/static/schema.pdf"}
+
+@app.post("/export/html")
+async def export_html(schema: SchemaResponse = Body(...)):
+    # TODO: Implement real HTML export
+    return {"success": True, "html": "<h1>Schema Documentation</h1>... (stub)"}
+
+# AI-assisted query builder (stub)
+@app.post("/query/generate")
+async def generate_query(schema: SchemaResponse = Body(...), question: str = Body(...)):
+    # TODO: Implement real AI query generation
+    return {"success": True, "query": "SELECT * FROM ... WHERE ... -- (AI-generated stub)"}
+
+@app.post("/query/execute")
+async def execute_query(project_id: str = Body(...), query: str = Body(...)):
+    # TODO: Implement real query execution
+    return {"success": True, "results": []}
 
 if __name__ == "__main__":
     import uvicorn

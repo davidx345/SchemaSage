@@ -2,11 +2,11 @@
 Project Management Microservice
 Handles project creation, management, and tracking
 """
-from fastapi import FastAPI, HTTPException, Request, status, Query
+from fastapi import FastAPI, HTTPException, Request, status, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import logging
 from contextlib import asynccontextmanager
 
@@ -550,6 +550,74 @@ async def trigger_custom_api(req: CustomAPITriggerRequest):
     integration_manager.trigger("custom_api", req.event, req.payload)
     return {"success": True}
 
+# --- Phase 4: Collaboration & Team Workflows ---
+
+# In-memory store for demo (replace with DB in production)
+active_edit_sessions: Dict[str, List[WebSocket]] = {}
+comments_store: Dict[str, List[Dict[str, Any]]] = {}
+teams_store: Dict[str, Dict[str, Any]] = {}
+
+@app.websocket("/ws/schema-edit/{project_id}")
+async def websocket_schema_edit(websocket: WebSocket, project_id: str):
+    await websocket.accept()
+    if project_id not in active_edit_sessions:
+        active_edit_sessions[project_id] = []
+    active_edit_sessions[project_id].append(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Broadcast to all other users in the session
+            for ws in active_edit_sessions[project_id]:
+                if ws != websocket:
+                    await ws.send_text(data)
+    except WebSocketDisconnect:
+        active_edit_sessions[project_id].remove(websocket)
+
+# Comments/Annotations endpoints
+@app.post("/projects/{project_id}/comments")
+async def add_comment(project_id: str, comment: Dict[str, Any]):
+    comments_store.setdefault(project_id, []).append(comment)
+    return {"success": True, "comments": comments_store[project_id]}
+
+@app.get("/projects/{project_id}/comments")
+async def get_comments(project_id: str):
+    return {"comments": comments_store.get(project_id, [])}
+
+@app.delete("/projects/{project_id}/comments/{comment_idx}")
+async def delete_comment(project_id: str, comment_idx: int):
+    if project_id in comments_store and 0 <= comment_idx < len(comments_store[project_id]):
+        comments_store[project_id].pop(comment_idx)
+        return {"success": True}
+    return {"success": False, "error": "Comment not found"}
+
+# Team management endpoints
+@app.post("/teams")
+async def create_team(team: Dict[str, Any]):
+    team_id = team.get("id")
+    teams_store[team_id] = team
+    return {"success": True, "team": team}
+
+@app.get("/teams/{team_id}")
+async def get_team(team_id: str):
+    return {"team": teams_store.get(team_id)}
+
+@app.post("/teams/{team_id}/invite")
+async def invite_to_team(team_id: str, user: Dict[str, Any]):
+    team = teams_store.setdefault(team_id, {"members": []})
+    team["members"].append(user)
+    return {"success": True, "team": team}
+
+@app.post("/teams/{team_id}/role")
+async def set_team_role(team_id: str, user_id: str = Body(...), role: str = Body(...)):
+    team = teams_store.get(team_id)
+    if not team:
+        return {"success": False, "error": "Team not found"}
+    for member in team.get("members", []):
+        if member.get("id") == user_id:
+            member["role"] = role
+            return {"success": True, "team": team}
+    return {"success": False, "error": "User not found in team"}
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -600,7 +668,15 @@ async def root():
             "configure_custom_api": "POST /integrations/custom-api",
             "enable_custom_api": "POST /integrations/custom-api/enable",
             "disable_custom_api": "POST /integrations/custom-api/disable",
-            "trigger_custom_api": "POST /integrations/custom-api/trigger"
+            "trigger_custom_api": "POST /integrations/custom-api/trigger",
+            "websocket_schema_edit": "WS /ws/schema-edit/{project_id}",
+            "add_comment": "POST /projects/{project_id}/comments",
+            "get_comments": "GET /projects/{project_id}/comments",
+            "delete_comment": "DELETE /projects/{project_id}/comments/{comment_idx}",
+            "create_team": "POST /teams",
+            "get_team": "GET /teams/{team_id}",
+            "invite_to_team": "POST /teams/{team_id}/invite",
+            "set_team_role": "POST /teams/{team_id}/role"
         }
     }
 
