@@ -1,17 +1,19 @@
 """Schema Detection Microservice - Independent Service."""
 
-from fastapi import FastAPI, HTTPException, Request, status, UploadFile, File, Body
+from fastapi import FastAPI, HTTPException, Request, status, UploadFile, File, Body, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 from typing import Optional, List, Dict, Any
 import logging
 from contextlib import asynccontextmanager
 import time
+import os
+import jwt
 from datetime import datetime
 import tempfile
 import pdfkit
-import os
 import openai
 
 # Import local modules
@@ -30,7 +32,6 @@ from core.schema_detector import SchemaDetector, SchemaValidationError
 from core.lineage import DataLineageGraph
 from core.schema_history import SchemaHistory
 from config import get_settings
-from core.schema_detector import build_schema_inference_prompt
 import json
 
 # Setup logging
@@ -38,8 +39,79 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Security configuration
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
+
+# Rate limiting store
+request_counts: Dict[str, List[float]] = {}
+
+security = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """Verify JWT token."""
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Token validation error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def is_rate_limited(identifier: str, limit_per_minute: int = 60) -> bool:
+    """Check if identifier is rate limited."""
+    current_time = time.time()
+    minute_ago = current_time - 60
+    
+    # Clean old entries
+    if identifier in request_counts:
+        request_counts[identifier] = [t for t in request_counts[identifier] if t > minute_ago]
+    else:
+        request_counts[identifier] = []
+    
+    # Check if limit exceeded
+    if len(request_counts[identifier]) >= limit_per_minute:
+        return True
+    
+    # Add current request
+    request_counts[identifier].append(current_time)
+    return False
+
+def validate_file_upload(file: UploadFile) -> None:
+    """Validate uploaded file for security."""
+    # Check file size
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds maximum limit of {MAX_FILE_SIZE} bytes"
+        )
+    
+    # Validate file extension
+    allowed_extensions = ['.csv', '.json', '.xml', '.sql', '.txt']
+    filename = file.filename.lower() if file.filename else ""
+    if not any(filename.endswith(ext) for ext in allowed_extensions):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+        )
+    
+    # Sanitize filename
+    if any(char in filename for char in ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename characters detected"
+        )
+
 # --- AI Query Builder Logic (stub with OpenAI, replace with your key) ---
-openai.api_key = os.getenv("OPENAI_API_KEY", "sk-...your-key...")
+openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,6 +131,38 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan
 )
+
+# Setup CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    """Security middleware for rate limiting and headers."""
+    # Rate limiting
+    client_ip = request.client.host
+    endpoint = request.url.path
+    identifier = f"{client_ip}:{endpoint}"
+    
+    if is_rate_limited(identifier):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please try again later."
+        )
+    
+    response = await call_next(request)
+    
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    return response
 
 # CORS middleware
 app.add_middleware(
@@ -127,10 +231,19 @@ async def health_check():
         }
     }
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "service": "schema-detection", "timestamp": datetime.utcnow()}
+
 # Schema detection endpoints
 @app.post("/detect", response_model=DetectionResponse)
-async def detect_schema(request: DetectionRequest = Body(...)):
-    """Detect schema from raw data"""
+async def detect_schema(
+    request: DetectionRequest = Body(...),
+    user: dict = Depends(verify_token)
+):
+    """Detect schema from raw data with authentication."""
     try:
         start_time = time.time()
         
@@ -180,16 +293,15 @@ async def detect_schema(request: DetectionRequest = Body(...)):
 @app.post("/detect-file", response_model=DetectionResponse)
 async def detect_schema_from_file(
     file: UploadFile = File(...),
-    settings_param: Optional[str] = None
+    settings_param: Optional[str] = None,
+    user: dict = Depends(verify_token)
 ):
-    """Detect schema from uploaded file"""
+    """Detect schema from uploaded file with authentication and validation."""
     try:
-        # Validate file size
-        if file.size and file.size > settings.MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File size exceeds maximum limit of {settings.MAX_FILE_SIZE} bytes"
-            )
+        # Validate file upload
+        validate_file_upload(file)
+        
+        logger.info(f"File upload by user {user.get('sub')}: {file.filename}")
         
         # Read file content
         file_content = await file.read()

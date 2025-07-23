@@ -1,0 +1,141 @@
+services:
+  # Override for production security
+  postgres:
+    restart: always
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  postgres-schema:
+    restart: always
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SCHEMA_DB_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  postgres-projects:
+    restart: always
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PROJECT_DB_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  postgres-auth:
+    restart: always
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  redis:
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  rabbitmq:
+    restart: always
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  api-gateway:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - SCHEMA_DETECTION_URL=http://schema-detection:8001
+      - CODE_GENERATION_URL=http://code-generation:8002
+      - AI_CHAT_URL=http://ai-chat:8003
+      - PROJECT_MANAGEMENT_URL=http://project-management:8004
+      - AUTHENTICATION_URL=http://authentication:8005
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  schema-detection:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://${SCHEMA_DB_USER}:${SCHEMA_DB_PASSWORD}@postgres-schema:5432/${SCHEMA_DB_NAME}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  code-generation:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - SCHEMA_DETECTION_URL=http://schema-detection:8001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  ai-chat:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - GEMINI_MODEL=gemini-2.0-flash
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  project-management:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://${PROJECT_DB_USER}:${PROJECT_DB_PASSWORD}@postgres-projects:5432/${PROJECT_DB_NAME}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  authentication:
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres-auth:5432/${AUTH_DB_NAME}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -5,9 +5,9 @@ services:
     image: postgres:15
     container_name: schemasage-postgres
     environment:
-      POSTGRES_DB: schemasage_db
-      POSTGRES_USER: schemasage
-      POSTGRES_PASSWORD: 260307
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -103,7 +103,7 @@ services:
       - ./services/authentication/.env
     environment:
       - ENV=development
-      - DATABASE_URL=postgresql+asyncpg://auth_user:password@postgres-auth:5432/authentication
+      - DATABASE_URL=postgresql://auth_user:password@postgres-auth:5432/authentication
     depends_on:
       - postgres-auth
     networks:
@@ -116,7 +116,7 @@ services:
     env_file:
       - ./services/authentication/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://auth_user:password@postgres-auth:5432/authentication
+      - DATABASE_URL=postgresql://auth_user:password@postgres-auth:5432/authentication
     depends_on:
       - authentication
       - postgres-auth
@@ -155,9 +155,9 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_DB: schema_detection
-      POSTGRES_USER: schema_user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${SCHEMA_DB_NAME}
+      POSTGRES_USER: ${SCHEMA_DB_USER}
+      POSTGRES_PASSWORD: ${SCHEMA_DB_PASSWORD}
     volumes:
       - postgres_schema_data:/var/lib/postgresql/data
     networks:
@@ -168,9 +168,9 @@ services:
     ports:
       - "5434:5432"
     environment:
-      POSTGRES_DB: project_management
-      POSTGRES_USER: project_user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${PROJECT_DB_NAME}
+      POSTGRES_USER: ${PROJECT_DB_USER}
+      POSTGRES_PASSWORD: ${PROJECT_DB_PASSWORD}
     volumes:
       - postgres_projects_data:/var/lib/postgresql/data
     networks:
@@ -181,9 +181,9 @@ services:
     ports:
       - "5435:5432"
     environment:
-      POSTGRES_DB: authentication
-      POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${AUTH_DB_NAME}
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data
     networks:
@@ -217,8 +217,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: schemasage
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:

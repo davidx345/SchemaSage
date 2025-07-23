@@ -1,15 +1,57 @@
 """API Gateway for SchemaSage Microservices."""
 
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 import httpx
 import logging
+import jwt
+import time
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 
 logger = logging.getLogger(__name__)
+
+# Security configuration
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+# Rate limiting
+request_counts: Dict[str, List[float]] = {}
+
+security = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """Verify JWT token."""
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def is_rate_limited(identifier: str, limit_per_minute: int = 100) -> bool:
+    """Check if identifier is rate limited."""
+    current_time = time.time()
+    minute_ago = current_time - 60
+    
+    if identifier in request_counts:
+        request_counts[identifier] = [t for t in request_counts[identifier] if t > minute_ago]
+    else:
+        request_counts[identifier] = []
+    
+    if len(request_counts[identifier]) >= limit_per_minute:
+        return True
+    
+    request_counts[identifier].append(current_time)
+    return False
 
 # Service configuration
 SERVICES = {
@@ -35,19 +77,20 @@ SERVICES = {
     }
 }
 
-# Route mappings
+# Route mappings with authentication requirements
 ROUTE_MAPPINGS = {
-    "/api/schema/detect": "schema-detection",
-    "/api/schema/detect-file": "schema-detection", 
-    "/api/schema/generate-code": "code-generation",
-    "/api/code/generate": "code-generation",
-    "/api/code/formats": "code-generation",
-    "/api/chat": "ai-chat",
-    "/api/chat/": "ai-chat",
-    "/api/database/projects": "project-management",
-    "/api/projects": "project-management",
-    "/api/auth/signup": "authentication",
-    "/api/auth/login": "authentication",
+    # Public routes (no auth required)
+    "/api/auth/login": {"service": "authentication", "auth_required": False},
+    "/api/auth/signup": {"service": "authentication", "auth_required": False},
+    "/health": {"service": None, "auth_required": False},
+    
+    # Protected routes (auth required)
+    "/api/schema/detect": {"service": "schema-detection", "auth_required": True},
+    "/api/schema/detect-file": {"service": "schema-detection", "auth_required": True},
+    "/api/code/generate": {"service": "code-generation", "auth_required": True},
+    "/api/code/formats": {"service": "code-generation", "auth_required": True},
+    "/api/chat": {"service": "ai-chat", "auth_required": True},
+    "/api/projects": {"service": "project-management", "auth_required": True},
 }
 
 @asynccontextmanager

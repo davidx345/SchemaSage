@@ -69,7 +69,7 @@ class GeminiChatService:
                 
             return ChatResponse(
                 response=response.text,
-                model_used=settings.GEMINI_MODEL,
+                ai_model_used=settings.GEMINI_MODEL,
                 suggestions=[
                     "Tell me more about this schema",
                     "How can I optimize this schema?",

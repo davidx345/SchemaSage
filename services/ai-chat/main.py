@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from models.schemas import (
-    ChatResponse, ChatMessage, ChatRequest, ChatErrorResponse
+    ChatResponse, ChatMessage, ChatRequest, ChatErrorResponse, ApiHealthResponse
 )
 from core.chat_service import OpenAIChatService, ChatError
 from core.gemini_service import GeminiChatService, GeminiServiceError
@@ -120,7 +120,7 @@ async def chat_endpoint(request: ChatRequest = Body(...)):
         if settings.is_openai_configured():
             try:
                 response = await openai_service.get_response(
-                    schema=request.schema,
+                    schema=request.db_schema,
                     messages=request.messages,
                     question=request.question,
                     api_key=request.api_key
@@ -134,7 +134,7 @@ async def chat_endpoint(request: ChatRequest = Body(...)):
         if settings.is_gemini_configured():
             try:
                 response = await gemini_service.get_response(
-                    schema=request.schema,
+                    schema=request.db_schema,
                     messages=request.messages,
                     question=request.question,
                     api_key=request.api_key
@@ -167,7 +167,7 @@ async def chat_openai(request: ChatRequest):
             )
             
         response = await openai_service.get_response(
-            schema=request.schema,
+            schema=request.db_schema,
             messages=request.messages,
             question=request.question,
             api_key=request.api_key
@@ -192,7 +192,7 @@ async def chat_gemini(request: ChatRequest):
             )
             
         response = await gemini_service.get_response(
-            schema=request.schema,
+            schema=request.db_schema,
             messages=request.messages,
             question=request.question,
             api_key=request.api_key

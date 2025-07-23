@@ -70,7 +70,7 @@ class OpenAIChatService:
                     
                     return ChatResponse(
                         response=answer,
-                        model_used=settings.OPENAI_MODEL,
+                        ai_model_used=settings.OPENAI_MODEL,
                         suggestions=[
                             "Tell me more about the schema",
                             "How can I optimize this schema?",

@@ -12,16 +12,20 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """Request for chat completion"""
+    model_config = {"protected_namespaces": ()}
+    
     messages: List[ChatMessage] = Field(..., description="List of chat messages")
     question: str = Field(..., description="Current question from user")
-    schema: Optional[Dict[str, Any]] = Field(None, description="Database schema context")
+    db_schema: Optional[Dict[str, Any]] = Field(None, description="Database schema context", alias="schema")
     api_key: Optional[str] = Field(None, description="Optional API key override")
 
 class ChatResponse(BaseModel):
     """Response from chat service"""
+    model_config = {"protected_namespaces": ()}
+    
     response: str = Field(..., description="Generated response")
     suggestions: List[str] = Field(default_factory=list, description="Suggested follow-up questions")
-    model_used: Optional[str] = Field(None, description="AI model used for generation")
+    ai_model_used: Optional[str] = Field(None, description="AI model used for generation", alias="model_used")
 
 class ApiHealthResponse(BaseModel):
     """Health check response"""

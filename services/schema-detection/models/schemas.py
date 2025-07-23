@@ -93,7 +93,9 @@ class DetectionRequest(BaseModel):
 
 class DetectionResponse(BaseModel):
     """Response from schema detection."""
-    schema: SchemaResponse
+    model_config = {"protected_namespaces": ()}
+    
+    detected_schema: SchemaResponse = Field(..., alias="schema")
     success: bool = True
     message: Optional[str] = None
     errors: List[str] = []
@@ -165,9 +167,11 @@ class ImpactAnalysisResponse(BaseModel):
 
 
 class SchemaSnapshotModel(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    
     id: str
     timestamp: str
-    schema: SchemaResponse
+    snapshot_schema: SchemaResponse = Field(..., alias="schema")
 
 
 class SchemaHistoryResponse(BaseModel):
@@ -185,7 +189,9 @@ class SchemaDiffResponse(BaseModel):
 
 
 class DocumentationRequest(BaseModel):
-    schema: SchemaResponse
+    model_config = {"protected_namespaces": ()}
+    
+    request_schema: SchemaResponse = Field(..., alias="schema")
     table: Optional[str] = None
     column: Optional[str] = None
     relationship: Optional[dict] = None
