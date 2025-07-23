@@ -41,6 +41,7 @@ For each service directory:
    ```bash
    cd services/authentication
    git subtree push --prefix services/authentication heroku main
+   
    ```
 
 ### Cost: FREE TIER
