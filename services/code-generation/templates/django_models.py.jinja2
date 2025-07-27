@@ -1,0 +1,102 @@
+"""
+Generated Django Models
+Generation Date: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+"""
+
+from django.db import models
+from django.core.validators import EmailValidator, URLValidator, RegexValidator
+from django.contrib.postgres.fields import JSONField
+import uuid
+
+{% for table in tables %}
+class {{ table.name|title }}(models.Model):
+    {% if table.description %}
+    """{{ table.description }}"""
+    {% endif %}
+    
+    {% for column in table.columns %}
+    {% if column.is_primary_key %}
+    {% if column.type == 'UUID' %}
+    {{ column.name }} = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    {% else %}
+    {{ column.name }} = models.AutoField(primary_key=True)
+    {% endif %}
+    {% else %}
+    {% if column.description %}
+    # {{ column.description }}
+    {% endif %}
+    {{ column.name }} = models.{{ column.django_field }}(
+        {% if not column.nullable %}null=False, blank=False,{% endif %}
+        {% if column.unique %}unique=True,{% endif %}
+        {% if column.default %}default={{ column.django_default }},{% endif %}
+        {% if column.max_length %}max_length={{ column.max_length }},{% endif %}
+        {% if column.choices %}choices={{ column.choices }},{% endif %}
+        {% if column.validators %}validators=[{{ column.validators|join(', ') }}],{% endif %}
+        {% if column.help_text %}help_text='{{ column.help_text }}',{% endif %}
+    )
+    {% endif %}
+    {% endfor %}
+
+    {% if relationships[table.name]['outgoing'] %}
+    # Relationships
+    {% for rel in relationships[table.name]['outgoing'] %}
+    {% if rel.type == 'many-to-one' %}
+    {{ rel.field_name }} = models.ForeignKey(
+        '{{ rel.target_table|title }}',
+        on_delete=models.{{ rel.on_delete|default('CASCADE') }},
+        related_name='{{ rel.related_name }}'
+    )
+    {% elif rel.type == 'one-to-one' %}
+    {{ rel.field_name }} = models.OneToOneField(
+        '{{ rel.target_table|title }}',
+        on_delete=models.{{ rel.on_delete|default('CASCADE') }},
+        related_name='{{ rel.related_name }}'
+    )
+    {% elif rel.type == 'many-to-many' %}
+    {{ rel.field_name }} = models.ManyToManyField(
+        '{{ rel.target_table|title }}',
+        related_name='{{ rel.related_name }}',
+        {% if rel.through %}through='{{ rel.through }}',{% endif %}
+        blank=True
+    )
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    {% if options.add_timestamps %}
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    {% endif %}
+
+    class Meta:
+        db_table = '{{ table.name }}'
+        {% if table.description %}
+        verbose_name = '{{ table.description }}'
+        verbose_name_plural = '{{ table.description }}s'
+        {% endif %}
+        {% if table.ordering %}
+        ordering = [{{ table.ordering|map('tojson')|join(', ') }}]
+        {% endif %}
+        {% if table.indexes %}
+        indexes = [
+            {% for index in table.indexes %}
+            models.Index(fields=[{{ index.fields|map('tojson')|join(', ') }}], name='{{ index.name }}'),
+            {% endfor %}
+        ]
+        {% endif %}
+        {% if table.unique_together %}
+        unique_together = {{ table.unique_together }}
+        {% endif %}
+
+    def __str__(self):
+        {% if table.display_field %}
+        return str(self.{{ table.display_field }})
+        {% else %}
+        return f"{{ table.name|title }} {self.pk}"
+        {% endif %}
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse('{{ table.name|lower }}-detail', kwargs={'pk': self.pk})
+
+{% endfor %}

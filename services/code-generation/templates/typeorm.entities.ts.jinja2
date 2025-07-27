@@ -1,0 +1,86 @@
+/**
+ * Generated TypeORM Entities
+ * Generation Date: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+ */
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  OneToMany,
+  ManyToOne,
+  ManyToMany,
+  JoinColumn,
+  JoinTable,
+  Index,
+  Unique
+} from 'typeorm';
+
+{% for table in tables %}
+{% if table.indexes %}
+{% for index in table.indexes %}
+@Index("{{ index.name }}", [{{ index.columns|map('tojson')|join(', ') }}]{% if index.unique %}, { unique: true }{% endif %})
+{% endfor %}
+{% endif %}
+{% if table.unique_constraints %}
+{% for constraint in table.unique_constraints %}
+@Unique("{{ constraint.name }}", [{{ constraint.columns|map('tojson')|join(', ') }}])
+{% endfor %}
+{% endif %}
+@Entity('{{ table.name }}')
+export class {{ table.name|title }} {
+  {% for column in table.columns %}
+  {% if column.is_primary_key %}
+  @PrimaryGeneratedColumn()
+  {{ column.name }}: {{ column.typescript_type }};
+  {% else %}
+  @Column({
+    type: '{{ column.typeorm_type }}',
+    {% if not column.nullable %}nullable: false,{% endif %}
+    {% if column.unique %}unique: true,{% endif %}
+    {% if column.default %}default: {{ column.typeorm_default }},{% endif %}
+    {% if column.length %}length: {{ column.length }},{% endif %}
+    {% if column.precision %}precision: {{ column.precision }},{% endif %}
+    {% if column.scale %}scale: {{ column.scale }},{% endif %}
+    {% if column.comment %}comment: '{{ column.comment }}',{% endif %}
+  })
+  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ column.typescript_type }};
+  {% endif %}
+
+  {% endfor %}
+
+  {% if relationships[table.name]['outgoing'] %}
+  // Outgoing Relationships
+  {% for rel in relationships[table.name]['outgoing'] %}
+  {% if rel.type == 'one-to-one' %}
+  @OneToOne(() => {{ rel.target_table|title }}, {{ rel.target_table|lower }} => {{ rel.target_table|lower }}.{{ rel.inverse_field }})
+  @JoinColumn()
+  {{ rel.field_name }}: {{ rel.target_table|title }};
+  {% elif rel.type == 'many-to-one' %}
+  @ManyToOne(() => {{ rel.target_table|title }}, {{ rel.target_table|lower }} => {{ rel.target_table|lower }}.{{ rel.inverse_field }})
+  {{ rel.field_name }}: {{ rel.target_table|title }};
+  {% elif rel.type == 'one-to-many' %}
+  @OneToMany(() => {{ rel.target_table|title }}, {{ rel.target_table|lower }} => {{ rel.target_table|lower }}.{{ rel.inverse_field }})
+  {{ rel.field_name }}: {{ rel.target_table|title }}[];
+  {% elif rel.type == 'many-to-many' %}
+  @ManyToMany(() => {{ rel.target_table|title }}, {{ rel.target_table|lower }} => {{ rel.target_table|lower }}.{{ rel.inverse_field }})
+  @JoinTable()
+  {{ rel.field_name }}: {{ rel.target_table|title }}[];
+  {% endif %}
+
+  {% endfor %}
+  {% endif %}
+
+  {% if options.add_timestamps %}
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+  {% endif %}
+}
+
+{% endfor %}

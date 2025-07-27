@@ -1,0 +1,57 @@
+// Generated Prisma Schema
+// Generation Date: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+generator client {
+  provider = "prisma-client-js"
+  {% if options.output %}
+  output   = "{{ options.output }}"
+  {% endif %}
+}
+
+datasource db {
+  provider = "{{ options.database_provider or 'postgresql' }}"
+  url      = env("DATABASE_URL")
+}
+
+{% for table in tables %}
+{% if table.description %}
+/// {{ table.description }}
+{% endif %}
+model {{ table.name|title }} {
+  {% for column in table.columns %}
+  {% if column.description %}
+  /// {{ column.description }}
+  {% endif %}
+  {{ column.name }} {{ column.prisma_type }}{% if column.is_primary_key %} @id{% endif %}{% if column.default and not column.is_primary_key %} @default({{ column.prisma_default }}){% endif %}{% if column.unique %} @unique{% endif %}{% if not column.nullable and not column.is_primary_key %} @db.{{ column.db_type }}{% endif %}
+  {% endfor %}
+
+  {% if relationships[table.name]['outgoing'] %}
+  // Relationships
+  {% for rel in relationships[table.name]['outgoing'] %}
+  {{ rel.field_name }} {{ rel.target_table|title }}{% if rel.type == 'one-to-many' %}[]{% endif %} {% if rel.type in ['one-to-one', 'many-to-one'] %}@relation(fields: [{{ rel.source_column }}], references: [{{ rel.target_column }}]){% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if table.indexes %}
+  @@index([{{ table.indexes|join(', ') }}])
+  {% endif %}
+  
+  @@map("{{ table.name }}")
+}
+
+{% endfor %}
+
+{% if metadata and metadata.many_to_many_relations %}
+// Many-to-Many Junction Tables
+{% for relation in metadata.many_to_many_relations %}
+model {{ relation.junction_table|title }} {
+  {{ relation.source_table|lower }}Id Int
+  {{ relation.target_table|lower }}Id Int
+  {{ relation.source_table|lower }} {{ relation.source_table|title }} @relation(fields: [{{ relation.source_table|lower }}Id], references: [id])
+  {{ relation.target_table|lower }} {{ relation.target_table|title }} @relation(fields: [{{ relation.target_table|lower }}Id], references: [id])
+
+  @@id([{{ relation.source_table|lower }}Id, {{ relation.target_table|lower }}Id])
+  @@map("{{ relation.junction_table }}")
+}
+{% endfor %}
+{% endif %}

@@ -1,0 +1,103 @@
+/**
+ * Generated TypeScript Interfaces
+ * Generation Date: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+ */
+
+{% for table in tables %}
+{% if table.description %}
+/**
+ * {{ table.description }}
+ */
+{% endif %}
+export interface {{ table.name|title }} {
+  {% for column in table.columns %}
+  {% if column.description %}
+  /** {{ column.description }} */
+  {% endif %}
+  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ column.typescript_type }};
+  {% endfor %}
+
+  {% if relationships[table.name]['outgoing'] %}
+  // Relationships
+  {% for rel in relationships[table.name]['outgoing'] %}
+  {% if rel.type in ['one-to-many', 'many-to-many'] %}
+  {{ rel.field_name }}?: {{ rel.target_table|title }}[];
+  {% else %}
+  {{ rel.field_name }}?: {{ rel.target_table|title }};
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if options.add_timestamps %}
+  createdAt?: Date;
+  updatedAt?: Date;
+  {% endif %}
+}
+
+{% if options.create_input_types %}
+/**
+ * Input type for creating {{ table.name|title }}
+ */
+export interface Create{{ table.name|title }}Input {
+  {% for column in table.columns if not column.is_primary_key and not column.auto_generated %}
+  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ column.typescript_type }};
+  {% endfor %}
+}
+
+/**
+ * Input type for updating {{ table.name|title }}
+ */
+export interface Update{{ table.name|title }}Input {
+  {% for column in table.columns if not column.is_primary_key %}
+  {{ column.name }}?: {{ column.typescript_type }};
+  {% endfor %}
+}
+{% endif %}
+
+{% endfor %}
+
+{% if options.create_api_types %}
+// API Response Types
+{% for table in tables %}
+export interface {{ table.name|title }}Response {
+  data: {{ table.name|title }};
+  success: boolean;
+  message?: string;
+}
+
+export interface {{ table.name|title }}ListResponse {
+  data: {{ table.name|title }}[];
+  success: boolean;
+  message?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+{% endfor %}
+{% endif %}
+
+{% if options.create_validation_schemas %}
+// Validation Schemas (for libraries like Zod)
+{% for table in tables %}
+export const {{ table.name|camelCase }}Schema = {
+  {% for column in table.columns %}
+  {{ column.name }}: {
+    type: '{{ column.typescript_type }}',
+    required: {{ not column.nullable | lower }},
+    {% if column.validation %}
+    validation: '{{ column.validation }}',
+    {% endif %}
+    {% if column.min_length %}
+    minLength: {{ column.min_length }},
+    {% endif %}
+    {% if column.max_length %}
+    maxLength: {{ column.max_length }},
+    {% endif %}
+  },
+  {% endfor %}
+};
+{% endfor %}
+{% endif %}

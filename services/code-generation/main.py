@@ -6,19 +6,60 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from typing import Dict, Any, Optional, List
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+import os
 
 from config import settings, CodeGenFormat
 from models.schemas import (
     CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse
 )
 from core.code_generator import CodeGenerator, CodeGenerationError
+from core.nl_schema_converter import NLSchemaConverter
+from core.erd_generator import ERDGenerator
+from core.api_scaffold_generator import APIScaffoldGenerator
+from core.data_quality_analyzer import DataQualityAnalyzer
+from core.data_cleaning_service import DataCleaningService
+from core.ai_schema_critic import AISchemacritic
+
+# Import modular components
+from core.schema_merger import SchemaMerger
+from core.schema_version_control import SchemaVersionControl
+from core.performance_monitor import PerformanceMonitor
+from core.security_compliance import SecurityComplianceManager
+from core.real_time_collaboration import CollaborationManager
+from core.enterprise_integration import EnterpriseIntegrationHub
+from core.workflow_automation import WorkflowEngine
+from core.etl_code_generator import ETLCodeGenerator
+from core.etl_pipeline_builder import ETLPipelineBuilder
+from core.vector_intelligence import VectorIntelligenceEngine
+from core.schema_drift_detection import SchemaDriftDetector
+
+# Initialize core components
+code_generator = CodeGenerator()
+nl_converter = NLSchemaConverter()
+erd_generator = ERDGenerator()
+api_scaffold_generator = APIScaffoldGenerator()
+data_quality_analyzer = DataQualityAnalyzer()
+data_cleaning_service = DataCleaningService()
+ai_schema_critic = AISchemacritic()
+
+# Initialize modular components
+schema_merger = SchemaMerger()
+schema_version_control = SchemaVersionControl("./schema_versions")
+performance_monitor = PerformanceMonitor()
+security_manager = SecurityComplianceManager()
+collaboration_manager = CollaborationManager()
+integration_hub = EnterpriseIntegrationHub()
+workflow_engine = WorkflowEngine()
+etl_generator = ETLCodeGenerator()
+etl_pipeline_builder = ETLPipelineBuilder()
+vector_intelligence = VectorIntelligenceEngine()
+drift_detector = SchemaDriftDetector()
 
 logger = logging.getLogger(__name__)
-
-# Service instance
-code_generator = CodeGenerator()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -89,7 +130,6 @@ async def general_exception_handler(request: Request, exc: Exception):
 async def health_check():
     """Health check endpoint"""
     # Count available templates
-    import os
     template_count = 0
     template_dir = os.path.join(os.path.dirname(__file__), 'templates')
     if os.path.exists(template_dir):
@@ -116,38 +156,77 @@ async def generate_code(request: CodeGenerationRequest):
         )
         
         return CodeGenerationResponse(
-            code=generated_code,
+            code=generated_code.code,
             format=request.format,
-            metadata={
-                "table_count": len(request.schema.tables),
-                "relationship_count": len(request.schema.relationships),
-                "generation_options": request.options or {}
-            }
+            generated_at=datetime.now(),
+            metadata=generated_code.metadata
         )
         
     except CodeGenerationError as e:
-        logger.error(f"Code generation failed: {e.message}")
-        raise HTTPException(status_code=500, detail=e.message)
+        logger.error(f"Code generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
     except Exception as e:
-        logger.error(f"Unexpected error in code generation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error during code generation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during code generation"
+        )
 
-@app.post("/generate/{format}", response_model=CodeGenerationResponse)
-async def generate_code_format(format: CodeGenFormat, request: dict):
-    """Generate code in specific format (alternative endpoint)"""
+@app.post("/generate-from-description")
+async def generate_from_natural_language(
+    description: str,
+    format: CodeGenFormat,
+    options: Optional[Dict[str, Any]] = None
+):
+    """Generate code from natural language description"""
     try:
-        # Convert dict to proper request model
-        generation_request = CodeGenerationRequest(
-            schema=request["schema"],
+        # Convert natural language to schema
+        schema_response = await nl_converter.convert_to_schema(description)
+        
+        # Generate code from schema
+        generated_code = await code_generator.generate_code(
+            schema=schema_response,
             format=format,
-            options=request.get("options")
+            options=options or {}
         )
         
-        return await generate_code(generation_request)
+        return {
+            "schema": schema_response.dict(),
+            "code": generated_code.code,
+            "format": format.value,
+            "metadata": generated_code.metadata
+        }
         
     except Exception as e:
-        logger.error(f"Error in format-specific generation: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error generating from description: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@app.post("/schema-from-description")
+async def generate_schema_from_description(
+    description: str,
+    options: Optional[Dict[str, Any]] = None
+):
+    """Generate schema from natural language description"""
+    try:
+        schema_response = await nl_converter.convert_to_schema(
+            description, 
+            options=options or {}
+        )
+        
+        return schema_response.dict()
+        
+    except Exception as e:
+        logger.error(f"Error generating schema from description: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 @app.get("/formats")
 async def list_formats():
@@ -196,44 +275,34 @@ def _get_format_options(format: CodeGenFormat) -> dict:
         CodeGenFormat.SQLALCHEMY: {
             "use_mypy": {"type": "boolean", "default": True, "description": "Include MyPy type hints"},
             "use_validators": {"type": "boolean", "default": True, "description": "Include Pydantic validators"},
-            "base_class": {"type": "string", "default": "Base", "description": "Base class name"},
-            "relationship_loading": {"type": "string", "default": "select", "description": "SQLAlchemy relationship loading strategy"},
-            "bidirectional_relationships": {"type": "boolean", "default": True, "description": "Generate bidirectional relationships"}
+            "base_class": {"type": "string", "default": "Base", "description": "Base class name"}
         },
         CodeGenFormat.SQL: {
-            "add_comments": {"type": "boolean", "default": True, "description": "Add comments to SQL"},
-            "create_schema": {"type": "boolean", "default": False, "description": "Include schema creation"},
-            "schema_name": {"type": "string", "default": "public", "description": "Schema name"},
-            "generate_indexes": {"type": "boolean", "default": True, "description": "Generate indexes based on statistics"},
-            "use_jsonb": {"type": "boolean", "default": False, "description": "Use JSONB instead of JSON for PostgreSQL"}
+            "dialect": {"type": "string", "default": "postgresql", "description": "SQL dialect"},
+            "include_indexes": {"type": "boolean", "default": True, "description": "Include index definitions"}
         },
         CodeGenFormat.JSON: {
-            "draft_version": {"type": "string", "default": "2020-12", "description": "JSON Schema draft version"},
-            "add_examples": {"type": "boolean", "default": True, "description": "Include example values"}
-        },
-        CodeGenFormat.PYTHON_DATACLASSES: {
-            "use_typing": {"type": "boolean", "default": True, "description": "Include typing annotations"}
+            "format": {"type": "string", "default": "draft-07", "description": "JSON Schema version"}
         }
     }
     
-    result = common_options.copy()
-    result.update(format_specific.get(format, {}))
-    return result
+    return {**common_options, **format_specific.get(format, {})}
 
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
         "service": "Code Generation Service",
-        "status": "running",
         "version": settings.SERVICE_VERSION,
-        "endpoints": {
-            "generate": "POST /generate",
-            "generate_format": "POST /generate/{format}",
-            "formats": "GET /formats",
-            "format_options": "GET /options/{format}",
-            "health": "GET /health"
-        }
+        "status": "running",
+        "endpoints": [
+            "/health",
+            "/generate",
+            "/generate-from-description", 
+            "/schema-from-description",
+            "/formats",
+            "/options/{format}"
+        ]
     }
 
 if __name__ == "__main__":

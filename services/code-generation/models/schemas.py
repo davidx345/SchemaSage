@@ -30,6 +30,8 @@ class ColumnInfo(BaseModel):
     nullable: bool = Field(True, description="Whether column can be null")
     is_primary_key: bool = Field(False, description="Whether column is a primary key")
     is_foreign_key: bool = Field(False, description="Whether column is a foreign key")
+    default: Optional[Any] = Field(None, description="Default value for the column")
+    unique: bool = Field(False, description="Whether column has unique constraint")
     format: Optional[str] = Field(None, description="Format hint for the column")
     validation: Optional[str] = Field(None, description="Validation rule for the column")
     statistics: Optional[ColumnStatistics] = Field(None, description="Statistical information")
@@ -62,9 +64,12 @@ class SchemaResponse(BaseModel):
 
 class CodeGenerationRequest(BaseModel):
     """Request for code generation"""
-    schema: SchemaResponse = Field(..., description="Database schema to generate code from")
+    schema: SchemaResponse = Field(..., description="Database schema to generate code from", alias="schema")
     format: CodeGenFormat = Field(..., description="Output format for generated code")
     options: Optional[Dict[str, Any]] = Field(None, description="Generation options")
+    
+    class Config:
+        allow_population_by_field_name = True
 
 class CodeGenerationResponse(BaseModel):
     """Response from code generation"""
