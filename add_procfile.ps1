@@ -42,18 +42,34 @@ foreach ($service in $remainingServices) {
         Write-Host ".python-version created for $service" -ForegroundColor Green
     }
 
-    # Copy requirements.txt to root directory
-    Write-Host "Copying requirements.txt to root directory for $service..." -ForegroundColor Cyan
-    Copy-Item -Path $requirementsPath -Destination "c:\Users\USER\Documents\projects\SchemaSage\requirements.txt" -Force
+    # Ensure requirements.txt is staged and committed
+    Write-Host "Staging requirements.txt for $service..." -ForegroundColor Cyan
+    Set-Location $servicePath
+    git add requirements.txt
+
+    # Ensure .python-version is staged and committed
+    Write-Host "Staging .python-version for $service..." -ForegroundColor Cyan
+    git add .python-version
 
     # Set the buildpack for the Heroku app
     Write-Host "Setting buildpack for $service..." -ForegroundColor Cyan
     heroku buildpacks:set heroku/python --app schemasage-$service
 
+    # Add Rust buildpack for pydantic-core dependencies
+    Write-Host "Adding Rust buildpack for $service..." -ForegroundColor Cyan
+    heroku buildpacks:add https://github.com/emk/heroku-buildpack-rust.git --app schemasage-$service
+
+    # Ensure Heroku app exists
+    Write-Host "Ensuring Heroku app exists for $service..." -ForegroundColor Cyan
+    try {
+        heroku apps:create schemasage-$service
+    } catch {
+        Write-Host "Heroku app already exists for $service" -ForegroundColor Yellow
+    }
+
     # Commit and push changes to Heroku
     Write-Host "Committing and pushing changes for $service to Heroku..." -ForegroundColor Cyan
-    Set-Location $servicePath
-    git add Procfile requirements.txt .python-version
+    git add Procfile .python-version
     git commit -m "Add Procfile, requirements.txt, and .python-version for $service"
 
     # Ensure the correct branch is pushed
