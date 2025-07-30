@@ -1,72 +1,108 @@
-# SchemaSage Heroku Deployment Script
-# Run this script step by step
+# SchemaSage Heroku Deployment Script - Auto Deploy
+# This script will automatically deploy all services to Heroku
 
-# Prerequisites:
-# 1. Install Heroku CLI: https://devcenter.heroku.com/articles/heroku-cli
-# 2. Login to Heroku: heroku login
-# 3. Set up your Supabase database and get the connection string
+Write-Host "🚀 SchemaSage Heroku Auto Deployment" -ForegroundColor Green
+Write-Host "=====================================" -ForegroundColor Green
 
-Write-Host "🚀 SchemaSage Heroku Deployment Guide" -ForegroundColor Green
-Write-Host "=======================================" -ForegroundColor Green
+# Step 1: Create Heroku Applications and Set Environment Variables
+Write-Host "`nStep 1: Creating Heroku Applications and Setting Environment Variables..." -ForegroundColor Yellow
 
-Write-Host "`n📋 Step 1: Create Heroku Applications" -ForegroundColor Yellow
-Write-Host "Run these commands one by one:" -ForegroundColor White
+# Authentication Service
+Write-Host "Creating Authentication Service..." -ForegroundColor Cyan
+heroku create schemasage-auth
+heroku config:set DATABASE_URL='your-supabase-connection-string' JWT_SECRET_KEY='your-super-secret-jwt-key' OPENAI_API_KEY='your-openai-key' ANTHROPIC_API_KEY='your-anthropic-key' GOOGLE_API_KEY='your-google-key' --app=schemasage-auth
 
-$services = @(
-    "schemasage-auth",
-    "schemasage-api-gateway", 
-    "schemasage-schema-detection",
-    "schemasage-project-mgmt",
-    "schemasage-code-gen",
-    "schemasage-ai-chat"
-)
+# API Gateway
+Write-Host "Creating API Gateway..." -ForegroundColor Cyan
+heroku create schemasage-api-gateway
+heroku config:set API_GATEWAY_KEY='your-api-gateway-key' --app=schemasage-api-gateway
 
-foreach ($service in $services) {
-    Write-Host "heroku create $service" -ForegroundColor Cyan
-}
+# Schema Detection
+Write-Host "Creating Schema Detection..." -ForegroundColor Cyan
+heroku create schemasage-schema-detection
+heroku config:set SCHEMA_DETECTION_KEY='your-schema-detection-key' --app=schemasage-schema-detection
 
-Write-Host "`n📋 Step 2: Set Environment Variables" -ForegroundColor Yellow
-Write-Host "Set these for ALL applications:" -ForegroundColor White
+# Project Management
+Write-Host "Creating Project Management..." -ForegroundColor Cyan
+heroku create schemasage-project-mgmt
+heroku config:set PROJECT_MGMT_KEY='your-project-mgmt-key' --app=schemasage-project-mgmt
 
-$envVars = @(
-    "heroku config:set DATABASE_URL='your-supabase-connection-string'",
-    "heroku config:set JWT_SECRET_KEY='your-super-secret-jwt-key'",
-    "heroku config:set OPENAI_API_KEY='your-openai-key'",
-    "heroku config:set ANTHROPIC_API_KEY='your-anthropic-key'",
-    "heroku config:set GOOGLE_API_KEY='your-google-key'"
-)
+# Code Generation
+Write-Host "Creating Code Generation..." -ForegroundColor Cyan
+heroku create schemasage-code-gen
+heroku config:set CODE_GEN_KEY='your-code-gen-key' --app=schemasage-code-gen
 
-foreach ($var in $envVars) {
-    Write-Host "$var --app=APP_NAME" -ForegroundColor Cyan
-}
+# AI Chat
+Write-Host "Creating AI Chat..." -ForegroundColor Cyan
+heroku create schemasage-ai-chat
+heroku config:set AI_CHAT_KEY='your-ai-chat-key' --app=schemasage-ai-chat
 
-Write-Host "`n📋 Step 3: Deploy Services" -ForegroundColor Yellow
-Write-Host "Navigate to each service directory and deploy:" -ForegroundColor White
+# Step 2: Deploy Services
+Write-Host "`nStep 2: Deploying Services..." -ForegroundColor Yellow
 
-$deployCommands = @(
-    @{Service="Authentication"; Dir="services/authentication"; App="schemasage-auth"},
-    @{Service="API Gateway"; Dir="services/api-gateway"; App="schemasage-api-gateway"},
-    @{Service="Schema Detection"; Dir="services/schema-detection"; App="schemasage-schema-detection"},
-    @{Service="Project Management"; Dir="services/project-management"; App="schemasage-project-mgmt"},
-    @{Service="Code Generation"; Dir="services/code-generation"; App="schemasage-code-gen"},
-    @{Service="AI Chat"; Dir="services/ai-chat"; App="schemasage-ai-chat"}
-)
+# Deploy Authentication Service
+Write-Host "`nDeploying Authentication Service..." -ForegroundColor Cyan
+Set-Location "services/authentication"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-auth
+git push heroku main
+Set-Location "../.."
 
-foreach ($deploy in $deployCommands) {
-    Write-Host "`n🔧 Deploying $($deploy.Service):" -ForegroundColor Magenta
-    Write-Host "cd $($deploy.Dir)" -ForegroundColor Cyan
-    Write-Host "git init" -ForegroundColor Cyan
-    Write-Host "git add ." -ForegroundColor Cyan
-    Write-Host "git commit -m 'Initial deployment'" -ForegroundColor Cyan
-    Write-Host "heroku git:remote -a $($deploy.App)" -ForegroundColor Cyan
-    Write-Host "git push heroku main" -ForegroundColor Cyan
-    Write-Host "cd ..\.." -ForegroundColor Cyan
-}
+# Deploy API Gateway
+Write-Host "`nDeploying API Gateway..." -ForegroundColor Cyan
+Set-Location "services/api-gateway"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-api-gateway
+git push heroku main
+Set-Location "../.."
 
-Write-Host "`n📋 Step 4: Verify Deployments" -ForegroundColor Yellow
-foreach ($service in $services) {
-    Write-Host "heroku logs --tail --app=$service" -ForegroundColor Cyan
-}
+# Deploy Schema Detection
+Write-Host "`nDeploying Schema Detection..." -ForegroundColor Cyan
+Set-Location "services/schema-detection"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-schema-detection
+git push heroku main
+Set-Location "../.."
+
+# Deploy Project Management
+Write-Host "`nDeploying Project Management..." -ForegroundColor Cyan
+Set-Location "services/project-management"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-project-mgmt
+git push heroku main
+Set-Location "../.."
+
+# Deploy Code Generation
+Write-Host "`nDeploying Code Generation..." -ForegroundColor Cyan
+Set-Location "services/code-generation"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-code-gen
+git push heroku main
+Set-Location "../.."
+
+# Deploy AI Chat
+Write-Host "`nDeploying AI Chat..." -ForegroundColor Cyan
+Set-Location "services/ai-chat"
+git init
+git add .
+git commit -m "Initial deployment"
+heroku git:remote -a schemasage-ai-chat
+git push heroku main
+Set-Location "../.."
 
 Write-Host "`n✅ Deployment Complete!" -ForegroundColor Green
 Write-Host "Your SchemaSage microservices are now live on Heroku!" -ForegroundColor Green
+
+Write-Host "`nNext steps:" -ForegroundColor Yellow
+Write-Host "1. Check logs: heroku logs --tail --app=APP_NAME"
+Write-Host "2. Test your endpoints"
