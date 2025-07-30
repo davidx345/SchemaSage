@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, Security, Request, status
 from fastapi.security import OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, validator
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -12,7 +13,7 @@ import re
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 import secrets
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
@@ -48,6 +49,44 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, regex=r'^[a-zA-Z0-9_]+$')
     password: str = Field(..., min_length=8, max_length=128)
     is_admin: bool = False
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError('Username can only contain letters, numbers, and underscores')
+        return v.lower()
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+        return v
+
+class UserLogin(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=1, max_length=128)
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    user: UserResponse
 
 class UserOut(BaseModel):
     id: int
@@ -163,7 +202,7 @@ app = FastAPI(
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=["http://localhost:3000", "https://schemasage.vercel.app"],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -212,8 +251,8 @@ def signup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
         logger.error(f"Signup error for {user.username}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
+@app.post("/login", response_model=TokenResponse)
+def login(user_data: UserLogin, request: Request = None, db: Session = Depends(get_db)):
     client_ip = request.client.host if request else "unknown"
     
     # Rate limiting
@@ -224,9 +263,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = N
         )
     
     try:
-        user = authenticate_user(db, form_data.username, form_data.password, client_ip)
+        user = authenticate_user(db, user_data.username, user_data.password, client_ip)
         if not user:
-            logger.warning(f"Failed login attempt for {form_data.username} from {client_ip}")
+            logger.warning(f"Failed login attempt for {user_data.username} from {client_ip}")
             raise HTTPException(
                 status_code=401, 
                 detail="Incorrect username or password"
@@ -236,16 +275,31 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = N
         
         logger.info(f"Successful login: {user.username} from {client_ip}")
         
-        return {
-            "access_token": access_token, 
-            "token_type": "bearer",
-            "expires_in": JWT_EXPIRATION_HOURS * 3600
-        }
+        user_response = UserResponse(
+            id=user.id,
+            username=user.username,
+            is_admin=user.is_admin,
+            created_at=user.created_at,
+            last_login=user.last_login
+        )
+        
+        return TokenResponse(
+            access_token=access_token, 
+            token_type="bearer",
+            expires_in=JWT_EXPIRATION_HOURS * 3600,
+            user=user_response
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error for {form_data.username}: {str(e)}")
+        logger.error(f"Login error for {user_data.username}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# OAuth2 compatibility endpoint
+@app.post("/token", response_model=TokenResponse)
+def oauth_login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
+    user_data = UserLogin(username=form_data.username, password=form_data.password)
+    return login(user_data, request, db)
 
 security = HTTPBearer()
 
@@ -268,20 +322,74 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         logger.error(f"Token validation error: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@app.get("/me", response_model=UserOut)
+def get_current_admin_user(current_user: User = Depends(get_current_user)):
+    """Dependency to ensure current user is an admin"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, 
+            detail="Admin privileges required"
+        )
+    return current_user
+
+@app.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "username": current_user.username, 
-        "is_admin": current_user.is_admin,
-        "created_at": current_user.created_at,
-        "last_login": current_user.last_login
-    }
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username, 
+        is_admin=current_user.is_admin,
+        created_at=current_user.created_at,
+        last_login=current_user.last_login
+    )
+
+@app.post("/refresh-token", response_model=TokenResponse)
+def refresh_token(current_user: User = Depends(get_current_user)):
+    """Refresh the access token for authenticated users"""
+    access_token = create_access_token({"sub": current_user.username, "is_admin": current_user.is_admin})
+    
+    user_response = UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        is_admin=current_user.is_admin,
+        created_at=current_user.created_at,
+        last_login=current_user.last_login
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRATION_HOURS * 3600,
+        user=user_response
+    )
+
+@app.post("/logout")
+def logout(current_user: User = Depends(get_current_user)):
+    """Logout endpoint (client should discard token)"""
+    logger.info(f"User {current_user.username} logged out")
+    return {"message": "Successfully logged out"}
+
+@app.get("/users", response_model=List[UserResponse])
+def list_users(current_user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    """Admin endpoint to list all users"""
+    users = db.query(User).all()
+    return [UserResponse(
+        id=user.id,
+        username=user.username,
+        is_admin=user.is_admin,
+        created_at=user.created_at,
+        last_login=user.last_login
+    ) for user in users]
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "authentication"}
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy", 
+        "service": "authentication",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0"
+    }
 
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    logger.info("Authentication service started successfully")
