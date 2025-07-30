@@ -1,15 +1,15 @@
 # PowerShell Script to Add Procfile, requirements.txt, and .python-version to Services
 
-Write-Host "Processing services..." -ForegroundColor Green
+Write-Host "Processing remaining services..." -ForegroundColor Green
 
 # Define the services directory
 $servicesDir = "c:\Users\USER\Documents\projects\SchemaSage\services"
 
-# List of services
-$services = @("ai-chat", "api-gateway", "authentication", "code-generation", "project-management", "schema-detection")
+# List of remaining services
+$remainingServices = @("ai-chat", "code-generation", "project-management")
 
-# Loop through each service
-foreach ($service in $services) {
+# Loop through each remaining service
+foreach ($service in $remainingServices) {
     $servicePath = Join-Path $servicesDir $service
     $procfilePath = Join-Path $servicePath "Procfile"
     $requirementsPath = Join-Path $servicePath "requirements.txt"
@@ -42,6 +42,10 @@ foreach ($service in $services) {
         Write-Host ".python-version created for $service" -ForegroundColor Green
     }
 
+    # Copy requirements.txt to root directory
+    Write-Host "Copying requirements.txt to root directory for $service..." -ForegroundColor Cyan
+    Copy-Item -Path $requirementsPath -Destination "c:\Users\USER\Documents\projects\SchemaSage\requirements.txt" -Force
+
     # Set the buildpack for the Heroku app
     Write-Host "Setting buildpack for $service..." -ForegroundColor Cyan
     heroku buildpacks:set heroku/python --app schemasage-$service
@@ -59,4 +63,4 @@ foreach ($service in $services) {
     Set-Location "..\.."
 }
 
-Write-Host "✅ All services processed and pushed to Heroku!" -ForegroundColor Green
+Write-Host "✅ Remaining services processed and pushed to Heroku!" -ForegroundColor Green
