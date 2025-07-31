@@ -34,4 +34,3 @@ pymongo==4.6.0
 kafka-python==2.0.2
 rich==13.7.0
 click==8.1.7
-yaml==6.0.1
