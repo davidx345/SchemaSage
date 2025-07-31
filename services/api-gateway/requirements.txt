@@ -1,3 +1,5 @@
+# Required for JWT authentication
+PyJWT==2.8.0
 
 fastapi==0.104.1
 uvicorn[standard]==0.24.0

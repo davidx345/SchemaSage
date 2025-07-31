@@ -26,7 +26,7 @@ settings = get_settings()
 # Security configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000","https://schemasage.vercel.app").split(",")
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
