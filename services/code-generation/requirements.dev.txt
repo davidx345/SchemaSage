@@ -1,0 +1,19 @@
+# Development, ML, and analytics dependencies for code-generation
+pandas==2.1.4
+numpy==1.24.3
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.17.0
+scikit-learn==1.3.2
+scipy==1.11.4
+tensorflow==2.15.0
+torch==2.1.2
+transformers==4.36.2
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+# (Moved redis, pymongo, kafka-python, websockets to requirements.txt)
+# Optional: rich, click, yaml for CLI
