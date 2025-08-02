@@ -17,12 +17,12 @@ class LineageEdge:
         self.relationship = relationship
 
 class DataLineageGraph:
-    def __init__(self, tables: List[TableInfo], relationships: List[Relationship], glossary: Optional[List[dict]] = None, context: Optional[dict] = None):
+    def __init__(self, tables: Optional[List[TableInfo]] = None, relationships: Optional[List[Relationship]] = None, glossary: Optional[List[dict]] = None, context: Optional[dict] = None):
         self.nodes: Dict[str, LineageNode] = {}
         self.edges: List[LineageEdge] = []
         self.glossary = glossary or []
         self.context = context or {}
-        self._build_graph(tables, relationships)
+        self._build_graph(tables or [], relationships or [])
 
     def _build_graph(self, tables: List[TableInfo], relationships: List[Relationship]):
         for table in tables:
