@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Schema Detection Service",
     description="AI-powered schema detection and analysis microservice",
-    version=settings.SERVICE_VERSION,
+    version=settings.VERSION,
     lifespan=lifespan
 )
 
