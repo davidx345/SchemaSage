@@ -9,8 +9,8 @@ import json
 import logging
 from datetime import datetime
 
-from ..models.schemas import TableInfo, Relationship, RelationshipType
-from ..config import get_settings
+from models.schemas import TableInfo, Relationship, RelationshipType
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

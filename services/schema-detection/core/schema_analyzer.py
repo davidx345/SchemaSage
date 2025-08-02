@@ -11,7 +11,7 @@ from datetime import datetime
 import logging
 from collections import Counter
 
-from ..models.schemas import ColumnInfo, ColumnStatistics, TableInfo
+from models.schemas import ColumnInfo, ColumnStatistics, TableInfo
 
 logger = logging.getLogger(__name__)
 

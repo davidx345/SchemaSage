@@ -208,9 +208,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     """Add security headers to responses."""
@@ -391,5 +388,11 @@ def health_check():
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        # Don't fail startup if database is not available
+        # This allows the service to start even if DB is temporarily unavailable
     logger.info("Authentication service started successfully")

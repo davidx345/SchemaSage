@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import json5
 from fastapi import UploadFile
-from ..models.schemas import FileType, DataProfile, SchemaValidationError
+from models.schemas import FileType, DataProfile, SchemaValidationError
 
 class FileProcessor:
     """Handles processing of different file types."""

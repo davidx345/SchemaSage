@@ -7,10 +7,10 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 import logging
 from datetime import datetime
 
-from .data_parser import DataParser
-from .schema_analyzer import SchemaAnalyzer
-from .ai_enhancer import AISchemaEnhancer
-from ..models.schemas import (
+from core.data_parser import DataParser
+from core.schema_analyzer import SchemaAnalyzer
+from core.ai_enhancer import AISchemaEnhancer
+from models.schemas import (
     SchemaResponse, TableInfo, ColumnInfo, ColumnStatistics, 
     Relationship, SchemaSettings, RelationshipType,
     RelationshipSuggestionResponse, CrossDatasetRelationshipResponse
