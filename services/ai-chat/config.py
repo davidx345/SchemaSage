@@ -20,8 +20,8 @@ class Settings:
         # Service Configuration
         self.SERVICE_NAME = "ai-chat"
         self.SERVICE_VERSION = "1.0.0"
-        self.PORT = int(os.getenv("AI_CHAT_PORT", "8082"))
-        self.HOST = os.getenv("AI_CHAT_HOST", "0.0.0.0")
+        # PORT and HOST are handled by Heroku via Procfile
+        
         
         # Chat Configuration
         self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "500"))

@@ -6,3 +6,4 @@ alembic==1.13.0
 requests
 sqlalchemy
 psycopg2-binary
+boto3

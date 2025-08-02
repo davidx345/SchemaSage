@@ -14,7 +14,7 @@ from models.schemas import ApiHealthResponse
 from core.project_manager import ProjectError
 from routers import (
     projects_router, stats_router, integrations_router, 
-    glossary_router, team_router, websocket_router
+    glossary_router, team_router, websocket_router, upload_router
 )
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan management."""
     # Startup
     logger.info("Project Management Service starting up...")
-    logger.info(f"Storage directory: {settings.UPLOAD_DIR}")
+    if settings.USE_S3:
+        logger.info(f"Using S3 storage: {settings.S3_BUCKET_NAME}")
+    else:
+        logger.info(f"Using local storage: {settings.UPLOAD_DIR}")
     logger.info(f"Max file size: {settings.MAX_FILE_SIZE} bytes")
     yield
     # Shutdown
@@ -55,6 +58,7 @@ app.include_router(integrations_router)
 app.include_router(glossary_router)
 app.include_router(team_router)
 app.include_router(websocket_router)
+app.include_router(upload_router)
 
 
 # Error handlers

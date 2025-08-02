@@ -14,9 +14,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     DEBUG: bool = Field(default=False, env="DEBUG")
     
-    # Server settings
-    HOST: str = Field(default="0.0.0.0", env="HOST")
-    PORT: int = Field(default=8001, env="PORT")
+    # Server settings - PORT and HOST are handled by Heroku via Procfile
     
     # Processing settings
     MAX_FILE_SIZE: int = Field(default=10 * 1024 * 1024, env="MAX_FILE_SIZE")  # 10MB

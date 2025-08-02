@@ -8,6 +8,7 @@ from .projects import router as projects_router, stats_router
 from .integrations import router as integrations_router
 from .glossary import router as glossary_router, team_router
 from .websocket import router as websocket_router
+from .upload import router as upload_router
 
 __all__ = [
     'projects_router',
@@ -15,5 +16,6 @@ __all__ = [
     'integrations_router',
     'glossary_router',
     'team_router',
-    'websocket_router'
+    'websocket_router',
+    'upload_router'
 ]

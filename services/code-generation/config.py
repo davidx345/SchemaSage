@@ -24,8 +24,8 @@ class Settings:
         # Service Configuration
         self.SERVICE_NAME = "code-generation"
         self.SERVICE_VERSION = "1.0.0"
-        self.PORT = int(os.getenv("CODE_GEN_PORT", "8083"))
-        self.HOST = os.getenv("CODE_GEN_HOST", "0.0.0.0")
+        # PORT and HOST are handled by Heroku via Procfile
+        
         
         # Template Configuration
         self.TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
