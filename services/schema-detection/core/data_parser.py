@@ -4,13 +4,21 @@ Data Parsing and Format Detection Module
 Handles parsing of various data formats including JSON, CSV, XML, etc.
 """
 from typing import Dict, List, Optional, Any, Union, Tuple
-import pandas as pd
-import numpy as np
 import json
 import csv
 import re
 from io import StringIO
 import logging
+
+# Try to import pandas and numpy, make them optional for local development
+try:
+    import pandas as pd
+    import numpy as np
+    _pandas_available = True
+except ImportError:
+    pd = None
+    np = None
+    _pandas_available = False
 
 try:
     import json5

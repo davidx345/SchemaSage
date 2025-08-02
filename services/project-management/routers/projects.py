@@ -6,11 +6,11 @@ Core routes for project CRUD operations, search, and statistics.
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 
-from ..models.schemas import (
+from models.schemas import (
     Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest,
     ProjectListResponse
 )
-from ..core.project_manager import ProjectManager, ProjectError
+from core.project_manager import ProjectManager, ProjectError
 
 # Router for project management endpoints
 router = APIRouter(prefix="/projects", tags=["projects"])

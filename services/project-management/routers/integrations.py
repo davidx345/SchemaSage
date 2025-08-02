@@ -8,18 +8,18 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
-from ..integrations.manager import IntegrationManager
+from integrations.manager import IntegrationManager
 
 # Create integration manager instance
 integration_manager = IntegrationManager()
 
 # Register integrations with default configs
-from ..integrations.webhook import WebhookIntegration
-from ..integrations.notification import NotificationIntegration
-from ..integrations.cloud_storage import CloudStorageIntegration
-from ..integrations.bi_tools import BIToolsIntegration
-from ..integrations.data_catalogs import DataCatalogsIntegration
-from ..integrations.custom_api import CustomAPIIntegration
+from integrations.webhook import WebhookIntegration
+from integrations.notification import NotificationIntegration
+from integrations.cloud_storage import CloudStorageIntegration
+from integrations.bi_tools import BIToolsIntegration
+from integrations.data_catalogs import DataCatalogsIntegration
+from integrations.custom_api import CustomAPIIntegration
 
 # Default configurations
 default_webhook_config = {"enabled": False, "webhooks": [], "events": []}

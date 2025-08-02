@@ -10,13 +10,13 @@ import logging
 import tempfile
 import os
 
-from ..models.schemas import (
+from models.schemas import (
     SchemaHistoryResponse, SchemaSnapshotModel, SchemaDiffResponse,
     DocumentationRequest, DocumentationResponse,
     DataCleaningRequest, DataCleaningResponse, CleaningSuggestion,
     ApplyCleaningRequest, ApplyCleaningResponse
 )
-from ..core.schema_history import SchemaHistory
+from core.schema_history import SchemaHistory
 
 logger = logging.getLogger(__name__)
 

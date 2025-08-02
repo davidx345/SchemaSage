@@ -1,11 +1,21 @@
 """
 AWS S3 utilities for file upload and management
 """
-import boto3
 import os
 import logging
 from typing import Optional, BinaryIO
-from botocore.exceptions import ClientError, NoCredentialsError
+
+# Try to import boto3, fallback to None if not available
+try:
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+    _boto3_available = True
+except ImportError:
+    boto3 = None
+    ClientError = Exception
+    NoCredentialsError = Exception
+    _boto3_available = False
+
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -14,6 +24,12 @@ class S3Manager:
     """Handle S3 operations for file uploads"""
     
     def __init__(self):
+        if not _boto3_available:
+            logger.warning("boto3 not available - S3 operations will be disabled")
+            self.s3_client = None
+            self.bucket_name = None
+            return
+            
         if settings.USE_S3:
             try:
                 self.s3_client = boto3.client(

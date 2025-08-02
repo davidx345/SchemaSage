@@ -17,7 +17,7 @@ from .models import (
 )
 
 from .pattern_extractor import PatternExtractor
-from .ai_converter import AIConverter
+from .ai_converter import AISchemaConverter as AIConverter
 from .schema_builder import SchemaBuilder
 
 __all__ = [

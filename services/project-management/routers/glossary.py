@@ -6,7 +6,7 @@ Routes for managing business glossary terms and schema consistency checks.
 from fastapi import APIRouter, HTTPException, Body
 from typing import List, Dict, Any
 
-from ..models.schemas import (
+from models.schemas import (
     GlossaryTerm, GlossaryRequest, GlossaryResponse,
     SchemaConsistencyCheckRequest, SchemaConsistencyCheckResponse
 )

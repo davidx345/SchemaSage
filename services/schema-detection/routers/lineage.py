@@ -7,10 +7,10 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
 import logging
 
-from ..models.schemas import (
+from models.schemas import (
     TableLineageResponse, ColumnLineageResponse, ImpactAnalysisResponse
 )
-from ..core.lineage import DataLineageGraph
+from core.lineage import DataLineageGraph
 
 logger = logging.getLogger(__name__)
 

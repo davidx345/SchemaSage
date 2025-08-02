@@ -2,8 +2,16 @@
 OpenAI Chat Service
 """
 from typing import List, Dict, Any
-import aiohttp
 import logging
+
+# Try to import aiohttp, make it optional for local development
+try:
+    import aiohttp
+    _aiohttp_available = True
+except ImportError:
+    aiohttp = None
+    _aiohttp_available = False
+
 from config import settings
 from models.schemas import ChatResponse, ChatMessage
 

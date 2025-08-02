@@ -8,12 +8,12 @@ from typing import Optional, List, Dict, Any
 import logging
 import json
 
-from ..models.schemas import (
+from models.schemas import (
     DetectionRequest, DetectionResponse, SchemaResponse, 
     SchemaSettings, RelationshipSuggestionRequest, RelationshipSuggestionResponse,
     CrossDatasetRelationshipRequest, CrossDatasetRelationshipResponse
 )
-from ..core.schema_detector import SchemaDetector, SchemaValidationError
+from core.schema_detector import SchemaDetector, SchemaValidationError
 
 logger = logging.getLogger(__name__)
 

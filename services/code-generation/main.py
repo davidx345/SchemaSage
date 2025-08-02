@@ -12,54 +12,48 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 import os
 
+# Set up logging early
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from config import settings, CodeGenFormat
 from models.schemas import (
     CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse
 )
 from core.code_generator import CodeGenerator, CodeGenerationError
-from core.nl_schema_converter import NLSchemaConverter
-from core.erd_generator import ERDGenerator
-from core.api_scaffold_generator import APIScaffoldGenerator
-from core.data_quality_analyzer import DataQualityAnalyzer
-from core.data_cleaning_service import DataCleaningService
-from core.ai_schema_critic import AISchemacritic
 
-# Import modular components
-from core.schema_merger import SchemaMerger
-from core.schema_version_control import SchemaVersionControl
-from core.performance_monitor import PerformanceMonitor
-from core.security_compliance import SecurityComplianceManager
-from core.real_time_collaboration import CollaborationManager
-from core.enterprise_integration import EnterpriseIntegrationHub
-from core.workflow_automation import WorkflowEngine
-from core.etl_code_generator import ETLCodeGenerator
-from core.etl_pipeline_builder import ETLPipelineBuilder
-from core.vector_intelligence import VectorIntelligenceEngine
-from core.schema_drift_detection import SchemaDriftDetector
+# Import optional components - don't fail if they have missing dependencies
+try:
+    from core.nl_schema_converter import NLSchemaConverter
+    _nl_converter_available = True
+except ImportError as e:
+    logger.warning(f"NL Schema Converter not available: {e}")
+    NLSchemaConverter = None
+    _nl_converter_available = False
+
+try:
+    from core.etl_code_generator import ETLCodeGenerator
+    _etl_generator_available = True
+except ImportError as e:
+    logger.warning(f"ETL Code Generator not available: {e}")
+    ETLCodeGenerator = None
+    _etl_generator_available = False
+
+# Optional advanced components - only load core ones that work
+_optional_components = {}
 
 # Initialize core components
 code_generator = CodeGenerator()
-nl_converter = NLSchemaConverter()
-erd_generator = ERDGenerator()
-api_scaffold_generator = APIScaffoldGenerator()
-data_quality_analyzer = DataQualityAnalyzer()
-data_cleaning_service = DataCleaningService()
-ai_schema_critic = AISchemacritic()
 
-# Initialize modular components
-schema_merger = SchemaMerger()
-schema_version_control = SchemaVersionControl("./schema_versions")
-performance_monitor = PerformanceMonitor()
-security_manager = SecurityComplianceManager()
-collaboration_manager = CollaborationManager()
-integration_hub = EnterpriseIntegrationHub()
-workflow_engine = WorkflowEngine()
-etl_generator = ETLCodeGenerator()
-etl_pipeline_builder = ETLPipelineBuilder()
-vector_intelligence = VectorIntelligenceEngine()
-drift_detector = SchemaDriftDetector()
+# Initialize optional components safely
+nl_converter = NLSchemaConverter() if _nl_converter_available else None
+etl_generator = ETLCodeGenerator() if _etl_generator_available else None
 
-logger = logging.getLogger(__name__)
+logger.info("Core code generator initialized")
+if nl_converter:
+    logger.info("NL Schema Converter available")
+if etl_generator:
+    logger.info("ETL Code Generator available")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -147,10 +141,10 @@ async def health_check():
 async def generate_code(request: CodeGenerationRequest):
     """Generate code from schema in specified format"""
     try:
-        logger.info(f"Generating {request.format} code for schema with {len(request.schema.tables)} tables")
+        logger.info(f"Generating {request.format} code for schema with {len(request.db_schema.tables)} tables")
         
         generated_code = await code_generator.generate_code(
-            schema=request.schema,
+            schema=request.db_schema,
             format=request.format,
             options=request.options
         )
