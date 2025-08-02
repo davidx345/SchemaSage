@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan management"""
     # Startup
     logger.info("Schema Detection Service starting up...")
-    logger.info(f"Version: {settings.SERVICE_VERSION}")
+    logger.info(f"Version: {settings.VERSION}")
     yield
     # Shutdown
     logger.info("Schema Detection Service shutting down...")
@@ -155,7 +155,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "schema-detection",
-        "version": settings.SERVICE_VERSION,
+        "version": settings.VERSION,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -165,7 +165,7 @@ async def root():
     """Root endpoint with API information"""
     return {
         "service": "Schema Detection Service",
-        "version": settings.SERVICE_VERSION,
+        "version": settings.VERSION,
         "status": "running",
         "features": [
             "AI-powered schema detection",
