@@ -113,10 +113,23 @@ async def service_health_check(service_name: str):
             status_code=500
         )
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_handler(path: str, request: Request, user: Dict = Depends(get_user_from_token)):
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def proxy_handler(path: str, request: Request):
     """Main proxy handler for all API routes."""
     full_path = f"/{path}"
+    
+    # Handle CORS preflight requests
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Allow-Credentials": "true",
+            },
+            content={}
+        )
     
     # Find matching route configuration
     route_config = None
@@ -144,6 +157,18 @@ async def proxy_handler(path: str, request: Request, user: Dict = Depends(get_us
     
     if not service_name:
         raise HTTPException(status_code=404, detail="Route not found")
+    
+    # Get user information if authentication is available (optional)
+    user = None
+    try:
+        from fastapi.security import HTTPBearer
+        security = HTTPBearer(auto_error=False)
+        credentials = await security(request)
+        if credentials:
+            user = get_user_from_token(credentials)
+    except Exception as e:
+        logger.debug(f"No valid authentication: {str(e)}")
+        user = None
     
     # Check authentication requirement
     if route_config.get("auth_required", True) and not user:

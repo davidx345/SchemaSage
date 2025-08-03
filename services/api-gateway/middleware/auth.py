@@ -15,8 +15,11 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
 security = HTTPBearer()
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+def verify_token(credentials: HTTPAuthorizationCredentials):
     """Verify JWT token."""
+    if not credentials:
+        return None
+        
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         username = payload.get("sub")
@@ -28,8 +31,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-def get_user_from_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+def get_user_from_token(credentials: HTTPAuthorizationCredentials):
     """Extract user information from JWT token."""
+    if not credentials:
+        return None
+        
     payload = verify_token(credentials)
     return {
         "user_id": payload.get("sub"),
