@@ -19,3 +19,9 @@ coverage/
 *.swp
 *.swo
 .idea/
+
+# Virtual environments (CRITICAL - these consume GB of memory)
+venv/
+env/
+ENV/
+.venv/
