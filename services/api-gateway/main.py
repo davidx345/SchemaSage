@@ -36,7 +36,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://schemasage.vercel.app"],
+    allow_origins=["*"],  # Temporarily allow all origins for testing
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -184,6 +184,25 @@ async def proxy_handler(path: str, request: Request):
     except Exception as e:
         logger.error(f"Proxy error: {str(e)}")
         raise
+
+@app.options("/api/auth/signup")
+async def auth_signup_options():
+    """Handle CORS preflight for auth signup."""
+    return JSONResponse(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+        },
+        content={}
+    )
+
+@app.get("/test")
+async def test_endpoint():
+    """Simple test endpoint."""
+    return {"status": "working", "message": "API Gateway is responding"}
 
 @app.get("/")
 async def root():
