@@ -5,7 +5,7 @@ import os
 from typing import Dict, Any
 
 # CORS configuration
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
 
 # Service configuration
 SERVICES = {
@@ -30,7 +30,7 @@ SERVICES = {
         "timeout": 30
     },
     "authentication": {
-        "url": os.getenv("AUTHENTICATION_URL", "http://authentication:8005"),
+        "url": os.getenv("AUTHENTICATION_URL", "https://schemasage-auth-9d6de1a32af9.herokuapp.com"),
         "health_endpoint": "/health",
         "timeout": 30
     }
