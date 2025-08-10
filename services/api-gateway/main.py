@@ -1,22 +1,55 @@
-"""API Gateway for SchemaSage Microservices."""
+"""API Gateway for SchemaSage Microservices with Supabase Authentication."""
 
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 import os
 import httpx
+from supabase import create_client, Client
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+import json
 
-# Simple imports for now - avoid module import issues
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Basic configuration
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
-AUTHENTICATION_URL = os.getenv("AUTHENTICATION_URL", "https://schemasage-auth-9d6de1a32af9.herokuapp.com")
+
+# Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required")
+
+# Initialize Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Auth models
+class SignUpRequest(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = None
+
+class SignInRequest(BaseModel):
+    email: str
+    password: str
+
+class AuthResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    user: Dict[str, Any]
+
+# Security
+security = HTTPBearer(auto_error=False)
 
 app = FastAPI(
     title="SchemaSage API Gateway",
-    description="API Gateway for SchemaSage microservices architecture",
+    description="API Gateway for SchemaSage microservices with Supabase authentication",
     version="1.0.0",
 )
 
@@ -29,34 +62,163 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Auth dependency to verify JWT tokens
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[Dict]:
+    """Verify JWT token and return user info."""
+    if not credentials:
+        return None
+    
+    try:
+        # Verify token with Supabase
+        response = supabase.auth.get_user(credentials.credentials)
+        if response.user:
+            return {
+                "id": response.user.id,
+                "email": response.user.email,
+                "user_metadata": response.user.user_metadata
+            }
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)}")
+        return None
+    
+    return None
+
+# Protected route dependency
+async def require_auth(user: Dict = Depends(get_current_user)) -> Dict:
+    """Require authentication for protected routes."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
+# Authentication endpoints
+@app.post("/api/auth/signup", response_model=AuthResponse)
+async def signup(request: SignUpRequest):
+    """Sign up a new user with Supabase."""
+    try:
+        # Sign up user with Supabase
+        response = supabase.auth.sign_up({
+            "email": request.email,
+            "password": request.password,
+            "options": {
+                "data": {"name": request.name} if request.name else {}
+            }
+        })
+        
+        if response.user and response.session:
+            return JSONResponse(
+                status_code=201,
+                content={
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token,
+                    "user": {
+                        "id": response.user.id,
+                        "email": response.user.email,
+                        "user_metadata": response.user.user_metadata
+                    }
+                },
+                headers={
+                    "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+                    "Access-Control-Allow-Credentials": "true",
+                }
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Signup failed")
+            
+    except Exception as e:
+        logger.error(f"Signup error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/auth/signin", response_model=AuthResponse)
+async def signin(request: SignInRequest):
+    """Sign in a user with Supabase."""
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password
+        })
+        
+        if response.user and response.session:
+            return JSONResponse(
+                content={
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token,
+                    "user": {
+                        "id": response.user.id,
+                        "email": response.user.email,
+                        "user_metadata": response.user.user_metadata
+                    }
+                },
+                headers={
+                    "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+                    "Access-Control-Allow-Credentials": "true",
+                }
+            )
+        else:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+            
+    except Exception as e:
+        logger.error(f"Signin error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@app.post("/api/auth/signout")
+async def signout(user: Dict = Depends(require_auth)):
+    """Sign out the current user."""
+    try:
+        supabase.auth.sign_out()
+        return JSONResponse(
+            content={"message": "Signed out successfully"},
+            headers={
+                "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
+    except Exception as e:
+        logger.error(f"Signout error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Signout failed")
+
+@app.get("/api/auth/me")
+async def get_current_user_info(user: Dict = Depends(require_auth)):
+    """Get current user information."""
+    return JSONResponse(
+        content={"user": user},
+        headers={
+            "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+# Basic endpoints
 @app.get("/health")
 async def health_check():
     """Gateway health check."""
     return {
         "gateway": "healthy",
         "status": "ok",
-        "timestamp": "2025-07-27T00:00:00Z"
+        "supabase_configured": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
+        "timestamp": "2025-08-10T00:00:00Z"
     }
 
 @app.get("/test")
 async def test_endpoint():
     """Simple test endpoint."""
-    return {"status": "working", "message": "API Gateway is responding"}
+    return {"status": "working", "message": "API Gateway with Supabase Auth is responding"}
 
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {
-        "message": "SchemaSage API Gateway",
+        "message": "SchemaSage API Gateway with Supabase Authentication",
         "version": "1.0.0",
         "status": "running",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "auth_provider": "Supabase"
     }
 
-@app.options("/api/auth/signup")
-async def auth_signup_options():
-    """Handle CORS preflight for auth signup."""
+# CORS preflight handlers
+@app.options("/api/auth/{path:path}")
+async def auth_options(path: str):
+    """Handle CORS preflight for all auth endpoints."""
     return JSONResponse(
         status_code=200,
         headers={
@@ -68,55 +230,11 @@ async def auth_signup_options():
         content={}
     )
 
-@app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-async def auth_proxy(path: str, request: Request):
-    """Proxy authentication requests."""
-    # Handle CORS preflight requests
-    if request.method == "OPTIONS":
-        return JSONResponse(
-            status_code=200,
-            headers={
-                "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                "Access-Control-Allow-Credentials": "true",
-            },
-            content={}
-        )
-    
-    # Forward to authentication service
-    async with httpx.AsyncClient() as client:
-        try:
-            # Get request body if present
-            body = None
-            if request.method in ["POST", "PUT", "PATCH"]:
-                body = await request.body()
-            
-            # Forward the request
-            response = await client.request(
-                method=request.method,
-                url=f"{AUTHENTICATION_URL}/api/auth/{path}",
-                headers=dict(request.headers),
-                content=body,
-                timeout=30.0
-            )
-            
-            # Return the response with CORS headers
-            return JSONResponse(
-                status_code=response.status_code,
-                content=response.json() if response.content else {},
-                headers={
-                    "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
-                    "Access-Control-Allow-Credentials": "true",
-                }
-            )
-        except Exception as e:
-            logger.error(f"Auth proxy error: {str(e)}")
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "Authentication service error"},
-                headers={
-                    "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
-                    "Access-Control-Allow-Credentials": "true",
-                }
-            )
+# Protected routes examples (for your other services)
+@app.get("/api/protected-example")
+async def protected_example(user: Dict = Depends(require_auth)):
+    """Example of a protected route that requires authentication."""
+    return {
+        "message": "This is a protected route",
+        "user": user
+    }
