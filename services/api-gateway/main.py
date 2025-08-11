@@ -176,6 +176,32 @@ async def signout(user: Dict = Depends(require_auth)):
         logger.error(f"Signout error: {str(e)}")
         raise HTTPException(status_code=500, detail="Signout failed")
 
+@app.post("/api/auth/google")
+async def google_signin():
+    """Initiate Google OAuth signin."""
+    try:
+        # Get Google OAuth URL from Supabase
+        response = supabase.auth.sign_in_with_oauth({
+            "provider": "google",
+            "options": {
+                "redirect_to": "https://schemasage.vercel.app/auth/callback"
+            }
+        })
+        
+        return JSONResponse(
+            content={
+                "auth_url": response.url,
+                "message": "Redirect to Google for authentication"
+            },
+            headers={
+                "Access-Control-Allow-Origin": "https://schemasage.vercel.app",
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
+    except Exception as e:
+        logger.error(f"Google signin error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Google signin failed")
+
 @app.get("/api/auth/me")
 async def get_current_user_info(user: Dict = Depends(require_auth)):
     """Get current user information."""

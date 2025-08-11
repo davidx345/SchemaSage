@@ -27,20 +27,44 @@ heroku config:set SUPABASE_ANON_KEY="your-anon-key-here" --app schemasage-api-ga
    - `https://schemasage.vercel.app/auth/callback` (if you use OAuth)
    - `http://localhost:3000` (for development)
 
-## Step 4: Enable Email Confirmation (Optional)
+## Step 4: Enable Google Authentication (Optional but Recommended)
+
+1. In your Supabase dashboard, go to **Authentication** → **Providers**
+2. Find **Google** and click **Enable**
+3. You'll need to set up Google OAuth:
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select existing one
+   - Enable Google+ API
+   - Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+   - Set **Authorized redirect URIs** to: `https://your-project-id.supabase.co/auth/v1/callback`
+   - Copy the **Client ID** and **Client Secret**
+   - Paste them in your Supabase Google provider settings
+
+4. Your frontend can now use Google signin:
+   ```javascript
+   // Example: Google signin button
+   const handleGoogleSignin = async () => {
+     const response = await fetch('/api/auth/google', {
+       method: 'POST'
+     });
+   }
+   ```
+
+## Step 5: Enable Email Confirmation (Optional)
 
 1. Go to **Authentication** → **Settings**
 2. Under **Email Confirmation**, you can:
    - **Enable** if you want users to verify their email
    - **Disable** for simpler signup flow
 
-## Step 5: Update Your Frontend
+## Step 6: Update Your Frontend
 
 Your frontend should now make requests to:
 - **Signup**: `https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/signup`
 - **Signin**: `https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/signin`
 - **Get User**: `https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/me`
 - **Signout**: `https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/signout`
+- **Google Signin**: `https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/google` (if enabled)
 
 ## Request/Response Examples
 
