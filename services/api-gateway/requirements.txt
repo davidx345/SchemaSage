@@ -1,13 +1,15 @@
-# Required for Supabase authentication - Fixed compatibility versions
-supabase==2.8.0
+# Required for Supabase authentication - Exact compatible versions
+supabase==2.7.4
 python-dotenv==1.0.0
 
 # Core FastAPI stack with compatible versions
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-httpx==0.24.1
+httpx==0.25.2
 pydantic==2.5.0
 
-# Additional production dependencies (compatible with supabase 2.8.0)
-gotrue>=1.3.1,<2.0.0
-postgrest>=0.14.0,<0.18.0
+# Supabase dependencies - exact versions that work together
+gotrue==1.2.0
+postgrest==0.13.2
+realtime==1.0.5
+storage3==0.7.7
