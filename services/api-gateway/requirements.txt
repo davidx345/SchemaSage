@@ -1,15 +1,12 @@
-# Required for Supabase authentication - Exact compatible versions
+# Working combination - DO NOT CHANGE THESE VERSIONS
 supabase==2.7.4
 python-dotenv==1.0.0
 
-# Core FastAPI stack with compatible versions
+# Core FastAPI stack
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 httpx==0.25.2
 pydantic==2.5.0
 
-# Supabase dependencies - exact versions that work together
-gotrue==1.2.0
-postgrest==0.13.2
-realtime==1.0.5
-storage3==0.7.7
+# DO NOT specify gotrue, postgrest, etc. 
+# Let supabase install compatible versions automatically
