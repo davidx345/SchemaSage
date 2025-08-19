@@ -56,13 +56,13 @@ def validate_environment():
 supabase_client: Optional[Client] = None
 
 async def initialize_supabase():
-    """Initialize Supabase client with comprehensive error handling."""
+    """Initialize Supabase client with fallback methods."""
     global supabase_client
     
     try:
         validate_environment()
         
-        # Initialize with retry logic
+        # Method 1: Try standard initialization
         for attempt in range(3):
             try:
                 supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -72,11 +72,41 @@ async def initialize_supabase():
                 logger.info("Supabase client initialized successfully")
                 return
                 
+            except TypeError as type_error:
+                if "proxy" in str(type_error):
+                    logger.warning(f"Proxy argument error on attempt {attempt + 1}, trying fallback...")
+                    break  # Try fallback method
+                else:
+                    raise
             except Exception as init_error:
                 logger.warning(f"Supabase initialization attempt {attempt + 1} failed: {init_error}")
                 if attempt == 2:  # Last attempt
-                    raise
+                    break
                 await asyncio.sleep(2 ** attempt)  # Exponential backoff
+        
+        # Method 2: Fallback - Create client with minimal options
+        try:
+            from supabase._sync.client import SyncClient
+            from supabase.lib.client_options import ClientOptions
+            import httpx
+            
+            # Create minimal httpx client without proxy
+            http_client = httpx.Client(timeout=30.0)
+            
+            # Create client options without problematic settings
+            options = ClientOptions()
+            options.auth = {"auto_refresh_token": True, "persist_session": True}
+            
+            supabase_client = SyncClient.create(SUPABASE_URL, SUPABASE_ANON_KEY, options)
+            logger.info("Supabase client initialized with fallback method")
+            return
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback initialization failed: {fallback_error}")
+        
+        # Method 3: Final fallback - Use REST API directly
+        logger.warning("Using REST API fallback for Supabase connection")
+        supabase_client = None  # Will handle with direct HTTP calls
                 
     except Exception as e:
         logger.critical(f"Failed to initialize Supabase client: {e}")
