@@ -2,20 +2,23 @@
 
 from typing import Optional, Any, Dict, List
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel as PydanticBaseModel, Field
 
 
 class BaseModel(PydanticBaseModel):
     """Base model with common fields."""
     
-    id: Optional[str] = None
+    id: Optional[UUID] = None
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    archived_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
         json_encoders = {
-            datetime: lambda v: v.isoformat()
+            datetime: lambda v: v.isoformat(),
+            UUID: lambda v: str(v)
         }
 
 

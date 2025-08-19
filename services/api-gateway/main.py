@@ -1,4 +1,7 @@
-"""API Gateway for SchemaSage Microservices with Supabase Authentication."""
+"""
+SchemaSage API Gateway - Production-Grade Microservices Gateway
+Enterprise-level authentication, routing, and error handling.
+"""
 
 from fastapi import FastAPI, Request, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,27 +10,98 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 import os
 import httpx
+import asyncio
 from supabase import create_client, Client
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import json
+import sys
+from contextlib import asynccontextmanager
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Production-grade logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ]
+)
 logger = logging.getLogger(__name__)
 
-# Basic configuration
+# Configuration with validation
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
-
-# Supabase configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required")
+# Enhanced configuration validation
+def validate_environment():
+    """Validate critical environment variables with detailed error reporting."""
+    missing_vars = []
+    
+    if not SUPABASE_URL:
+        missing_vars.append("SUPABASE_URL")
+    if not SUPABASE_ANON_KEY:
+        missing_vars.append("SUPABASE_ANON_KEY")
+    
+    if missing_vars:
+        error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+        logger.critical(error_msg)
+        raise ValueError(error_msg)
+    
+    # Validate URL format
+    if not SUPABASE_URL.startswith("https://"):
+        logger.warning("SUPABASE_URL should use HTTPS in production")
 
-# Initialize Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+# Global state management
+supabase_client: Optional[Client] = None
+
+async def initialize_supabase():
+    """Initialize Supabase client with comprehensive error handling."""
+    global supabase_client
+    
+    try:
+        validate_environment()
+        
+        # Initialize with retry logic
+        for attempt in range(3):
+            try:
+                supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+                
+                # Verify connection with a simple health check
+                response = supabase_client.auth.get_session()
+                logger.info("Supabase client initialized successfully")
+                return
+                
+            except Exception as init_error:
+                logger.warning(f"Supabase initialization attempt {attempt + 1} failed: {init_error}")
+                if attempt == 2:  # Last attempt
+                    raise
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                
+    except Exception as e:
+        logger.critical(f"Failed to initialize Supabase client: {e}")
+        # In production, you might want to use a fallback auth mechanism
+        raise
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management with proper startup/shutdown."""
+    # Startup
+    logger.info("Starting SchemaSage API Gateway...")
+    await initialize_supabase()
+    yield
+    # Shutdown
+    logger.info("Shutting down SchemaSage API Gateway...")
+
+# Accessor function for Supabase client
+def get_supabase_client() -> Client:
+    """Get Supabase client with validation."""
+    if supabase_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Supabase client not initialized"
+        )
+    return supabase_client
 
 # Auth models
 class SignUpRequest(BaseModel):
@@ -51,6 +125,7 @@ app = FastAPI(
     title="SchemaSage API Gateway",
     description="API Gateway for SchemaSage microservices with Supabase authentication",
     version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -70,6 +145,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     try:
         # Verify token with Supabase
+        supabase = get_supabase_client()
         response = supabase.auth.get_user(credentials.credentials)
         if response.user:
             return {
@@ -96,6 +172,7 @@ async def signup(request: SignUpRequest):
     """Sign up a new user with Supabase."""
     try:
         # Sign up user with Supabase
+        supabase = get_supabase_client()
         response = supabase.auth.sign_up({
             "email": request.email,
             "password": request.password,
@@ -132,6 +209,7 @@ async def signup(request: SignUpRequest):
 async def signin(request: SignInRequest):
     """Sign in a user with Supabase."""
     try:
+        supabase = get_supabase_client()
         response = supabase.auth.sign_in_with_password({
             "email": request.email,
             "password": request.password
@@ -164,6 +242,7 @@ async def signin(request: SignInRequest):
 async def signout(user: Dict = Depends(require_auth)):
     """Sign out the current user."""
     try:
+        supabase = get_supabase_client()
         supabase.auth.sign_out()
         return JSONResponse(
             content={"message": "Signed out successfully"},
@@ -181,6 +260,7 @@ async def google_signin():
     """Initiate Google OAuth signin."""
     try:
         # Get Google OAuth URL from Supabase
+        supabase = get_supabase_client()
         response = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {

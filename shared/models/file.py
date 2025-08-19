@@ -2,6 +2,7 @@
 
 from typing import Optional, Dict, Any, List
 from enum import Enum
+from uuid import UUID
 from .base import BaseModel
 
 
@@ -26,7 +27,7 @@ class FileStatus(str, Enum):
 
 
 class FileModel(BaseModel):
-    """File model."""
+    """File model - enterprise grade with UUID support."""
     
     filename: str
     original_filename: str
@@ -35,29 +36,45 @@ class FileModel(BaseModel):
     status: FileStatus = FileStatus.UPLOADED
     
     # File location
-    storage_path: str
-    storage_provider: str = "local"  # local, s3, etc.
+    file_path: Optional[str] = None
+    storage_provider: str = "supabase"  # supabase, s3, etc.
+    
+    # Security and integrity
+    file_hash: Optional[str] = None  # SHA256 hash for deduplication
     
     # Processing information
+    upload_date: Optional[str] = None
+    processed: bool = False
     processing_started_at: Optional[str] = None
     processing_completed_at: Optional[str] = None
     processing_error: Optional[str] = None
     
-    # File metadata
-    mime_type: Optional[str] = None
-    encoding: Optional[str] = None
-    delimiter: Optional[str] = None  # for CSV files
-    has_header: bool = True  # for CSV files
-    sheet_names: List[str] = []  # for Excel files
+    # File metadata stored as JSONB
+    metadata: Dict[str, Any] = {}
     
-    # Processing results
-    row_count: int = 0
-    column_count: int = 0
-    detected_schema: Optional[Dict[str, Any]] = None
+    # Enterprise features
+    retention_until: Optional[str] = None  # Data retention
+    search_vector: Optional[str] = None  # Full-text search
     
-    # User and project association
-    user_id: str
-    project_id: Optional[str] = None
+    # Associations
+    project_id: UUID  # References projects(id)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "filename": "customer_data.csv",
+                "original_filename": "Customer_Export_2025.csv",
+                "file_type": "csv",
+                "file_size": 1048576,
+                "metadata": {
+                    "encoding": "utf-8",
+                    "delimiter": ",",
+                    "has_header": True,
+                    "row_count": 5000,
+                    "column_count": 12
+                }
+            }
+        }
 
 
 class FileResponse(BaseModel):
@@ -71,14 +88,30 @@ class FileResponse(BaseModel):
 class FileUploadRequest(BaseModel):
     """File upload request."""
     
-    project_id: Optional[str] = None
+    project_id: UUID
+    filename: str
+    file_type: FileType
     options: Dict[str, Any] = {}
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "project_id": "550e8400-e29b-41d4-a716-446655440000",
+                "filename": "data_export.csv",
+                "file_type": "csv",
+                "options": {
+                    "encoding": "utf-8",
+                    "delimiter": ",",
+                    "has_header": True
+                }
+            }
+        }
 
 
 class FileProcessingRequest(BaseModel):
     """File processing request."""
     
-    file_id: str
+    file_id: UUID
     options: Dict[str, Any] = {}
 
 

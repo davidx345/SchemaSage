@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Dict, Any
 from enum import Enum
+from uuid import UUID
 from .base import BaseModel
 
 
@@ -22,8 +23,9 @@ class UserStatus(str, Enum):
 
 
 class UserModel(BaseModel):
-    """User model."""
+    """User model - integrates with Supabase Auth."""
     
+    # Note: id comes from Supabase auth.users table as UUID
     email: str
     username: Optional[str] = None
     full_name: Optional[str] = None
@@ -39,7 +41,7 @@ class UserModel(BaseModel):
     # Preferences
     preferences: Dict[str, Any] = {}
     
-    # Usage statistics
+    # Usage statistics (populated from related tables)
     project_count: int = 0
     storage_used: int = 0  # in bytes
     last_login: Optional[str] = None
