@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Security, Request, status
 from fastapi.security import OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field, validator
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -12,6 +12,8 @@ import os
 import re
 import time
 import logging
+import httpx
+import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import secrets
@@ -20,6 +22,12 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
+
+# Google OAuth configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/google/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://schemasage.vercel.app")
 
 # Rate limiting store (use Redis in production)
 login_attempts: Dict[str, List[float]] = {}
@@ -38,12 +46,15 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Nullable for OAuth users
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
+    google_id = Column(String(255), unique=True, nullable=True)  # For Google OAuth
+    email = Column(String(255), unique=True, nullable=True)  # For Google OAuth
+    full_name = Column(String(255), nullable=True)  # For Google OAuth
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, pattern=r'^[a-zA-Z0-9_]+$')
@@ -375,6 +386,184 @@ def list_users(current_user: User = Depends(get_current_admin_user), db: Session
         created_at=user.created_at,
         last_login=user.last_login
     ) for user in users]
+
+# ===== GOOGLE OAUTH ENDPOINTS =====
+
+@app.get("/google")
+async def google_auth():
+    """Initiate Google OAuth flow"""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+    
+    # Generate state for CSRF protection
+    state = secrets.token_urlsafe(32)
+    
+    google_auth_url = (
+        f"https://accounts.google.com/o/oauth2/auth?"
+        f"response_type=code&"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+        f"scope=openid email profile&"
+        f"state={state}&"
+        f"access_type=offline"
+    )
+    
+    return {"auth_url": google_auth_url, "state": state}
+
+@app.get("/google/callback")
+async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
+    """Handle Google OAuth callback"""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+    
+    try:
+        # Exchange code for tokens
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                }
+            )
+            
+            if token_response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+            
+            tokens = token_response.json()
+            access_token = tokens.get("access_token")
+            
+            # Get user info from Google
+            user_response = await client.get(
+                f"https://www.googleapis.com/oauth2/v2/userinfo?access_token={access_token}"
+            )
+            
+            if user_response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+            
+            google_user = user_response.json()
+            
+            # Check if user exists by Google ID or email
+            user = db.query(User).filter(
+                (User.google_id == google_user["id"]) | 
+                (User.email == google_user["email"])
+            ).first()
+            
+            if user:
+                # Update existing user
+                user.google_id = google_user["id"]
+                user.email = google_user["email"]
+                user.full_name = google_user.get("name")
+                user.last_login = datetime.utcnow()
+            else:
+                # Create new user
+                username = google_user["email"].split("@")[0]
+                # Ensure username is unique
+                base_username = username
+                counter = 1
+                while db.query(User).filter(User.username == username).first():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                
+                user = User(
+                    username=username,
+                    email=google_user["email"],
+                    google_id=google_user["id"],
+                    full_name=google_user.get("name"),
+                    created_at=datetime.utcnow(),
+                    last_login=datetime.utcnow()
+                )
+                db.add(user)
+            
+            db.commit()
+            db.refresh(user)
+            
+            # Create JWT token
+            jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+            
+            # Redirect to frontend with token
+            frontend_redirect = f"{FRONTEND_URL}/auth/callback?token={jwt_token}"
+            return RedirectResponse(url=frontend_redirect)
+            
+    except Exception as e:
+        logger.error(f"Google OAuth error: {str(e)}")
+        error_redirect = f"{FRONTEND_URL}/auth/error?error=oauth_failed"
+        return RedirectResponse(url=error_redirect)
+
+@app.post("/google/mobile")
+async def google_mobile_auth(google_token: dict, db: Session = Depends(get_db)):
+    """Handle Google OAuth for mobile/SPA applications"""
+    if not google_token.get("access_token"):
+        raise HTTPException(status_code=400, detail="Google access token required")
+    
+    try:
+        # Verify and get user info from Google
+        async with httpx.AsyncClient() as client:
+            user_response = await client.get(
+                f"https://www.googleapis.com/oauth2/v2/userinfo?access_token={google_token['access_token']}"
+            )
+            
+            if user_response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Invalid Google token")
+            
+            google_user = user_response.json()
+            
+            # Same user creation/update logic as callback
+            user = db.query(User).filter(
+                (User.google_id == google_user["id"]) | 
+                (User.email == google_user["email"])
+            ).first()
+            
+            if user:
+                user.google_id = google_user["id"]
+                user.email = google_user["email"]
+                user.full_name = google_user.get("name")
+                user.last_login = datetime.utcnow()
+            else:
+                username = google_user["email"].split("@")[0]
+                base_username = username
+                counter = 1
+                while db.query(User).filter(User.username == username).first():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                
+                user = User(
+                    username=username,
+                    email=google_user["email"],
+                    google_id=google_user["id"],
+                    full_name=google_user.get("name"),
+                    created_at=datetime.utcnow(),
+                    last_login=datetime.utcnow()
+                )
+                db.add(user)
+            
+            db.commit()
+            db.refresh(user)
+            
+            # Create JWT token
+            jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+            
+            user_response = UserResponse(
+                id=user.id,
+                username=user.username,
+                is_admin=user.is_admin,
+                created_at=user.created_at,
+                last_login=user.last_login
+            )
+            
+            return TokenResponse(
+                access_token=jwt_token,
+                token_type="bearer",
+                expires_in=JWT_EXPIRATION_HOURS * 3600,
+                user=user_response
+            )
+            
+    except Exception as e:
+        logger.error(f"Google mobile auth error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Google authentication failed")
 
 @app.get("/health")
 def health_check():

@@ -1,130 +1,43 @@
 """
-SchemaSage API Gateway - Secure Production Implementation
-Latest Supabase client with enterprise security and error handling.
+SchemaSage API Gateway - Pure Routing Service
+Routes requests to appropriate microservices without auth logic.
 """
 
-from fastapi import FastAPI, Request, HTTPException, status, Depends
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 import os
-import asyncio
-from supabase import create_client, Client
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import json
 import sys
-from contextlib import asynccontextmanager
+import httpx
+import json
+from typing import Dict, Any
 
-# Production-grade logging configuration
+# Configuration
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
+
+# Service URLs (configure these for your deployed services)
+AUTHENTICATION_SERVICE_URL = os.getenv("AUTHENTICATION_SERVICE_URL", "https://schemasage-auth-2da67d920b07.herokuapp.com")
+CODE_GENERATION_SERVICE_URL = os.getenv("CODE_GENERATION_SERVICE_URL", "https://schemasage-code-gen-2da67d920b07.herokuapp.com")
+SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https://schemasage-schema-2da67d920b07.herokuapp.com")
+PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-projects-2da67d920b07.herokuapp.com")
+AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-2da67d920b07.herokuapp.com")
+
+# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
-# Configuration with validation
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-
-# Enhanced configuration validation
-def validate_environment():
-    """Validate critical environment variables with detailed error reporting."""
-    missing_vars = []
-    
-    if not SUPABASE_URL:
-        missing_vars.append("SUPABASE_URL")
-    if not SUPABASE_ANON_KEY:
-        missing_vars.append("SUPABASE_ANON_KEY")
-    
-    if missing_vars:
-        error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
-        logger.critical(error_msg)
-        raise ValueError(error_msg)
-    
-    # Validate URL format
-    if not SUPABASE_URL.startswith("https://"):
-        logger.warning("SUPABASE_URL should use HTTPS in production")
-
-# Global state management
-supabase_client: Optional[Client] = None
-
-async def initialize_supabase():
-    """Initialize Supabase client with modern approach."""
-    global supabase_client
-    
-    try:
-        validate_environment()
-        logger.info("Initializing Supabase client with latest version...")
-        
-        # Use latest Supabase client (v2.9.1) which resolves dependency issues
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-        
-        # Test connection
-        try:
-            # Simple test to verify client works
-            session = supabase_client.auth.get_session()
-            logger.info("✅ Supabase client initialized successfully")
-        except Exception as test_error:
-            logger.warning(f"Supabase client initialized but test failed: {test_error}")
-            # Client is still usable for most operations
-                
-    except Exception as e:
-        logger.critical(f"❌ Failed to initialize Supabase client: {e}")
-        raise
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan management with proper startup/shutdown."""
-    # Startup
-    logger.info("🚀 Starting SchemaSage API Gateway...")
-    await initialize_supabase()
-    logger.info("✅ Gateway startup complete")
-    yield
-    # Shutdown
-    logger.info("🔄 Shutting down SchemaSage API Gateway...")
-
-# Accessor function for Supabase client
-def get_supabase_client() -> Client:
-    """Get Supabase client with validation."""
-    if supabase_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Supabase client not initialized"
-        )
-    return supabase_client
-
-# Auth models
-class SignUpRequest(BaseModel):
-    email: str
-    password: str
-    name: Optional[str] = None
-
-class SignInRequest(BaseModel):
-    email: str
-    password: str
-
-class AuthResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    user: Dict[str, Any]
-
-# Security
-security = HTTPBearer(auto_error=False)
-
 app = FastAPI(
     title="SchemaSage API Gateway",
-    description="Secure API Gateway for SchemaSage microservices with Supabase authentication",
-    version="2.0.0",
-    lifespan=lifespan
+    description="Pure routing gateway for SchemaSage microservices",
+    version="3.0.0"
 )
 
-# CORS middleware with proper security
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure for your domains in production
@@ -133,183 +46,209 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth dependency to verify JWT tokens
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[Dict]:
-    """Verify JWT token and return user info with enhanced security."""
-    if not credentials:
-        return None
-    
-    try:
-        # Verify token with Supabase
-        supabase = get_supabase_client()
-        response = supabase.auth.get_user(credentials.credentials)
-        if response.user:
-            return {
-                "id": response.user.id,
-                "email": response.user.email,
-                "user_metadata": response.user.user_metadata,
-                "role": response.user.user_metadata.get("role", "user")
-            }
-    except Exception as e:
-        logger.error(f"🔒 Token verification error: {str(e)}")
-        return None
-    
-    return None
+# HTTP client for proxying requests
+http_client = httpx.AsyncClient(timeout=30.0)
 
-# Protected route dependency
-async def require_auth(user: Dict = Depends(get_current_user)) -> Dict:
-    """Require authentication for protected routes."""
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return user
-
-# Authentication endpoints with enhanced security
-@app.post("/api/auth/signup", response_model=AuthResponse)
-async def signup(request: SignUpRequest):
-    """Sign up a new user with Supabase - Enhanced Security."""
+async def proxy_request(
+    request: Request,
+    target_url: str,
+    service_name: str
+) -> Response:
+    """Proxy request to target service with proper error handling."""
     try:
-        supabase = get_supabase_client()
-        response = supabase.auth.sign_up({
-            "email": request.email,
-            "password": request.password,
-            "options": {
-                "data": {"name": request.name} if request.name else {}
-            }
-        })
+        # Get request details
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
         
-        if response.user and response.session:
-            logger.info(f"✅ User signed up: {response.user.email}")
-            return JSONResponse(
-                status_code=201,
-                content={
-                    "access_token": response.session.access_token,
-                    "refresh_token": response.session.refresh_token,
-                    "user": {
-                        "id": response.user.id,
-                        "email": response.user.email,
-                        "user_metadata": response.user.user_metadata
-                    }
-                }
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Signup failed")
-            
-    except Exception as e:
-        logger.error(f"🔒 Signup error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/api/auth/signin", response_model=AuthResponse)
-async def signin(request: SignInRequest):
-    """Sign in a user with Supabase - Enhanced Security."""
-    try:
-        supabase = get_supabase_client()
-        response = supabase.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password
-        })
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
         
-        if response.user and response.session:
-            logger.info(f"✅ User signed in: {response.user.email}")
-            return JSONResponse(
-                content={
-                    "access_token": response.session.access_token,
-                    "refresh_token": response.session.refresh_token,
-                    "user": {
-                        "id": response.user.id,
-                        "email": response.user.email,
-                        "user_metadata": response.user.user_metadata
-                    }
-                }
-            )
-        else:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-            
+        # Build target URL
+        path = request.url.path
+        full_url = f"{target_url}{path}"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        # Get request body if present
+        body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        logger.info(f"🔄 Proxying {method} {path} to {service_name}")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            content=body,
+            follow_redirects=True
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ {service_name} responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to {service_name}")
+        raise HTTPException(status_code=504, detail=f"{service_name} service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to {service_name}")
+        raise HTTPException(status_code=503, detail=f"{service_name} service unavailable")
     except Exception as e:
-        logger.error(f"🔒 Signin error: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        logger.error(f"❌ Proxy error for {service_name}: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
 
-@app.post("/api/auth/signout")
-async def signout(user: Dict = Depends(require_auth)):
-    """Sign out the current user."""
-    try:
-        supabase = get_supabase_client()
-        supabase.auth.sign_out()
-        logger.info(f"✅ User signed out: {user.get('email', 'unknown')}")
-        return {"message": "Signed out successfully"}
-    except Exception as e:
-        logger.error(f"🔒 Signout error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Signout failed")
+# ===== AUTHENTICATION SERVICE ROUTES =====
 
-@app.get("/api/auth/me")
-async def get_current_user_info(user: Dict = Depends(require_auth)):
-    """Get current user information."""
-    return {"user": user}
+@app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def auth_proxy(request: Request, path: str):
+    """Proxy all authentication requests to the Authentication Service."""
+    return await proxy_request(request, AUTHENTICATION_SERVICE_URL, "Authentication Service")
 
-# Health and status endpoints
+# ===== CODE GENERATION SERVICE ROUTES =====
+
+@app.api_route("/api/code-generation/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def code_generation_proxy(request: Request, path: str):
+    """Proxy code generation requests."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+@app.api_route("/api/generate/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def generate_proxy(request: Request, path: str):
+    """Proxy generation requests."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+# ===== SCHEMA DETECTION SERVICE ROUTES =====
+
+@app.api_route("/api/schema/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def schema_proxy(request: Request, path: str):
+    """Proxy schema detection requests."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+@app.api_route("/api/detect/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def detect_proxy(request: Request, path: str):
+    """Proxy detection requests."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# ===== PROJECT MANAGEMENT SERVICE ROUTES =====
+
+@app.api_route("/api/projects/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def projects_proxy(request: Request, path: str):
+    """Proxy project management requests."""
+    return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
+
+# ===== AI CHAT SERVICE ROUTES =====
+
+@app.api_route("/api/chat/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def chat_proxy(request: Request, path: str):
+    """Proxy AI chat requests."""
+    return await proxy_request(request, AI_CHAT_SERVICE_URL, "AI Chat Service")
+
+@app.api_route("/api/ai/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def ai_proxy(request: Request, path: str):
+    """Proxy AI requests."""
+    return await proxy_request(request, AI_CHAT_SERVICE_URL, "AI Chat Service")
+
+# ===== HEALTH AND STATUS =====
+
 @app.get("/health")
 async def health_check():
-    """Comprehensive gateway health check."""
-    health_status = {
-        "gateway": "healthy",
-        "status": "ok",
-        "version": "2.0.0",
-        "supabase_configured": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
-        "supabase_client": "initialized" if supabase_client else "not_initialized",
-        "timestamp": "2025-08-19T00:00:00Z"
+    """Gateway health check with service status."""
+    services_status = {}
+    
+    # Check each service health
+    services = {
+        "authentication": AUTHENTICATION_SERVICE_URL,
+        "code-generation": CODE_GENERATION_SERVICE_URL,
+        "schema-detection": SCHEMA_DETECTION_SERVICE_URL,
+        "project-management": PROJECT_MANAGEMENT_SERVICE_URL,
+        "ai-chat": AI_CHAT_SERVICE_URL
     }
     
-    # Test Supabase connection
-    if supabase_client:
+    for service_name, service_url in services.items():
         try:
-            session = supabase_client.auth.get_session()
-            health_status["supabase_connection"] = "healthy"
+            response = await http_client.get(f"{service_url}/health", timeout=5.0)
+            services_status[service_name] = {
+                "status": "healthy" if response.status_code == 200 else "unhealthy",
+                "response_time_ms": response.elapsed.total_seconds() * 1000,
+                "status_code": response.status_code
+            }
         except Exception as e:
-            health_status["supabase_connection"] = f"error: {str(e)[:100]}"
-            logger.warning(f"Health check Supabase error: {e}")
+            services_status[service_name] = {
+                "status": "unreachable",
+                "error": str(e)[:100]
+            }
     
-    return health_status
+    # Overall health
+    healthy_services = sum(1 for s in services_status.values() if s.get("status") == "healthy")
+    total_services = len(services)
+    
+    return {
+        "gateway": "healthy",
+        "version": "3.0.0",
+        "type": "api_gateway",
+        "services": services_status,
+        "services_healthy": f"{healthy_services}/{total_services}",
+        "timestamp": "2025-08-20T00:00:00Z"
+    }
 
 @app.get("/")
 async def root():
-    """Root endpoint with service information."""
+    """Root endpoint with gateway information."""
     return {
         "service": "SchemaSage API Gateway",
-        "version": "2.0.0",
+        "version": "3.0.0",
+        "type": "pure_router",
         "status": "running",
-        "auth_provider": "Supabase",
-        "docs": "/docs",
-        "health": "/health",
-        "features": [
-            "JWT Authentication",
-            "CORS Support", 
-            "Microservices Routing",
-            "Enterprise Security"
-        ]
-    }
-
-# Protected example endpoints
-@app.get("/api/protected")
-async def protected_example(user: Dict = Depends(require_auth)):
-    """Example of a protected route that requires authentication."""
-    return {
-        "message": "Access granted to protected resource",
-        "user": user,
-        "timestamp": "2025-08-19T00:00:00Z"
-    }
-
-# CORS preflight handlers
-@app.options("/api/auth/{path:path}")
-async def auth_options(path: str):
-    """Handle CORS preflight for all auth endpoints."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
+        "description": "Routes requests to appropriate microservices",
+        "routes": {
+            "authentication": "/api/auth/*",
+            "code_generation": "/api/code-generation/* | /api/generate/*",
+            "schema_detection": "/api/schema/* | /api/detect/*",
+            "project_management": "/api/projects/*",
+            "ai_chat": "/api/chat/* | /api/ai/*"
         },
-        content={}
+        "services": {
+            "authentication": AUTHENTICATION_SERVICE_URL,
+            "code_generation": CODE_GENERATION_SERVICE_URL,
+            "schema_detection": SCHEMA_DETECTION_SERVICE_URL,
+            "project_management": PROJECT_MANAGEMENT_SERVICE_URL,
+            "ai_chat": AI_CHAT_SERVICE_URL
+        }
+    }
+
+# Catch-all for unmatched routes
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def catch_all(request: Request, path: str):
+    """Handle unmatched routes."""
+    logger.warning(f"🚫 Unmatched route: {request.method} /{path}")
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "Route not found",
+            "method": request.method,
+            "path": f"/{path}",
+            "available_routes": [
+                "/api/auth/* -> Authentication Service",
+                "/api/code-generation/* -> Code Generation Service",
+                "/api/schema/* -> Schema Detection Service",
+                "/api/projects/* -> Project Management Service",
+                "/api/chat/* -> AI Chat Service"
+            ]
+        }
     )
 
 if __name__ == "__main__":
