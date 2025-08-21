@@ -390,6 +390,7 @@ def list_users(current_user: User = Depends(get_current_admin_user), db: Session
 # ===== GOOGLE OAUTH ENDPOINTS =====
 
 @app.get("/google")
+@app.post("/google")
 async def google_auth():
     """Initiate Google OAuth flow"""
     if not GOOGLE_CLIENT_ID:
