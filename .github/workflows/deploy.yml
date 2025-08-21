@@ -1,0 +1,129 @@
+name: Deploy to Heroku
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api-gateway: ${{ steps.changes.outputs.api-gateway }}
+      authentication: ${{ steps.changes.outputs.authentication }}
+      code-generation: ${{ steps.changes.outputs.code-generation }}
+      schema-detection: ${{ steps.changes.outputs.schema-detection }}
+      project-management: ${{ steps.changes.outputs.project-management }}
+      ai-chat: ${{ steps.changes.outputs.ai-chat }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+            authentication:
+              - 'services/authentication/**'
+            code-generation:
+              - 'services/code-generation/**'
+            schema-detection:
+              - 'services/schema-detection/**'
+            project-management:
+              - 'services/project-management/**'
+            ai-chat:
+              - 'services/ai-chat/**'
+
+  deploy-api-gateway:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api-gateway == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-api-gateway"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/api-gateway"
+
+  deploy-authentication:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.authentication == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-auth"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/authentication"
+
+  deploy-code-generation:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.code-generation == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-code-generation"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/code-generation"
+
+  deploy-schema-detection:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.schema-detection == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-schema-detection"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/schema-detection"
+
+  deploy-project-management:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.project-management == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-project-management"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/project-management"
+
+  deploy-ai-chat:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ai-chat == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: akhileshns/heroku-deploy@v3.12.14
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "schemasage-ai-chat"
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "services/ai-chat"
