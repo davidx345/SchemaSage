@@ -26,7 +26,7 @@ JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 # Google OAuth configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway.herokuapp.com/api/auth/google/callback")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://schemasage.vercel.app")
 
 # Rate limiting store (use Redis in production)
@@ -213,9 +213,9 @@ app = FastAPI(
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://schemasage.vercel.app"],
+    allow_origins=["*"],  # Allow all origins since API Gateway handles CORS
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
