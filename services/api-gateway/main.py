@@ -1,18 +1,3 @@
-"""
-SchemaSage AP# Ser# Service URLs (configure these for your deployed services)
-AUTHENTICATION_SERVICE_URL = os.getenv("AUTHENTICATION_SERVICE_URL", "https://schemasage-auth-9d6de1a32af9.herokuapp.com")
-CODE_GENERATION_SERVICE_URL = os.getenv("CODE_GENERATION_SERVICE_URL", "https://schemasage-code-gen-2da67d920b07.herokuapp.com")
-SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https://schemasage-schema-2da67d920b07.herokuapp.com")
-PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-projects-2da67d920b07.herokuapp.com")
-AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat.herokuapp.com")RLs (configure these for your deployed services)
-AUTHENTICATION_SERVICE_URL = os.getenv("AUTHENTICATION_SERVICE_URL", "https://schemasage-auth-9d6de1a32af9.herokuapp.com")
-CODE_GENERATION_SERVICE_URL = os.getenv("CODE_GENERATION_SERVICE_URL", "https://schemasage-code-gen-2da67d920b07.herokuapp.com")
-SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https://schemasage-schema-2da67d920b07.herokuapp.com")
-PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-projects-2da67d920b07.herokuapp.com")
-AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat.herokuapp.com")way - Pure Routing Service
-Routes requests to appropriate microservices without auth logic.
-"""
-
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -127,7 +112,61 @@ async def proxy_request(
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def auth_proxy(request: Request, path: str):
     """Proxy all authentication requests to the Authentication Service."""
-    return await proxy_request(request, AUTHENTICATION_SERVICE_URL, "Authentication Service")
+    try:
+        # Get request details
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
+        
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        # Build target URL with stripped path
+        full_url = f"{AUTHENTICATION_SERVICE_URL}/{path}"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        # Get request body if present
+        body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        logger.info(f"🔄 Proxying {method} /api/auth/{path} to Authentication Service at /{path}")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            content=body,
+            follow_redirects=True
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ Authentication Service responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to Authentication Service")
+        raise HTTPException(status_code=504, detail="Authentication service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to Authentication Service")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable")
+    except Exception as e:
+        logger.error(f"❌ Auth proxy error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
 
 # ===== CODE GENERATION SERVICE ROUTES =====
 
