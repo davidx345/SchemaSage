@@ -17,6 +17,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import secrets
+from urllib.parse import quote
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
@@ -485,13 +486,26 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             # Create JWT token
             jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
             
-            # Redirect to frontend with token
-            frontend_redirect = f"{FRONTEND_URL}/auth/callback?token={jwt_token}"
-            return RedirectResponse(url=frontend_redirect)
+            # Create user data for frontend
+            user_data = {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.full_name,
+                "is_admin": user.is_admin,
+                "google_id": user.google_id
+            }
+            
+            # URL encode the user data
+            encoded_user_data = quote(json.dumps(user_data))
+            
+            # Redirect to auth callback page with proper parameters
+            callback_url = f"{FRONTEND_URL}/auth/callback?access_token={jwt_token}&user={encoded_user_data}"
+            return RedirectResponse(url=callback_url)
             
     except Exception as e:
         logger.error(f"Google OAuth error: {str(e)}")
-        error_redirect = f"{FRONTEND_URL}/auth/error?error=oauth_failed"
+        error_redirect = f"{FRONTEND_URL}/auth/callback?error=oauth_failed"
         return RedirectResponse(url=error_redirect)
 
 @app.post("/google/mobile")
