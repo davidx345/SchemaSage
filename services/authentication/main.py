@@ -27,7 +27,7 @@ JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 # Google OAuth configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway.herokuapp.com/api/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/google/callback")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://schemasage.vercel.app")
 
 # Rate limiting store (use Redis in production)
@@ -415,11 +415,15 @@ async def google_auth():
 @app.get("/google/callback")
 async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
     """Handle Google OAuth callback"""
+    logger.info(f"🔐 Google OAuth callback received with code: {code[:20]}...")
+    
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        logger.error("❌ Google OAuth not properly configured")
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     try:
         # Exchange code for tokens
+        logger.info("🔄 Exchanging authorization code for access token...")
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -433,20 +437,25 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             )
             
             if token_response.status_code != 200:
+                logger.error(f"❌ Token exchange failed: {token_response.status_code} - {token_response.text}")
                 raise HTTPException(status_code=400, detail="Failed to exchange code for token")
             
             tokens = token_response.json()
             access_token = tokens.get("access_token")
+            logger.info("✅ Successfully obtained access token from Google")
             
             # Get user info from Google
+            logger.info("🔄 Fetching user info from Google...")
             user_response = await client.get(
                 f"https://www.googleapis.com/oauth2/v2/userinfo?access_token={access_token}"
             )
             
             if user_response.status_code != 200:
+                logger.error(f"❌ Failed to get user info from Google: {user_response.status_code} - {user_response.text}")
                 raise HTTPException(status_code=400, detail="Failed to get user info from Google")
             
             google_user = user_response.json()
+            logger.info(f"✅ Retrieved user info for: {google_user.get('email', 'unknown')}")
             
             # Check if user exists by Google ID or email
             user = db.query(User).filter(
@@ -456,12 +465,14 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             
             if user:
                 # Update existing user
+                logger.info(f"🔄 Updating existing user: {user.username}")
                 user.google_id = google_user["id"]
                 user.email = google_user["email"]
                 user.full_name = google_user.get("name")
                 user.last_login = datetime.utcnow()
             else:
                 # Create new user
+                logger.info(f"🆕 Creating new user for: {google_user.get('email', 'unknown')}")
                 username = google_user["email"].split("@")[0]
                 # Ensure username is unique
                 base_username = username
@@ -482,9 +493,11 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             
             db.commit()
             db.refresh(user)
+            logger.info(f"✅ User data committed to database: {user.username}")
             
             # Create JWT token
             jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+            logger.info(f"✅ JWT token created for user: {user.username}")
             
             # Create user data for frontend
             user_data = {
@@ -501,6 +514,7 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             
             # Redirect to auth callback page with proper parameters
             callback_url = f"{FRONTEND_URL}/auth/callback?access_token={jwt_token}&user={encoded_user_data}"
+            logger.info(f"🔄 Redirecting to frontend: {callback_url[:100]}...")
             return RedirectResponse(url=callback_url)
             
     except Exception as e:

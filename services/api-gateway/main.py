@@ -79,7 +79,7 @@ async def proxy_request(
             url=full_url,
             headers=headers,
             content=body,
-            follow_redirects=True
+            follow_redirects=False  # Don't follow redirects - let the client handle them
         )
         
         # Create response with original headers
@@ -88,7 +88,11 @@ async def proxy_request(
             if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
         }
         
-        logger.info(f"✅ {service_name} responded with {response.status_code}")
+        # Log redirect responses for debugging
+        if response.status_code in [301, 302, 303, 307, 308]:
+            logger.info(f"🔄 {service_name} returned redirect {response.status_code} to {response.headers.get('location', 'unknown')}")
+        else:
+            logger.info(f"✅ {service_name} responded with {response.status_code}")
         
         return Response(
             content=response.content,
@@ -140,7 +144,7 @@ async def auth_proxy(request: Request, path: str):
             url=full_url,
             headers=headers,
             content=body,
-            follow_redirects=True
+            follow_redirects=False  # Don't follow redirects - let the client handle them
         )
         
         # Create response with original headers
@@ -149,7 +153,11 @@ async def auth_proxy(request: Request, path: str):
             if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
         }
         
-        logger.info(f"✅ Authentication Service responded with {response.status_code}")
+        # Log redirect responses for debugging OAuth flows
+        if response.status_code in [301, 302, 303, 307, 308]:
+            logger.info(f"🔄 Authentication Service returned redirect {response.status_code} to {response.headers.get('location', 'unknown')}")
+        else:
+            logger.info(f"✅ Authentication Service responded with {response.status_code}")
         
         return Response(
             content=response.content,
