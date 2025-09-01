@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import json
-import jwt
+from jose import jwt
 import asyncio
 import httpx
 import logging
