@@ -11,10 +11,14 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 import os
+import httpx
 
 # Set up logging early
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# WebSocket service URL for push notifications
+WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
 
 from config import settings, CodeGenFormat
 from models.schemas import (
@@ -82,6 +86,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+async def send_webhook_notification(webhook_data: dict):
+    """Send webhook notification to WebSocket service"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/api-generated", json=webhook_data)
+            logger.info("API generation webhook sent successfully")
+    except Exception as e:
+        # Don't fail the main request if webhook fails
+        logger.warning(f"Failed to send API generation webhook: {e}")
+
 # Error handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -148,6 +163,15 @@ async def generate_code(request: CodeGenerationRequest):
             format=request.format,
             options=request.options
         )
+        
+        # Send webhook notification for successful code generation
+        webhook_data = {
+            "user": getattr(request, 'user_id', 'anonymous'),
+            "framework": request.format.value if hasattr(request.format, 'value') else str(request.format),
+            "tables_count": len(request.db_schema.tables),
+            "timestamp": datetime.now().isoformat()
+        }
+        await send_webhook_notification(webhook_data)
         
         return CodeGenerationResponse(
             code=generated_code.code,
@@ -295,8 +319,22 @@ async def root():
             "/generate-from-description", 
             "/schema-from-description",
             "/formats",
-            "/options/{format}"
+            "/options/{format}",
+            "/stats"
         ]
+    }
+
+
+@app.get("/stats")
+async def get_generation_stats():
+    """Get code generation statistics"""
+    # For now, return basic stats - you can enhance this with actual database queries
+    return {
+        "total_apis": 234,  # Replace with actual count from your database
+        "apis_today": 18,
+        "most_popular_framework": "FastAPI",
+        "total_frameworks": 5,
+        "timestamp": datetime.now().isoformat()
     }
 
 if __name__ == "__main__":

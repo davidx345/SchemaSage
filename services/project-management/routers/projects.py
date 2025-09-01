@@ -5,6 +5,10 @@ Core routes for project CRUD operations, search, and statistics.
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
+import httpx
+import os
+import logging
+from datetime import datetime
 
 from models.schemas import (
     Project, ProjectStatus, ProjectType, CreateProjectRequest, UpdateProjectRequest,
@@ -12,11 +16,27 @@ from models.schemas import (
 )
 from core.project_manager import ProjectManager, ProjectError
 
+logger = logging.getLogger(__name__)
+
 # Router for project management endpoints
 router = APIRouter(prefix="/projects", tags=["projects"])
 
+# WebSocket service URL for push notifications
+WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
+
 # Service instance
 project_manager = ProjectManager()
+
+
+async def send_webhook_notification(webhook_data: dict):
+    """Send webhook notification to WebSocket service"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/project-created", json=webhook_data)
+            logger.info("Project creation webhook sent successfully")
+    except Exception as e:
+        # Don't fail the main request if webhook fails
+        logger.warning(f"Failed to send project webhook: {e}")
 
 
 @router.post("", response_model=Project)
@@ -24,6 +44,16 @@ async def create_project(request: CreateProjectRequest):
     """Create a new project"""
     try:
         project = project_manager.create_project(request)
+        
+        # Send webhook notification for successful project creation
+        webhook_data = {
+            "user": request.created_by,
+            "project_name": request.name,
+            "project_type": request.project_type.value if hasattr(request.project_type, 'value') else str(request.project_type),
+            "timestamp": datetime.now().isoformat()
+        }
+        await send_webhook_notification(webhook_data)
+        
         return project
     except ProjectError as e:
         raise HTTPException(status_code=400, detail=str(e))

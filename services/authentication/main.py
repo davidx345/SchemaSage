@@ -30,6 +30,9 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://schemasage-api-gateway-2da67d920b07.herokuapp.com/api/auth/google/callback")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://schemasage.vercel.app")
 
+# WebSocket service URL for push notifications
+WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
+
 # Rate limiting store (use Redis in production)
 login_attempts: Dict[str, List[float]] = {}
 
@@ -230,8 +233,20 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+
+async def send_webhook_notification(webhook_data: dict):
+    """Send webhook notification to WebSocket service"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/user-joined", json=webhook_data)
+            logger.info("User joined webhook sent successfully")
+    except Exception as e:
+        # Don't fail the main request if webhook fails
+        logger.warning(f"Failed to send user webhook: {e}")
+
+
 @app.post("/signup", response_model=Token)
-def signup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
+async def signup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     client_ip = request.client.host
     
     # Rate limiting
@@ -248,6 +263,13 @@ def signup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     try:
         db_user = create_user(db, user)
         access_token = create_access_token({"sub": db_user.username, "is_admin": db_user.is_admin})
+        
+        # Send webhook notification for new user
+        webhook_data = {
+            "user": db_user.username,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await send_webhook_notification(webhook_data)
         
         logger.info(f"New user registered: {user.username} from {client_ip}")
         

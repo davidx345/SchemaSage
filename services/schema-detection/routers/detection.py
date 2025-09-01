@@ -7,6 +7,9 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from typing import Optional, List, Dict, Any
 import logging
 import json
+import httpx
+import os
+from datetime import datetime
 
 from models.schemas import (
     DetectionRequest, DetectionResponse, SchemaResponse, 
@@ -20,8 +23,22 @@ logger = logging.getLogger(__name__)
 # Router for schema detection endpoints
 router = APIRouter(prefix="/detect", tags=["detection"])
 
+# WebSocket service URL for push notifications
+WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
+
 # Service instance
 schema_detector = SchemaDetector()
+
+
+async def send_webhook_notification(webhook_data: dict):
+    """Send webhook notification to WebSocket service"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/schema-generated", json=webhook_data)
+            logger.info("Schema generation webhook sent successfully")
+    except Exception as e:
+        # Don't fail the main request if webhook fails
+        logger.warning(f"Failed to send schema webhook: {e}")
 
 
 @router.post("/schema", response_model=SchemaResponse)
@@ -39,6 +56,15 @@ async def detect_schema(request: DetectionRequest):
             table_name=request.table_name or "detected_table",
             enable_ai=request.enable_ai_enhancement
         )
+        
+        # Send webhook notification for successful schema detection
+        webhook_data = {
+            "user": getattr(request, 'user_id', 'anonymous'),
+            "project": getattr(request, 'project_name', request.table_name or "unknown"),
+            "schema_type": result.schema_type if hasattr(result, 'schema_type') else 'inferred',
+            "timestamp": datetime.now().isoformat()
+        }
+        await send_webhook_notification(webhook_data)
         
         return result
     
@@ -82,6 +108,15 @@ async def detect_schema_from_file(
             table_name=table_name or file.filename or "uploaded_file",
             enable_ai=enable_ai_enhancement
         )
+        
+        # Send webhook notification for successful file schema detection
+        webhook_data = {
+            "user": "file_upload_user",  # You can add user tracking later
+            "project": table_name or file.filename or "uploaded_file",
+            "schema_type": f"file_{file_format or 'unknown'}",
+            "timestamp": datetime.now().isoformat()
+        }
+        await send_webhook_notification(webhook_data)
         
         return result
     
@@ -139,3 +174,16 @@ async def update_detection_settings(settings: SchemaSettings):
     except Exception as e:
         logger.error(f"Settings update error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/stats")
+async def get_detection_stats():
+    """Get schema detection statistics"""
+    # For now, return basic stats - you can enhance this with actual database queries
+    return {
+        "total_schemas": 156,  # Replace with actual count from your database
+        "schemas_today": 23,
+        "most_common_format": "JSON",
+        "ai_enhanced_schemas": 89,
+        "timestamp": datetime.now().isoformat()
+    }

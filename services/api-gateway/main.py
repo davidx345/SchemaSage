@@ -17,6 +17,7 @@ CODE_GENERATION_SERVICE_URL = os.getenv("CODE_GENERATION_SERVICE_URL", "https://
 SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https://schemasage-schema-detection-0cc19b546c3c.herokuapp.com")
 PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-project-management-48496f02644b.herokuapp.com")
 AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com")
+WEBSOCKET_REALTIME_SERVICE_URL = os.getenv("WEBSOCKET_REALTIME_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
 
 # Logging
 logging.basicConfig(
@@ -232,7 +233,8 @@ async def health_check():
         "code-generation": CODE_GENERATION_SERVICE_URL,
         "schema-detection": SCHEMA_DETECTION_SERVICE_URL,
         "project-management": PROJECT_MANAGEMENT_SERVICE_URL,
-        "ai-chat": AI_CHAT_SERVICE_URL
+        "ai-chat": AI_CHAT_SERVICE_URL,
+        "websocket-realtime": WEBSOCKET_REALTIME_SERVICE_URL
     }
     
     for service_name, service_url in services.items():
@@ -276,14 +278,16 @@ async def root():
             "code_generation": "/api/code-generation/* | /api/generate/*",
             "schema_detection": "/api/schema/* | /api/detect/*",
             "project_management": "/api/projects/*",
-            "ai_chat": "/api/chat/* | /api/ai/*"
+            "ai_chat": "/api/chat/* | /api/ai/*",
+            "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
             "authentication": AUTHENTICATION_SERVICE_URL,
             "code_generation": CODE_GENERATION_SERVICE_URL,
             "schema_detection": SCHEMA_DETECTION_SERVICE_URL,
             "project_management": PROJECT_MANAGEMENT_SERVICE_URL,
-            "ai_chat": AI_CHAT_SERVICE_URL
+            "ai_chat": AI_CHAT_SERVICE_URL,
+            "websocket_realtime": WEBSOCKET_REALTIME_SERVICE_URL
         }
     }
 
