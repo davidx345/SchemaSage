@@ -5,7 +5,6 @@ Enterprise-grade database migration platform with comprehensive features
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-import redis
 
 # Import modular routers
 from .routers import (
@@ -33,14 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Redis for real-time collaboration
-try:
-    redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
-    redis_client.ping()  # Test connection
-    logger.info("Redis connection established")
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}. Real-time features may be limited.")
-    redis_client = None
+# Redis removed for now - can be added back later for real-time collaboration features
 
 # Include all routers
 app.include_router(basic.router)

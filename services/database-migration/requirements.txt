@@ -9,7 +9,7 @@ pydantic==2.5.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9  # PostgreSQL
 pymysql==1.1.0  # MySQL
-cryptography==41.0.8  # MySQL SSL support
+cryptography==42.0.8  # MySQL SSL support (updated version)
 pymongo==4.6.0  # MongoDB
 pyodbc==5.0.1  # SQL Server
 cx_Oracle==8.3.0  # Oracle
@@ -18,8 +18,7 @@ cx_Oracle==8.3.0  # Oracle
 pandas==2.1.4
 numpy==1.25.2
 
-# Collaboration & Real-time Features
-redis==5.0.1
+# Collaboration & Real-time Features (Redis removed for now)
 websockets==12.0
 python-socketio==5.10.0
 
