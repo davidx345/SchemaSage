@@ -6,8 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-# Import modular routers
-from .routers import (
+# Import modular routers using absolute imports
+from routers import (
     basic, workspaces, collaboration, version_control, 
     connections, migrations, advanced_features
 )

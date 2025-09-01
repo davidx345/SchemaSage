@@ -1,10 +1,18 @@
 """
-Basic API Endpoints Router
+Basic API Endpoints Router (Simplified)
 Root and health check endpoints
 """
 from fastapi import APIRouter
 from datetime import datetime
-from ..config import SUPPORTED_DATABASES
+
+# Simplified supported databases list
+SUPPORTED_DATABASES = {
+    "postgresql": "PostgreSQL",
+    "mysql": "MySQL", 
+    "mongodb": "MongoDB",
+    "sqlserver": "SQL Server",
+    "oracle": "Oracle"
+}
 
 router = APIRouter()
 

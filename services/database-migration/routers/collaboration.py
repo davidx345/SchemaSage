@@ -7,7 +7,8 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime
 
-from ..models.collaboration import (
+# Use absolute imports
+from models.collaboration import (
     ChangeRequest, Comment, Annotation, Workspace, ChangeStatus
 )
 

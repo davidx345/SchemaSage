@@ -5,7 +5,8 @@ from typing import Dict, List, Any, Optional, Set
 from datetime import datetime, timedelta
 import uuid
 
-from ..models.collaboration import (
+# Use absolute imports
+from models.collaboration import (
     User, Workspace, WorkspaceMember, ChangeRequest, Comment, 
     Annotation, AuditLog, TeamInvitation, UserRole, PermissionType, ChangeStatus
 )
