@@ -6,11 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-# Import modular routers using absolute imports
-from routers import (
-    basic, workspaces, collaboration, version_control, 
-    connections, migrations, advanced_features
-)
+# Import only the basic router for now (simplified version)
+from routers import basic
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -34,14 +31,8 @@ app.add_middleware(
 
 # Redis removed for now - can be added back later for real-time collaboration features
 
-# Include all routers
+# Include only basic router for now (simplified deployment)
 app.include_router(basic.router)
-app.include_router(workspaces.router)
-app.include_router(collaboration.router)
-app.include_router(version_control.router)
-app.include_router(connections.router)
-app.include_router(migrations.router)
-app.include_router(advanced_features.router)
 
 # Global exception handler
 @app.exception_handler(Exception)

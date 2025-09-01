@@ -1,15 +1,10 @@
 """
-API Routers Package
+API Routers Package - Simplified
 FastAPI router modules for organized endpoint management
 """
-from . import basic, workspaces, collaboration, version_control, connections, migrations, advanced_features
+# Import only basic router for now to avoid dependency issues
+from . import basic
 
 __all__ = [
-    "basic",
-    "workspaces", 
-    "collaboration",
-    "version_control",
-    "connections",
-    "migrations",
-    "advanced_features"
+    "basic"
 ]
