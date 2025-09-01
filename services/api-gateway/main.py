@@ -17,7 +17,7 @@ CODE_GENERATION_SERVICE_URL = os.getenv("CODE_GENERATION_SERVICE_URL", "https://
 SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https://schemasage-schema-detection-0cc19b546c3c.herokuapp.com")
 PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-project-management-48496f02644b.herokuapp.com")
 AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com")
-WEBSOCKET_REALTIME_SERVICE_URL = os.getenv("WEBSOCKET_REALTIME_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
+WEBSOCKET_REALTIME_SERVICE_URL = os.getenv("WEBSOCKET_REALTIME_SERVICE_URL", "https://schemasage-websocket-realtime-11223b2de7f4.herokuapp.com")
 
 # Logging
 logging.basicConfig(
