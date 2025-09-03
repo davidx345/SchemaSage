@@ -1,6 +1,14 @@
 """
 Project Management Microservice
-Handles project creation, management, and tracking
+Handles project # Include all routers
+app.include_router(projects_router)
+app.include_router(stats_router)
+app.include_router(integrations_router)
+app.include_router(glossary_router)
+app.include_router(team_router)
+app.include_router(websocket_router)
+app.include_router(upload_router)
+app.include_router(compliance_router), management, and tracking
 """
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +22,8 @@ from models.schemas import ApiHealthResponse
 from core.project_manager import ProjectError
 from routers import (
     projects_router, stats_router, integrations_router, 
-    glossary_router, team_router, websocket_router, upload_router
+    glossary_router, team_router, websocket_router, upload_router,
+    compliance_router
 )
 
 logger = logging.getLogger(__name__)

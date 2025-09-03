@@ -15,7 +15,7 @@ import jwt
 from datetime import datetime
 
 from models.schemas import DetectionResponse
-from routers import detection_router, lineage_router, history_router
+from routers import detection_router, lineage_router, history_router, compliance_detection_router
 from config import get_settings
 
 # Setup logging
@@ -102,6 +102,7 @@ app.add_middleware(
 app.include_router(detection_router)
 app.include_router(lineage_router)
 app.include_router(history_router)
+app.include_router(compliance_detection_router)
 
 
 # Error handlers

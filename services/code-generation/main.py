@@ -25,6 +25,7 @@ from models.schemas import (
     CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse
 )
 from core.code_generator import CodeGenerator, CodeGenerationError
+from routers import compliance_generation_router
 
 # Import optional components - don't fail if they have missing dependencies
 try:
@@ -85,6 +86,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(compliance_generation_router)
 
 
 async def send_webhook_notification(webhook_data: dict):
