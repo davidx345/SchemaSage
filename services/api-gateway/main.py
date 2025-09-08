@@ -18,6 +18,7 @@ SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https:
 PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-project-management-48496f02644b.herokuapp.com")
 AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com")
 WEBSOCKET_REALTIME_SERVICE_URL = os.getenv("WEBSOCKET_REALTIME_SERVICE_URL", "https://schemasage-websocket-realtime-11223b2de7f4.herokuapp.com")
+DATABASE_MIGRATION_SERVICE_URL = os.getenv("DATABASE_MIGRATION_SERVICE_URL", "https://schemasage-database-migration-a1b2c3d4e5f6.herokuapp.com")
 
 # Logging
 logging.basicConfig(
@@ -220,6 +221,18 @@ async def ai_proxy(request: Request, path: str):
     """Proxy AI requests."""
     return await proxy_request(request, AI_CHAT_SERVICE_URL, "AI Chat Service")
 
+# ===== DATABASE MIGRATION SERVICE ROUTES =====
+
+@app.api_route("/api/database/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def database_proxy(request: Request, path: str):
+    """Proxy database migration and connection requests."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+@app.api_route("/api/migration/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def migration_proxy(request: Request, path: str):
+    """Proxy migration requests."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
 # ===== HEALTH AND STATUS =====
 
 @app.get("/health")
@@ -234,7 +247,8 @@ async def health_check():
         "schema-detection": SCHEMA_DETECTION_SERVICE_URL,
         "project-management": PROJECT_MANAGEMENT_SERVICE_URL,
         "ai-chat": AI_CHAT_SERVICE_URL,
-        "websocket-realtime": WEBSOCKET_REALTIME_SERVICE_URL
+        "websocket-realtime": WEBSOCKET_REALTIME_SERVICE_URL,
+        "database-migration": DATABASE_MIGRATION_SERVICE_URL
     }
     
     for service_name, service_url in services.items():
@@ -279,6 +293,7 @@ async def root():
             "schema_detection": "/api/schema/* | /api/detect/*",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
+            "database_migration": "/api/database/* | /api/migration/*",
             "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
@@ -287,7 +302,8 @@ async def root():
             "schema_detection": SCHEMA_DETECTION_SERVICE_URL,
             "project_management": PROJECT_MANAGEMENT_SERVICE_URL,
             "ai_chat": AI_CHAT_SERVICE_URL,
-            "websocket_realtime": WEBSOCKET_REALTIME_SERVICE_URL
+            "websocket_realtime": WEBSOCKET_REALTIME_SERVICE_URL,
+            "database_migration": DATABASE_MIGRATION_SERVICE_URL
         }
     }
 
@@ -307,7 +323,8 @@ async def catch_all(request: Request, path: str):
                 "/api/code-generation/* -> Code Generation Service",
                 "/api/schema/* -> Schema Detection Service",
                 "/api/projects/* -> Project Management Service",
-                "/api/chat/* -> AI Chat Service"
+                "/api/chat/* -> AI Chat Service",
+                "/api/database/* -> Database Migration Service"
             ]
         }
     )

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 # Import routers
-from routers import basic, etl, data_quality, monitoring, database_connectivity
+from routers import basic, etl, data_quality, monitoring, database_connectivity, universal_migration, frontend_api
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +37,8 @@ app.include_router(etl.router)
 app.include_router(data_quality.router)
 app.include_router(monitoring.router)
 app.include_router(database_connectivity.router)
+app.include_router(universal_migration.router)
+app.include_router(frontend_api.router)
 
 # Global exception handler
 @app.exception_handler(Exception)
