@@ -260,3 +260,253 @@ async def delete_schema_version(table_name: str, version: str):
     except Exception as e:
         logger.error(f"Delete version error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/diagram/save")
+async def save_schema_diagram(
+    diagram_data: Dict[str, Any],
+    project_id: Optional[str] = None,
+    diagram_name: Optional[str] = None
+):
+    """Save schema diagram with layout and visual information"""
+    try:
+        from datetime import datetime
+        import uuid
+        
+        diagram_id = str(uuid.uuid4())
+        
+        # Extract diagram information
+        schema_data = diagram_data.get("schema", {})
+        layout_data = diagram_data.get("layout", {})
+        visual_settings = diagram_data.get("visual_settings", {})
+        
+        # Mock saving diagram
+        saved_diagram = {
+            "diagram_id": diagram_id,
+            "project_id": project_id,
+            "diagram_name": diagram_name or f"Schema Diagram {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "schema_data": schema_data,
+            "layout": {
+                "nodes": layout_data.get("nodes", []),
+                "edges": layout_data.get("edges", []),
+                "viewport": layout_data.get("viewport", {"x": 0, "y": 0, "zoom": 1}),
+                "grid_settings": layout_data.get("grid_settings", {"enabled": True, "size": 20})
+            },
+            "visual_settings": {
+                "theme": visual_settings.get("theme", "light"),
+                "node_colors": visual_settings.get("node_colors", {}),
+                "font_settings": visual_settings.get("font_settings", {"family": "Arial", "size": 12}),
+                "relationship_styles": visual_settings.get("relationship_styles", {})
+            },
+            "metadata": {
+                "created_at": datetime.now().isoformat(),
+                "created_by": diagram_data.get("created_by", "system"),
+                "version": "1.0",
+                "table_count": len(schema_data.get("tables", [])),
+                "relationship_count": len(schema_data.get("relationships", []))
+            },
+            "export_formats": ["png", "svg", "pdf", "json"],
+            "sharing_settings": {
+                "is_public": diagram_data.get("is_public", False),
+                "permissions": diagram_data.get("permissions", [])
+            }
+        }
+        
+        return {
+            "status": "saved",
+            "diagram": saved_diagram,
+            "message": f"Schema diagram '{saved_diagram['diagram_name']}' saved successfully",
+            "diagram_url": f"/api/diagrams/{diagram_id}",
+            "share_url": f"/api/diagrams/{diagram_id}/share" if saved_diagram["sharing_settings"]["is_public"] else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Save diagram error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save schema diagram")
+
+
+@router.get("/diagram/{diagram_id}")
+async def get_schema_diagram(diagram_id: str):
+    """Get saved schema diagram by ID"""
+    try:
+        # Mock retrieving diagram
+        diagram = {
+            "diagram_id": diagram_id,
+            "diagram_name": "Sample Database Schema",
+            "schema_data": {
+                "tables": [
+                    {
+                        "name": "users",
+                        "columns": [
+                            {"name": "id", "type": "INTEGER", "primary_key": True},
+                            {"name": "username", "type": "VARCHAR(255)", "nullable": False},
+                            {"name": "email", "type": "VARCHAR(255)", "nullable": False}
+                        ]
+                    },
+                    {
+                        "name": "orders", 
+                        "columns": [
+                            {"name": "id", "type": "INTEGER", "primary_key": True},
+                            {"name": "user_id", "type": "INTEGER", "foreign_key": "users.id"},
+                            {"name": "total", "type": "DECIMAL(10,2)", "nullable": False}
+                        ]
+                    }
+                ],
+                "relationships": [
+                    {
+                        "from_table": "orders",
+                        "from_column": "user_id",
+                        "to_table": "users", 
+                        "to_column": "id",
+                        "relationship_type": "many_to_one"
+                    }
+                ]
+            },
+            "layout": {
+                "nodes": [
+                    {"id": "users", "position": {"x": 100, "y": 100}, "size": {"width": 200, "height": 150}},
+                    {"id": "orders", "position": {"x": 400, "y": 100}, "size": {"width": 200, "height": 150}}
+                ],
+                "edges": [
+                    {"id": "orders_users", "source": "orders", "target": "users", "type": "relationship"}
+                ],
+                "viewport": {"x": 0, "y": 0, "zoom": 1}
+            },
+            "visual_settings": {
+                "theme": "light",
+                "node_colors": {"table": "#e3f2fd", "primary_key": "#1976d2"},
+                "font_settings": {"family": "Arial", "size": 12}
+            },
+            "metadata": {
+                "created_at": "2024-01-15T10:30:00Z",
+                "version": "1.0",
+                "table_count": 2,
+                "relationship_count": 1
+            }
+        }
+        
+        return {
+            "diagram": diagram,
+            "status": "found"
+        }
+        
+    except Exception as e:
+        logger.error(f"Get diagram error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get schema diagram")
+
+
+@router.put("/diagram/{diagram_id}")
+async def update_schema_diagram(
+    diagram_id: str,
+    updates: Dict[str, Any]
+):
+    """Update saved schema diagram"""
+    try:
+        # Mock updating diagram
+        updated_fields = []
+        
+        if "diagram_name" in updates:
+            updated_fields.append("diagram_name")
+        if "layout" in updates:
+            updated_fields.append("layout") 
+        if "visual_settings" in updates:
+            updated_fields.append("visual_settings")
+        if "schema_data" in updates:
+            updated_fields.append("schema_data")
+        
+        return {
+            "status": "updated",
+            "diagram_id": diagram_id,
+            "updated_fields": updated_fields,
+            "updated_at": "2024-01-15T10:30:00Z",
+            "message": f"Diagram {diagram_id} updated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Update diagram error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update schema diagram")
+
+
+@router.delete("/diagram/{diagram_id}")
+async def delete_schema_diagram(diagram_id: str, confirm: bool = False):
+    """Delete saved schema diagram"""
+    try:
+        if not confirm:
+            return {
+                "message": "Diagram deletion requires confirmation",
+                "diagram_id": diagram_id,
+                "warning": "This action cannot be undone",
+                "confirmation_required": True
+            }
+        
+        # Mock deletion
+        return {
+            "status": "deleted",
+            "diagram_id": diagram_id,
+            "deleted_at": "2024-01-15T10:30:00Z",
+            "message": f"Diagram {diagram_id} deleted successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Delete diagram error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete schema diagram")
+
+
+@router.get("/diagrams/list")
+async def list_schema_diagrams(
+    project_id: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+):
+    """List all saved schema diagrams"""
+    try:
+        # Mock diagram list
+        diagrams = [
+            {
+                "diagram_id": "diag_001",
+                "diagram_name": "Main Database Schema",
+                "project_id": "proj_1",
+                "created_at": "2024-01-15T10:30:00Z",
+                "table_count": 5,
+                "relationship_count": 8,
+                "is_public": False
+            },
+            {
+                "diagram_id": "diag_002", 
+                "diagram_name": "User Management Schema",
+                "project_id": "proj_1",
+                "created_at": "2024-01-14T15:45:00Z",
+                "table_count": 3,
+                "relationship_count": 2,
+                "is_public": True
+            },
+            {
+                "diagram_id": "diag_003",
+                "diagram_name": "Analytics Schema",
+                "project_id": "proj_2", 
+                "created_at": "2024-01-13T09:20:00Z",
+                "table_count": 7,
+                "relationship_count": 12,
+                "is_public": False
+            }
+        ]
+        
+        # Filter by project if specified
+        if project_id:
+            diagrams = [d for d in diagrams if d["project_id"] == project_id]
+        
+        # Apply pagination
+        total_count = len(diagrams)
+        diagrams = diagrams[offset:offset + limit]
+        
+        return {
+            "diagrams": diagrams,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total_count
+        }
+        
+    except Exception as e:
+        logger.error(f"List diagrams error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list schema diagrams")

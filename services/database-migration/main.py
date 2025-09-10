@@ -8,6 +8,7 @@ import logging
 
 # Import routers
 from routers import basic, etl, data_quality, monitoring, database_connectivity, universal_migration, frontend_api
+from routers.migration_management import router as migration_management_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,7 @@ app.include_router(monitoring.router)
 app.include_router(database_connectivity.router)
 app.include_router(universal_migration.router)
 app.include_router(frontend_api.router)
+app.include_router(migration_management_router)
 
 # Global exception handler
 @app.exception_handler(Exception)

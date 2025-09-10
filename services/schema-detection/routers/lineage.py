@@ -629,3 +629,210 @@ async def get_lineage_statistics():
     except Exception as e:
         logger.error(f"Error getting lineage statistics: {e}")
         raise HTTPException(status_code=500, detail="Failed to get lineage statistics")
+
+
+@router.post("/impact-analysis")
+async def perform_impact_analysis(
+    changes: Dict[str, Any],
+    analysis_scope: str = "full",
+    include_predictions: bool = True
+):
+    """Perform impact analysis for proposed schema changes"""
+    try:
+        change_type = changes.get("type")  # "modify", "delete", "add"
+        affected_entity = changes.get("entity")  # table or column name
+        entity_type = changes.get("entity_type", "table")  # "table" or "column"
+        change_details = changes.get("details", {})
+        
+        logger.info(f"Performing impact analysis for {change_type} on {entity_type}: {affected_entity}")
+        
+        impact_result = {
+            "change_summary": {
+                "type": change_type,
+                "entity": affected_entity,
+                "entity_type": entity_type,
+                "details": change_details
+            },
+            "direct_impacts": [],
+            "indirect_impacts": [],
+            "risk_assessment": {},
+            "recommendations": [],
+            "affected_systems": [],
+            "migration_complexity": {}
+        }
+        
+        if entity_type == "table":
+            # Table impact analysis
+            table_lineage = lineage_store["tables"].get(affected_entity, {"upstream": [], "downstream": []})
+            
+            # Direct impacts - tables that depend on this table
+            for downstream in table_lineage.get("downstream", []):
+                impact_result["direct_impacts"].append({
+                    "entity": downstream["table"],
+                    "entity_type": "table",
+                    "relationship": "downstream",
+                    "transformation": downstream.get("transformation"),
+                    "impact_severity": "high" if change_type == "delete" else "medium",
+                    "description": f"Table {downstream['table']} directly depends on {affected_entity}",
+                    "required_actions": [
+                        "Update transformation logic",
+                        "Validate data consistency",
+                        "Test downstream processes"
+                    ]
+                })
+                
+                # Find indirect impacts (tables that depend on the direct impacts)
+                indirect_lineage = lineage_store["tables"].get(downstream["table"], {"downstream": []})
+                for indirect in indirect_lineage.get("downstream", []):
+                    impact_result["indirect_impacts"].append({
+                        "entity": indirect["table"],
+                        "entity_type": "table",
+                        "relationship": "indirect_downstream",
+                        "impact_severity": "low" if change_type == "add" else "medium",
+                        "description": f"Table {indirect['table']} indirectly affected through {downstream['table']}",
+                        "dependency_chain": [affected_entity, downstream["table"], indirect["table"]]
+                    })
+            
+            # Dependencies - tables this table depends on
+            for upstream in table_lineage.get("upstream", []):
+                impact_result["direct_impacts"].append({
+                    "entity": upstream["table"],
+                    "entity_type": "table", 
+                    "relationship": "upstream",
+                    "transformation": upstream.get("transformation"),
+                    "impact_severity": "low",
+                    "description": f"Table {affected_entity} depends on {upstream['table']}",
+                    "required_actions": ["Verify source data availability"]
+                })
+        
+        elif entity_type == "column":
+            # Column impact analysis
+            column_key = affected_entity if "." in affected_entity else f"table.{affected_entity}"
+            column_lineage = lineage_store["columns"].get(column_key, {"upstream": [], "downstream": []})
+            
+            # Direct column impacts
+            for downstream in column_lineage.get("downstream", []):
+                impact_result["direct_impacts"].append({
+                    "entity": downstream["column"],
+                    "entity_type": "column",
+                    "relationship": "downstream",
+                    "transformation": downstream.get("transformation"),
+                    "impact_severity": "high" if change_type in ["delete", "modify"] else "low",
+                    "description": f"Column {downstream['column']} directly depends on {affected_entity}",
+                    "required_actions": [
+                        "Update column transformation",
+                        "Validate data types",
+                        "Check calculation logic"
+                    ]
+                })
+        
+        # Risk Assessment
+        total_direct_impacts = len(impact_result["direct_impacts"])
+        total_indirect_impacts = len(impact_result["indirect_impacts"])
+        
+        risk_level = "low"
+        if change_type == "delete" and total_direct_impacts > 5:
+            risk_level = "high"
+        elif change_type == "modify" and total_direct_impacts > 3:
+            risk_level = "medium"
+        elif total_direct_impacts > 10:
+            risk_level = "high"
+        
+        impact_result["risk_assessment"] = {
+            "overall_risk": risk_level,
+            "risk_factors": [
+                f"{total_direct_impacts} direct dependencies",
+                f"{total_indirect_impacts} indirect dependencies",
+                f"Change type: {change_type}"
+            ],
+            "complexity_score": min(100, total_direct_impacts * 10 + total_indirect_impacts * 5),
+            "estimated_effort_hours": max(1, total_direct_impacts * 2 + total_indirect_impacts),
+            "rollback_difficulty": "high" if change_type == "delete" else "medium"
+        }
+        
+        # Generate recommendations
+        recommendations = []
+        
+        if change_type == "delete":
+            recommendations.extend([
+                "Create backup of affected data before deletion",
+                "Notify all downstream system owners",
+                "Plan rollback strategy",
+                "Test in staging environment first"
+            ])
+        elif change_type == "modify":
+            recommendations.extend([
+                "Validate data type compatibility",
+                "Update documentation",
+                "Test transformation logic",
+                "Consider gradual rollout"
+            ])
+        elif change_type == "add":
+            recommendations.extend([
+                "Ensure backward compatibility",
+                "Update data dictionary",
+                "Consider default values",
+                "Plan data population strategy"
+            ])
+        
+        if total_direct_impacts > 5:
+            recommendations.append("Consider phased implementation")
+            recommendations.append("Coordinate with multiple teams")
+        
+        impact_result["recommendations"] = recommendations
+        
+        # Affected systems (mock data)
+        affected_systems = []
+        if total_direct_impacts > 0:
+            affected_systems.extend([
+                {"system": "Analytics Dashboard", "impact": "Data refresh needed"},
+                {"system": "Reporting Engine", "impact": "Query updates required"},
+                {"system": "Data Warehouse", "impact": "ETL process changes"}
+            ])
+        
+        if total_direct_impacts > 3:
+            affected_systems.extend([
+                {"system": "Machine Learning Pipeline", "impact": "Feature engineering updates"},
+                {"system": "Customer Portal", "impact": "Display logic changes"}
+            ])
+        
+        impact_result["affected_systems"] = affected_systems[:total_direct_impacts]
+        
+        # Migration complexity
+        impact_result["migration_complexity"] = {
+            "estimated_duration": f"{max(1, total_direct_impacts)} days",
+            "required_resources": max(1, total_direct_impacts // 3 + 1),
+            "testing_phases": ["unit", "integration", "user_acceptance"] if risk_level == "high" else ["unit", "integration"],
+            "coordination_required": total_direct_impacts > 2,
+            "downtime_required": change_type == "delete" or (change_type == "modify" and total_direct_impacts > 5)
+        }
+        
+        # Predictions if requested
+        if include_predictions:
+            impact_result["predictions"] = {
+                "success_probability": max(0.6, 1.0 - (total_direct_impacts * 0.05)),
+                "potential_issues": [
+                    "Data inconsistency during transition",
+                    "Performance impact on dependent queries",
+                    "Temporary data unavailability"
+                ][:min(3, total_direct_impacts)],
+                "recovery_time_estimate": f"{max(1, total_direct_impacts // 2)} hours",
+                "monitoring_requirements": [
+                    "Data quality checks",
+                    "Performance monitoring", 
+                    "Error rate tracking"
+                ]
+            }
+        
+        return {
+            "analysis_id": str(uuid.uuid4()),
+            "impact_analysis": impact_result,
+            "analysis_scope": analysis_scope,
+            "generated_at": datetime.now().isoformat(),
+            "total_entities_analyzed": total_direct_impacts + total_indirect_impacts,
+            "analysis_confidence": min(1.0, 0.8 + (0.2 * min(1, total_direct_impacts / 10)))
+        }
+        
+    except Exception as e:
+        logger.error(f"Error performing impact analysis: {e}")
+        raise HTTPException(status_code=500, detail="Failed to perform impact analysis")

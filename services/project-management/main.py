@@ -60,7 +60,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include all routers
 app.include_router(projects_router)
 app.include_router(stats_router)
 app.include_router(integrations_router)
@@ -68,6 +68,16 @@ app.include_router(glossary_router)
 app.include_router(team_router)
 app.include_router(websocket_router)
 app.include_router(upload_router)
+app.include_router(compliance_router)
+
+# Import and include new routers
+from routers.comments import router as comments_router
+from routers.collaboration import router as collaboration_router
+from routers.data_dictionary_integration import router as data_dict_router
+
+app.include_router(comments_router)
+app.include_router(collaboration_router)
+app.include_router(data_dict_router)
 
 
 # Error handlers

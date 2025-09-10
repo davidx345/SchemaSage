@@ -89,6 +89,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(compliance_generation_router)
+from routers.additional_generation import router as additional_router
+app.include_router(additional_router)
 
 
 async def send_webhook_notification(webhook_data: dict):

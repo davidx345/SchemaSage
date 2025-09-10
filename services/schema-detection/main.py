@@ -16,6 +16,7 @@ from datetime import datetime
 
 from models.schemas import DetectionResponse
 from routers import detection_router, lineage_router, history_router, compliance_detection_router, enhanced_lineage
+from routers import search, query, data_cleaning, data_dictionary
 from config import get_settings
 
 # Setup logging
@@ -104,6 +105,10 @@ app.include_router(lineage_router)
 app.include_router(history_router)
 app.include_router(compliance_detection_router)
 app.include_router(enhanced_lineage.router)
+app.include_router(search.router)
+app.include_router(query.router)
+app.include_router(data_cleaning.router)
+app.include_router(data_dictionary.router)
 
 
 # Error handlers
