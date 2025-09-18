@@ -20,7 +20,7 @@ cx_Oracle==8.3.0  # Oracle
 boto3==1.34.0  # AWS SDK
 azure-identity==1.15.0  # Azure Identity
 azure-mgmt-sql==3.0.1  # Azure SQL Management
-azure-mgmt-postgresql==8.1.0  # Azure PostgreSQL Management
+azure-mgmt-postgresql==1.0.0  # Azure PostgreSQL Management
 azure-mgmt-mysql==8.0.0  # Azure MySQL Management
 google-cloud-sql==1.14.0  # Google Cloud SQL
 google-cloud-storage==2.10.0  # Google Cloud Storage
