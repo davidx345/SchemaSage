@@ -12,8 +12,14 @@ from datetime import datetime
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.sql import SqlManagementClient
 from azure.mgmt.resource import ResourceManagementClient
-from google.cloud import sql_v1
-from google.oauth2 import service_account
+try:
+    from google.cloud import sql_v1
+    from google.oauth2 import service_account
+    GOOGLE_CLOUD_AVAILABLE = True
+except ImportError:
+    GOOGLE_CLOUD_AVAILABLE = False
+    sql_v1 = None
+    service_account = None
 import httpx
 from dataclasses import dataclass
 
@@ -306,6 +312,9 @@ class GCPProvider(CloudProvider):
         
     async def authenticate(self) -> Tuple[bool, str]:
         """Authenticate with GCP"""
+        if not GOOGLE_CLOUD_AVAILABLE:
+            return False, "Google Cloud SDK not available. Install google-cloud-sql to use GCP features."
+            
         try:
             if 'service_account_key' in self.credentials:
                 self.credentials_obj = service_account.Credentials.from_service_account_info(
@@ -330,6 +339,9 @@ class GCPProvider(CloudProvider):
     
     async def test_connection(self) -> Tuple[bool, str]:
         """Test GCP connection"""
+        if not GOOGLE_CLOUD_AVAILABLE:
+            return False, "Google Cloud SDK not available. Install google-cloud-sql to use GCP features."
+            
         if not self.authenticated:
             auth_result = await self.authenticate()
             if not auth_result[0]:
@@ -344,6 +356,9 @@ class GCPProvider(CloudProvider):
     
     async def list_database_services(self) -> List[Dict[str, Any]]:
         """List GCP Cloud SQL database services"""
+        if not GOOGLE_CLOUD_AVAILABLE:
+            return []
+            
         try:
             request = sql_v1.SqlInstancesListRequest(project=self.project_id)
             instances = list(self.sql_client.list(request=request))

@@ -1,34 +1,25 @@
-# Database Migration Service Dependencies - Cloud Migration Platform Edition
+# Database Migration Service Dependencies - Essential packages only
 
 # Core Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 
-# Database Drivers with Async Support
+# Database Drivers
 sqlalchemy==2.0.23
-asyncpg==0.29.0  # Async PostgreSQL
-aiomysql==0.2.0  # Async MySQL
-psycopg2-binary==2.9.9  # PostgreSQL
-pymysql==1.1.0  # MySQL
-cryptography==42.0.8  # MySQL SSL support (updated version)
-pymongo==4.6.0  # MongoDB
-pyodbc==5.0.1  # SQL Server
-cx_Oracle==8.3.0  # Oracle
+asyncpg==0.29.0
+aiomysql==0.2.0
+psycopg2-binary==2.9.9
+pymysql==1.1.0
+cryptography==42.0.8
+pymongo==4.6.0
 
-# Cloud Provider SDKs (Core ones actually used)
-boto3==1.34.0  # AWS SDK
-azure-identity==1.15.0  # Azure Identity
-azure-mgmt-sql==3.0.1  # Azure SQL Management
-google-cloud-sql==1.14.0  # Google Cloud SQL
+# Cloud Provider SDKs (minimal working set)
+boto3==1.34.0
+azure-identity==1.15.0
+azure-mgmt-sql==3.0.1
 
-# Data Processing (Actually used)
-pandas==2.1.4
-
-# Real-time Features
-websockets==12.0
-
-# Utilities (Core ones actually used)
+# Core Utilities
 python-dotenv==1.0.0
 httpx==0.25.2
 python-multipart==0.0.6
@@ -36,12 +27,18 @@ requests==2.31.0
 PyYAML==6.0.1
 Jinja2==3.1.2
 
-# Enterprise Security
+# Security
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 
-# AI/ML (Core ones actually used)
+# AI Integration
 openai==1.3.8
+
+# Async Support
+websockets==12.0
+
+# Data Processing
+pandas==2.1.4
 
 # Testing
 pytest==7.4.3
