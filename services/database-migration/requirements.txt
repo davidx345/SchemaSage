@@ -20,7 +20,6 @@ cx_Oracle==8.3.0  # Oracle
 boto3==1.34.0  # AWS SDK
 azure-identity==1.15.0  # Azure Identity
 azure-mgmt-sql==3.0.1  # Azure SQL Management
-azure-mgmt-mysql==1.0.0  # Azure MySQL Management (fixed version)
 google-cloud-sql==1.14.0  # Google Cloud SQL
 
 # Data Processing (Actually used)
