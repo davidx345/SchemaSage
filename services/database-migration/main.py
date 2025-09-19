@@ -2,6 +2,15 @@
 Database Migration Service Main Application - Modularized
 Enterprise-grade database migration platform with comprehensive features
 """
+# Setup Python path for absolute imports
+import sys
+import os
+
+# Add current directory to Python path to enable absolute imports
+service_root = os.path.dirname(os.path.abspath(__file__))
+if service_root not in sys.path:
+    sys.path.insert(0, service_root)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging

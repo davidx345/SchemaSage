@@ -9,9 +9,9 @@ from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
 
-from ..core.infrastructure_orchestration import infrastructure_orchestrator, IaCTool, DRStrategy
-from ..core.cloud_intelligence import cloud_intelligence
-from ..models.schemas import (
+from core.infrastructure_orchestration import infrastructure_orchestrator, IaCTool, DRStrategy
+from core.cloud_intelligence import cloud_intelligence
+from models.schemas import (
     IaCTemplate, DRPlan, InfrastructureComponent, 
     OperationResponse, ErrorResponse
 )
@@ -550,7 +550,7 @@ async def _generate_dashboard_configs(config, requirements) -> List[Dict[str, An
 async def _get_usage_metrics(connection_id, days):
     """Get usage metrics for analysis"""
     # Mock implementation - would fetch real metrics
-    from ..core.cloud_intelligence import UsageMetrics
+    from core.cloud_intelligence import UsageMetrics
     
     return UsageMetrics(
         cpu_utilization=[45.2, 52.1, 38.7, 61.4] * (days * 24),

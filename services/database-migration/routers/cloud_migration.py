@@ -8,10 +8,11 @@ from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
 
-from ..core.cloud_assessment import assessment_engine, migration_planner
-from ..core.cloud_providers import CloudProviderManager
-from ..core.database import CloudDatabaseManager, DatabaseConfig, DatabaseType, CloudProvider, ConnectionPool
-from ..models.schemas import CloudMigrationRequest, CloudAssessmentResponse, MigrationPlanResponse
+# Fixed absolute imports
+from core.cloud_assessment import assessment_engine, migration_planner
+from core.cloud_providers import CloudProviderManager
+from core.database import CloudDatabaseManager, DatabaseConfig, DatabaseType, CloudProvider, ConnectionPool
+from models.schemas import CloudMigrationRequest, CloudAssessmentResponse, MigrationPlanResponse
 
 logger = logging.getLogger(__name__)
 
