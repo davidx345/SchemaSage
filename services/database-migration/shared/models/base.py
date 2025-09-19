@@ -45,7 +45,7 @@ class PaginationParams(PydanticBaseModel):
     page: int = Field(default=1, ge=1)
     limit: int = Field(default=10, ge=1, le=100)
     sort_by: Optional[str] = None
-    sort_order: str = Field(default="asc", regex="^(asc|desc)$")
+    sort_order: str = Field(default="asc", pattern="^(asc|desc)$")
 
 
 class PaginatedResponse(BaseResponse):
