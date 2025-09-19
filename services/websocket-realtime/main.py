@@ -135,7 +135,7 @@ async def validate_jwt_token(token: str) -> Optional[str]:
     except jwt.ExpiredSignatureError:
         logger.warning("Token has expired")
         return None
-    except jwt.InvalidTokenError:
+    except jwt.JWTError:
         logger.warning("Invalid token")
         return None
 
