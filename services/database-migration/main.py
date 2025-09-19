@@ -18,10 +18,10 @@ import logging
 # Import routers
 from routers import basic, etl, data_quality, monitoring, database_connectivity, universal_migration, frontend_api
 from routers.migration_management import router as migration_management_router
-from routers.cloud_migration import router as cloud_migration_router
-from routers.advanced_cloud_migration import router as advanced_cloud_migration_router
 
-# Configure logging
+# Temporarily disable cloud migration routers until imports are fixed
+# from routers.cloud_migration import router as cloud_migration_router  
+# from routers.advanced_cloud_migration import router as advanced_cloud_migration_router# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,10 @@ app.include_router(database_connectivity.router)
 app.include_router(universal_migration.router)
 app.include_router(frontend_api.router)
 app.include_router(migration_management_router)
-app.include_router(cloud_migration_router)
-app.include_router(advanced_cloud_migration_router)
+
+# Temporarily disable cloud migration routers until imports are fixed
+# app.include_router(cloud_migration_router)
+# app.include_router(advanced_cloud_migration_router)
 
 # Global exception handler
 @app.exception_handler(Exception)

@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from typing import Dict, List, Any, Optional
 import pandas as pd
 
-from ...models import DatabaseConnection, SchemaInfo
+from models import DatabaseConnection, SchemaInfo
 
 
 class DatabaseHandler(ABC):
