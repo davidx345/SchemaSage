@@ -18,7 +18,7 @@ SCHEMA_DETECTION_SERVICE_URL = os.getenv("SCHEMA_DETECTION_SERVICE_URL", "https:
 PROJECT_MANAGEMENT_SERVICE_URL = os.getenv("PROJECT_MANAGEMENT_SERVICE_URL", "https://schemasage-project-management-48496f02644b.herokuapp.com")
 AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com")
 WEBSOCKET_REALTIME_SERVICE_URL = os.getenv("WEBSOCKET_REALTIME_SERVICE_URL", "https://schemasage-websocket-realtime-11223b2de7f4.herokuapp.com")
-DATABASE_MIGRATION_SERVICE_URL = os.getenv("DATABASE_MIGRATION_SERVICE_URL", "https://schemasage-database-migration-a1b2c3d4e5f6.herokuapp.com")
+DATABASE_MIGRATION_SERVICE_URL = os.getenv("DATABASE_MIGRATION_SERVICE_URL", "https://schemasage-database-migration-dfc50cf95a69.herokuapp.com")
 
 # Logging
 logging.basicConfig(
