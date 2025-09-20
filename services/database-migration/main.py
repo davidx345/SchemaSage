@@ -19,6 +19,8 @@ import logging
 from routers import basic, etl, data_quality, monitoring, database_connectivity, universal_migration, frontend_api
 from routers.migration_management import router as migration_management_router
 from routers.simple_cloud_migration import router as simple_cloud_migration_router
+from routers.performance_cost_calculator import router as performance_cost_calculator_router
+from routers.smart_rollback import router as smart_rollback_router
 
 # Temporarily disable complex cloud migration routers until imports are fixed
 # from routers.cloud_migration import router as cloud_migration_router  
@@ -54,6 +56,8 @@ app.include_router(universal_migration.router)
 app.include_router(frontend_api.router)
 app.include_router(migration_management_router)
 app.include_router(simple_cloud_migration_router)
+app.include_router(performance_cost_calculator_router)
+app.include_router(smart_rollback_router)
 
 # Temporarily disable complex cloud migration routers until imports are fixed
 # app.include_router(cloud_migration_router)
