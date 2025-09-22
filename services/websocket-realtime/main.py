@@ -128,15 +128,50 @@ manager = ConnectionManager()
 
 async def validate_jwt_token(token: str) -> Optional[str]:
     """Validate JWT token and return user ID"""
+    if not token:
+        logger.warning("Empty token provided")
+        return None
+
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        # Clean token if needed
+        token = token.strip()
+        if token.startswith("Bearer "):
+            token = token[7:]
+
+        # Decode without verification first to check structure
+        try:
+            unverified_payload = jwt.get_unverified_claims(token)
+            if "sub" not in unverified_payload:
+                logger.warning("Token missing 'sub' claim")
+                return None
+        except Exception as e:
+            logger.warning(f"Token structure invalid: {e}")
+            return None
+
+        # Now do full verification
+        payload = jwt.decode(
+            token,
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
+            options={"verify_exp": True, "verify_aud": False}
+        )
+        
         user_id = payload.get("sub")
+        if not user_id:
+            logger.warning("Token payload missing user ID")
+            return None
+
+        logger.info(f"Token validated successfully for user {user_id}")
         return user_id
+
     except jwt.ExpiredSignatureError:
         logger.warning("Token has expired")
         return None
-    except jwt.JWTError:
-        logger.warning("Invalid token")
+    except jwt.JWTError as e:
+        logger.warning(f"JWT validation error: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected token validation error: {str(e)}")
         return None
 
 async def get_current_stats() -> dict:
@@ -238,15 +273,36 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             
             # Handle different message types
             if message["type"] == "auth":
-                # Validate JWT token
-                token = message.get("token")
+                # Extract token from authentication message
+                token = None
+                if "token" in message:
+                    token = message["token"]
+                elif "authenticated" in message and "token" in message["authenticated"]:
+                    token = message["authenticated"]["token"]
+                elif "authorization" in message:
+                    token = message["authorization"].replace("Bearer ", "")
+                
                 if not token:
+                    logger.warning(f"Auth message received but no token found. Message structure: {message.keys()}")
                     await websocket.close(code=4001, reason="Missing token")
                     return
                 
+                # Clean token if needed
+                token = token.strip()
+                if token.startswith("Bearer "):
+                    token = token[7:]
+                
+                # Validate token
                 validated_user = await validate_jwt_token(token)
                 if not validated_user:
+                    logger.warning("Token validation failed")
                     await websocket.close(code=4001, reason="Invalid token")
+                    return
+                
+                # Verify user_id matches token subject
+                if str(message.get("user_id")) != str(validated_user):
+                    logger.warning(f"User ID mismatch. Message: {message.get('user_id')}, Token: {validated_user}")
+                    await websocket.close(code=4001, reason="User ID mismatch")
                     return
                 
                 # Send initial stats after successful authentication
