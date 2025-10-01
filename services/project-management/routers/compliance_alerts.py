@@ -11,7 +11,7 @@ import uuid
 import os
 import httpx
 import asyncio
-from ..core.auth import get_current_user
+from core.auth import get_current_user
 
 router = APIRouter(prefix="/compliance-alerts", tags=["compliance-alerts"])
 

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import json
 import uuid
 import asyncio
-from ..core.auth import get_current_user
+from core.auth import get_current_user
 
 router = APIRouter(prefix="/compliance", tags=["regulatory-notifications"])
 

@@ -9,7 +9,7 @@ from datetime import datetime
 import json
 import uuid
 import asyncio
-from ..core.auth import get_current_user
+from core.auth import get_current_user
 
 router = APIRouter(prefix="/tenants", tags=["multi-tenant"])
 

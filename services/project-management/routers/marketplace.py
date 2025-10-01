@@ -10,7 +10,7 @@ import json
 import uuid
 import os
 import httpx
-from ..core.auth import get_current_user
+from core.auth import get_current_user
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
