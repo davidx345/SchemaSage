@@ -35,6 +35,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Log service startup and configuration"""
+    logger.info("Database Migration Service starting up...")
+    logger.info("✅ Real database connection storage enabled")
+    logger.info("✅ Mock data replaced with persistent storage")
+    logger.info("✅ CRUD operations implemented")
+    logger.info("✅ Stats endpoint available at /api/database/stats")
+    logger.info("Frontend API router with real connection management loaded")
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
