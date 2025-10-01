@@ -153,6 +153,47 @@ class ProjectManager:
         """Get total number of projects"""
         return len(self._projects)
     
+    def get_stats(self) -> Dict[str, Any]:
+        """Get project management statistics"""
+        try:
+            total_projects = len(self._projects)
+            
+            # Count by status
+            status_counts = {}
+            for status in ProjectStatus:
+                status_counts[status.value] = 0
+            
+            # Count by type
+            type_counts = {}
+            for type in ProjectType:
+                type_counts[type.value] = 0
+            
+            for project in self._projects.values():
+                if project.status:
+                    status_counts[project.status.value] += 1
+                if project.type:
+                    type_counts[project.type.value] += 1
+            
+            return {
+                "total_projects": total_projects,
+                "total_glossary_terms": len(self._glossary),
+                "status_breakdown": status_counts,
+                "type_breakdown": type_counts,
+                "service_status": "running",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get stats: {str(e)}")
+            return {
+                "total_projects": 0,
+                "total_glossary_terms": 0,
+                "status_breakdown": {},
+                "type_breakdown": {},
+                "service_status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
     async def search_projects(self, query: str) -> List[Project]:
         """Search projects by name or description"""
         try:
