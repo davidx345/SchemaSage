@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 from datetime import datetime
+from enum import Enum
 import json
 import uuid
 import asyncio
@@ -14,12 +15,12 @@ from core.auth import get_current_user
 router = APIRouter(prefix="/tenants", tags=["multi-tenant"])
 
 # Enums
-class IsolationLevel(str):
+class IsolationLevel(str, Enum):
     database = "database"
     schema = "schema"
     row_level = "row_level"
 
-class TenantStatus(str):
+class TenantStatus(str, Enum):
     active = "active"
     inactive = "inactive"
     migrating = "migrating"
