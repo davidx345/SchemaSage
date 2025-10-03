@@ -6,7 +6,7 @@ from typing import Dict, Any
 import pandas as pd
 
 from .base_handler import DatabaseHandler
-from ...models import SchemaInfo, TableSchema, ColumnSchema
+from models import DatabaseSchema, TableSchema, ColumnSchema
 
 
 class MySQLHandler(DatabaseHandler):
@@ -48,20 +48,19 @@ class MySQLHandler(DatabaseHandler):
                 "database_type": "MySQL"
             }
     
-    def extract_schema(self) -> SchemaInfo:
+    def extract_schema(self) -> DatabaseSchema:
         """Extract MySQL schema."""
         inspector = inspect(self.engine)
-        schema_info = SchemaInfo(
+        schema_info = DatabaseSchema(
             database_name=self.connection.database,
-            database_type=self.connection.database_type,
-            version="",
             tables=[]
         )
         
         # Get database version
         with self.engine.connect() as conn:
             version_result = conn.execute(text("SELECT VERSION()")).fetchone()
-            schema_info.version = version_result[0] if version_result else "Unknown"
+            version = version_result[0] if version_result else "Unknown"
+            schema_info.metadata["version"] = version
         
         # Similar implementation to PostgreSQL but with MySQL-specific queries
         table_names = inspector.get_table_names()

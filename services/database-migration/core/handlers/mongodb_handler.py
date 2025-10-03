@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 import pandas as pd
 
 from .base_handler import DatabaseHandler
-from ...models import SchemaInfo, TableSchema, ColumnSchema
+from models import DatabaseSchema, TableSchema, ColumnSchema
 
 
 class MongoDBHandler(DatabaseHandler):
@@ -57,18 +57,17 @@ class MongoDBHandler(DatabaseHandler):
                 "database_type": "MongoDB"
             }
     
-    def extract_schema(self) -> SchemaInfo:
+    def extract_schema(self) -> DatabaseSchema:
         """Extract MongoDB schema by analyzing documents."""
-        schema_info = SchemaInfo(
+        schema_info = DatabaseSchema(
             database_name=self.connection.database,
-            database_type=self.connection.database_type,
-            version="",
             tables=[]  # Collections in MongoDB
         )
         
         # Get MongoDB version
         server_info = self.client.server_info()
-        schema_info.version = server_info.get("version", "Unknown")
+        version = server_info.get("version", "Unknown")
+        schema_info.metadata["version"] = version
         
         # Get all collections
         collection_names = self.db.list_collection_names()
