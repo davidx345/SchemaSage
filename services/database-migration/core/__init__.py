@@ -2,7 +2,8 @@
 Core module initialization
 """
 from .handlers import get_database_handler, DatabaseHandler, PostgreSQLHandler, MySQLHandler, SQLiteHandler, MongoDBHandler
-from .intelligence import MigrationIntelligence
+# Temporarily disabled due to missing model dependencies
+# from .intelligence import MigrationIntelligence
 
 __all__ = [
     'get_database_handler',
@@ -11,5 +12,5 @@ __all__ = [
     'MySQLHandler', 
     'SQLiteHandler',
     'MongoDBHandler',
-    'MigrationIntelligence'
+    # 'MigrationIntelligence'
 ]
