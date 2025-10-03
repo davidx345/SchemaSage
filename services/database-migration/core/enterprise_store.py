@@ -30,10 +30,22 @@ logger = logging.getLogger(__name__)
 class DatabaseConfig:
     """Database configuration for persistent storage"""
     
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL", 
-        "postgresql+asyncpg://postgres:password@localhost:5432/schemasage_db"
-    )
+    @staticmethod
+    def get_database_url():
+        """Get database URL with proper async driver format"""
+        database_url = os.getenv(
+            "DATABASE_URL", 
+            "postgresql+asyncpg://postgres:password@localhost:5432/schemasage_db"
+        )
+        
+        # Heroku provides postgres:// but we need postgresql+asyncpg://
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            logger.info("🔄 Converted DATABASE_URL from postgres:// to postgresql+asyncpg://")
+        
+        return database_url
+    
+    DATABASE_URL = get_database_url.__func__()
     POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
     MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
     POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
