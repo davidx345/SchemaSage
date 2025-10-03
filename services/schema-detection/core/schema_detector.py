@@ -55,8 +55,8 @@ class SchemaDetector:
             # Step 2: Normalize and sample data if needed
             normalized_data = self.data_parser.normalize_data(parsed_data)
             
-            if self.settings.sample_size and len(normalized_data) > self.settings.sample_size:
-                sampled_data = self.data_parser.sample_data(normalized_data, self.settings.sample_size)
+            if self.settings.max_sample_size and len(normalized_data) > self.settings.max_sample_size:
+                sampled_data = self.data_parser.sample_data(normalized_data, self.settings.max_sample_size)
             else:
                 sampled_data = normalized_data
             
@@ -68,7 +68,7 @@ class SchemaDetector:
             
             # Step 5: AI enhancement (if enabled)
             ai_insights = {}
-            if enable_ai and self.settings.enable_ai_enhancement:
+            if enable_ai:
                 ai_insights = await self.ai_enhancer.enhance_schema_with_ai(
                     table_info, 
                     sampled_data[:5]  # Send small sample for AI analysis
@@ -110,7 +110,7 @@ class SchemaDetector:
             relationships.extend(rule_based_relationships)
             
             # AI-powered relationship suggestions
-            if enable_ai and self.settings.enable_ai_enhancement:
+            if enable_ai:
                 ai_relationships = await self.ai_enhancer.suggest_relationships(tables)
                 relationships.extend(ai_relationships)
             

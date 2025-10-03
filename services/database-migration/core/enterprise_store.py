@@ -87,7 +87,9 @@ class EnterpriseConnectionStore:
                 max_overflow=self.config.MAX_OVERFLOW,
                 pool_timeout=self.config.POOL_TIMEOUT,
                 pool_recycle=self.config.POOL_RECYCLE,
-                echo=os.getenv("DEBUG_SQL", "false").lower() == "true"
+                echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
+                # Disable prepared statement cache for pgbouncer compatibility
+                connect_args={"statement_cache_size": 0}
             )
             
             # Create session factory

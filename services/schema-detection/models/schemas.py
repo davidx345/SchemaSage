@@ -72,6 +72,7 @@ class SchemaSettings(BaseModel):
     generate_indexes: bool = True
     max_sample_size: int = 1000
     confidence_threshold: float = 0.7
+    enable_ai_enhancement: bool = True
 
 
 class SchemaResponse(BaseModel):
