@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from typing import Dict, List, Any, Optional
 import pandas as pd
 
-from models import DatabaseConnection, SchemaInfo
+from models import DatabaseConnection, DatabaseSchema
 
 
 class DatabaseHandler(ABC):
@@ -33,7 +33,7 @@ class DatabaseHandler(ABC):
         pass
     
     @abstractmethod
-    def extract_schema(self) -> SchemaInfo:
+    def extract_schema(self) -> DatabaseSchema:
         """Extract complete schema information."""
         pass
     
