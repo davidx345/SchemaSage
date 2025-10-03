@@ -157,7 +157,7 @@ async def shutdown_event():
 @router.get("/connections")
 async def get_database_connections(
     request: Request,
-    current_user: UserContext = Depends(get_current_user)
+    current_user: UserContext = Depends(require_authentication)
 ):
     """
     Get list of database connections for the authenticated user
@@ -169,6 +169,8 @@ async def get_database_connections(
     - Audit logging
     """
     try:
+        logger.info(f"🔍 Getting connections for user: {current_user.user_id} (role: {current_user.role})")
+        
         if not current_user or current_user.user_id == "anonymous":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -427,7 +429,7 @@ async def delete_database_connection(
 
 @router.get("/stats")
 async def get_database_service_stats(
-    current_user: UserContext = Depends(get_current_user)
+    current_user: UserContext = Depends(require_authentication)
 ):
     """
     Get database service statistics
@@ -503,7 +505,7 @@ async def get_encryption_status(
 @router.post("/test-connection-url")
 async def test_connection_url(
     request_data: Dict[str, Any],
-    current_user: UserContext = Depends(get_current_user)
+    current_user: UserContext = Depends(require_authentication)
 ):
     """
     Test database connection using connection URL
@@ -558,7 +560,7 @@ async def test_connection_url(
 async def import_schema_url(
     request: Dict[str, Any], 
     background_tasks: BackgroundTasks,
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_authentication)
 ):
     """
     Import schema from database using connection URL
@@ -618,7 +620,7 @@ async def import_schema_url(
 async def import_schema_legacy(
     request: Dict[str, Any], 
     background_tasks: BackgroundTasks,
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_authentication)
 ):
     """
     Backward compatibility endpoint for legacy schema import
@@ -657,7 +659,7 @@ async def import_schema_legacy(
 @router.post("/test-connection")
 async def test_connection_legacy(
     request: Dict[str, Any],
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_authentication)
 ):
     """
     Legacy endpoint for testing database connections

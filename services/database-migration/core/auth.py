@@ -196,17 +196,30 @@ class JWTAuthService:
         """
         token = None
         
+        # Debug authentication headers
+        auth_headers = {
+            'authorization': request.headers.get('authorization'),
+            'x-auth-token': request.headers.get('x-auth-token'),
+            'x-user-id': request.headers.get('x-user-id'),
+            'x-username': request.headers.get('x-username'),
+            'x-user-email': request.headers.get('x-user-email')
+        }
+        logger.info(f"🔍 Auth headers received: {auth_headers}")
+        
         # Method 1: Authorization header (Bearer token)
         if credentials:
             token = credentials.credentials
+            logger.info(f"🔑 Using Bearer token authentication")
         
         # Method 2: Custom header from API Gateway
         elif request.headers.get("x-auth-token"):
             token = request.headers.get("x-auth-token")
+            logger.info(f"🔑 Using x-auth-token authentication")
         
         # Method 3: User ID directly from API Gateway (simplified)
         elif request.headers.get("x-user-id"):
             user_id = request.headers.get("x-user-id")
+            logger.info(f"🔑 Using direct user ID authentication: {user_id}")
             # Create minimal user context
             return UserContext(
                 user_id=user_id,
@@ -219,9 +232,13 @@ class JWTAuthService:
         if token:
             user_context = await self.verify_token(token)
             if user_context:
+                logger.info(f"✅ Token authentication successful for user: {user_context.user_id}")
                 return user_context
+            else:
+                logger.warning(f"❌ Token authentication failed")
         
         # Return anonymous user for public endpoints
+        logger.info(f"⚠️ No authentication provided, returning anonymous user")
         return UserContext(
             user_id="anonymous",
             username="anonymous",
