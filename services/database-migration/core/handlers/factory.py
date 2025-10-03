@@ -8,7 +8,7 @@ from .postgresql_handler import PostgreSQLHandler
 from .mysql_handler import MySQLHandler
 from .sqlite_handler import SQLiteHandler
 from .mongodb_handler import MongoDBHandler
-from ...models import DatabaseConnection
+from models import DatabaseConnection
 
 
 def get_database_handler(connection: DatabaseConnection) -> DatabaseHandler:
