@@ -38,11 +38,13 @@ class DatabaseConfig:
             "postgresql+asyncpg://postgres:password@localhost:5432/schemasage_db"
         )
         
-        # Heroku provides postgres:// but we need postgresql+asyncpg://
+        # Convert to asyncpg driver if needed
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
             logger.info("🔄 Converted DATABASE_URL from postgres:// to postgresql+asyncpg://")
-        
+        elif database_url.startswith("postgresql://"):
+            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            logger.info("🔄 Converted DATABASE_URL from postgresql:// to postgresql+asyncpg://")
         return database_url
     
     DATABASE_URL = get_database_url.__func__()
