@@ -2,7 +2,7 @@
 Frontend API Compatibility Router
 Provides the exact API endpoints expected by the frontend application
 """
-from fastapi import APIRouter, HTTPException, Depends, Security
+from fastapi import APIRouter, HTTPException, Depends, Security, UploadFile, File
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import Dict, Any, List, Optional
 import logging
@@ -10,6 +10,7 @@ from datetime import datetime
 import uuid
 
 from models.schemas import DetectionResponse, SchemaHistoryResponse
+from core.schema_detector import SchemaDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,90 @@ router = APIRouter(prefix="/api/schema", tags=["Frontend Schema API"])
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
+
+# Initialize schema detector
+schema_detector = SchemaDetector()
+
+@router.post("/detect-from-file")
+async def detect_schema_from_file(
+    file: UploadFile = File(...),
+    table_name: Optional[str] = None,
+    enable_ai_enhancement: bool = True
+):
+    """
+    Detect schema from uploaded file - Frontend compatible endpoint
+    
+    Expected Response:
+    {
+        "success": true,
+        "data": {
+            "schema": {...},
+            "confidence_score": 0.89
+        }
+    }
+    """
+    try:
+        # Read file content
+        content = await file.read()
+        
+        try:
+            data = content.decode('utf-8')
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="File encoding not supported. Please use UTF-8.")
+        
+        # Detect file format from filename
+        file_format = None
+        if file.filename:
+            if file.filename.endswith('.json'):
+                file_format = 'json'
+            elif file.filename.endswith('.csv'):
+                file_format = 'csv'
+            elif file.filename.endswith('.tsv'):
+                file_format = 'tsv'
+            elif file.filename.endswith('.xml'):
+                file_format = 'xml'
+            elif file.filename.endswith(('.yml', '.yaml')):
+                file_format = 'yaml'
+        
+        # Use the existing schema detector
+        result = await schema_detector.detect_schema(
+            data=data,
+            file_format=file_format,
+            table_name=table_name or file.filename or "uploaded_file",
+            enable_ai=enable_ai_enhancement
+        )
+        
+        # Convert to frontend expected format
+        return {
+            "success": True,
+            "message": "Schema detected successfully from file",
+            "data": {
+                "schema": {
+                    "tables": result.tables if hasattr(result, 'tables') else [],
+                    "relationships": result.relationships if hasattr(result, 'relationships') else [],
+                    "metadata": {
+                        "detection_algorithm": "AI-powered file analysis",
+                        "format": file_format or "auto-detected",
+                        "filename": file.filename,
+                        "file_size": len(content),
+                        "detection_time": getattr(result, 'processing_time', 0),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                },
+                "confidence_score": getattr(result, 'confidence', 0.0),
+                "suggestions": getattr(result, 'suggestions', [])
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error detecting schema from file: {e}")
+        return {
+            "success": False,
+            "message": f"Schema detection failed: {str(e)}",
+            "data": {}
+        }
 
 @router.get("/history")
 async def get_schema_history(
