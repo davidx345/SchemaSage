@@ -22,13 +22,81 @@ class AISchemaEnhancer:
     def __init__(self):
         self.gemini_api_key = getattr(settings, 'GEMINI_API_KEY', None)
         self.gemini_base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        self.openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        self.openai_base_url = "https://api.openai.com/v1/chat/completions"
     
     async def enhance_schema_with_ai(self, table_info: TableInfo, data_sample: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Use AI to enhance schema detection with additional insights."""
-        if not self.gemini_api_key:
-            logger.warning("Gemini API key not configured, skipping AI enhancement")
-            return {}
+        schema_summary = self._prepare_schema_summary(table_info, data_sample)
+        # Try OpenAI first if key is set
+        if self.openai_api_key:
+            try:
+                ai_insights = await self._call_openai_api(schema_summary)
+                if ai_insights:
+                    return ai_insights
+            except Exception as e:
+                logger.warning(f"OpenAI enhancement failed, falling back to Gemini: {e}")
+        # Fallback to Gemini
+        if self.gemini_api_key:
+            try:
+                ai_insights = await self._call_gemini_api(schema_summary)
+                return ai_insights
+            except Exception as e:
+                logger.error(f"Error in Gemini AI schema enhancement: {e}")
+                return {}
+        logger.warning("No AI API key configured, skipping AI enhancement")
+        return {}
         
+    async def _call_openai_api(self, schema_summary: str) -> Dict[str, Any]:
+        """Call OpenAI API to get AI insights about the schema."""
+        prompt = f"""
+Analyze this data schema and provide insights:
+
+{schema_summary}
+
+Please provide analysis in JSON format with these fields:
+1. "business_context": What type of business domain this data likely represents
+2. "table_purpose": What this table is likely used for
+3. "key_relationships": Potential relationships with other tables
+4. "data_quality_issues": Potential data quality concerns
+5. "optimization_suggestions": Suggestions for schema optimization
+6. "missing_columns": Columns that might be missing for this type of data
+7. "semantic_meaning": Semantic meaning of key columns
+
+Respond with valid JSON only.
+"""
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openai_api_key}"
+        }
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant for database schema analysis."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 1024
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(self.openai_base_url, json=payload, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                content = result["choices"][0]["message"]["content"]
+                # Try to parse as JSON
+                try:
+                    content = content.strip()
+                    if content.startswith("```json"):
+                        content = content[7:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    content = content.strip()
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    logger.warning("OpenAI response was not valid JSON, returning raw text")
+                    return {"raw_response": content}
+            return {}
         try:
             # Prepare data for AI analysis
             schema_summary = self._prepare_schema_summary(table_info, data_sample)
