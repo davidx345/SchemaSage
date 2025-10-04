@@ -203,9 +203,10 @@ class SchemaAnalyzer:
         if not values:
             return stats
         
-        stats.count = len(values)
+        stats.total_count = len(values)
         stats.unique_count = len(set(str(v) for v in values))
         stats.null_count = 0  # Already filtered nulls
+        stats.unique_percentage = (stats.unique_count / stats.total_count * 100) if stats.total_count > 0 else 0.0
         
         # Calculate min/max length for strings
         if data_type in ['string', 'email', 'url', 'phone']:

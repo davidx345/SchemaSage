@@ -14,6 +14,12 @@ class ColumnStatistics(BaseModel):
     min_value: Optional[Any] = None
     max_value: Optional[Any] = None
     avg_length: Optional[float] = None
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    mean: Optional[float] = None
+    std_dev: Optional[float] = None
+    sample_values: List[str] = []
+    value_distribution: Dict[str, int] = {}
 
 
 class ColumnInfo(BaseModel):
