@@ -80,7 +80,7 @@ async def multi_framework_schema_detection(
                 "columns": [
                     {
                         "name": col.column_name,
-                        "type": col.data_type,
+                        "type": col.type,
                         "constraints": col.constraints
                     }
                     for col in table.columns

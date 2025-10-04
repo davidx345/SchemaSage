@@ -51,7 +51,7 @@ class AISchemaEnhancer:
         ]
         
         for column in table_info.columns[:20]:  # Limit to first 20 columns
-            col_summary = f"  - {column.name}: {column.data_type}"
+            col_summary = f"  - {column.name}: {column.type}"
             if column.nullable:
                 col_summary += " (nullable)"
             if column.constraints:
@@ -153,7 +153,7 @@ Respond with valid JSON only.
             for table in tables:
                 summary = f"Table {table.name}:\n"
                 for col in table.columns[:10]:  # Limit columns
-                    summary += f"  - {col.name}: {col.data_type}\n"
+                    summary += f"  - {col.name}: {col.type}\n"
                 table_summaries.append(summary)
             
             combined_summary = "\n".join(table_summaries)
@@ -256,7 +256,7 @@ Respond with JSON array format:
             # Prepare column information
             columns_info = []
             for col in table_info.columns[:20]:  # Limit to avoid token limits
-                col_info = f"{col.name}: {col.data_type}"
+                col_info = f"{col.name}: {col.type}"
                 if col.statistics and col.statistics.sample_values:
                     col_info += f" (examples: {', '.join(col.statistics.sample_values[:3])})"
                 columns_info.append(col_info)

@@ -205,7 +205,7 @@ class SchemaDetector:
         """Check if two columns might be related."""
         
         # Check for exact name matches
-        if source_col.name == target_col.name and source_col.data_type == target_col.data_type:
+        if source_col.name == target_col.name and source_col.type == target_col.type:
             return Relationship(
                 source_table=source_table,
                 source_column=source_col.name,
@@ -225,7 +225,7 @@ class SchemaDetector:
         
         if (source_col.name.lower() in [p.lower() for p in fk_patterns] and 
             target_col.name.lower() in ['id', 'key', 'pk'] and
-            source_col.data_type == target_col.data_type):
+            source_col.type == target_col.type):
             return Relationship(
                 source_table=source_table,
                 source_column=source_col.name,
@@ -258,7 +258,7 @@ class SchemaDetector:
         # Base score on data type detection confidence
         type_confidence = 0.0
         for column in table_info.columns:
-            if column.data_type != 'string':  # Non-string types have higher confidence
+            if column.type != 'string':  # Non-string types have higher confidence
                 type_confidence += 0.8
             else:
                 type_confidence += 0.6
@@ -290,7 +290,7 @@ class SchemaDetector:
         all_columns = {}
         for table in tables:
             for column in table.columns:
-                key = f"{column.name}:{column.data_type}"
+                key = f"{column.name}:{column.type}"
                 if key not in all_columns:
                     all_columns[key] = []
                 all_columns[key].append(table.name)

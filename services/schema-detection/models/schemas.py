@@ -37,6 +37,8 @@ class ColumnInfo(BaseModel):
     format: Optional[str] = None
     validation: Optional[str] = None
     description: Optional[str] = None
+    constraints: Optional[Dict[str, Any]] = None
+    statistics: Optional[ColumnStatistics] = None
 
 
 class TableInfo(BaseModel):

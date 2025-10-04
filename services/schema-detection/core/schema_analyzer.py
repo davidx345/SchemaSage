@@ -44,7 +44,7 @@ class SchemaAnalyzer:
         if not non_null_values:
             return ColumnInfo(
                 name=column_name,
-                data_type="null",
+                type="null",
                 nullable=True,
                 statistics=ColumnStatistics()
             )
@@ -63,7 +63,7 @@ class SchemaAnalyzer:
         
         return ColumnInfo(
             name=column_name,
-            data_type=data_type,
+            type=data_type,
             nullable=nullable,
             constraints=constraints,
             statistics=statistics
@@ -354,7 +354,7 @@ class SchemaAnalyzer:
                 })
             
             # Suggest data type optimization
-            if column.data_type == 'string' and column.constraints and column.constraints.get('fixed_length'):
+            if column.type == 'string' and column.constraints and column.constraints.get('fixed_length'):
                 suggestions.append({
                     'type': 'optimization',
                     'column': column.name,
