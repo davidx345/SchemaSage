@@ -50,6 +50,8 @@ class TableInfo(BaseModel):
     indexes: List[str] = []
     statistics: Dict[str, ColumnStatistics] = {}
     estimated_rows: Optional[int] = None
+    row_count: int = 0
+    primary_key_candidates: List[str] = []
     description: Optional[str] = None
 
 
