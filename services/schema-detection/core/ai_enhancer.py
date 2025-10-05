@@ -118,31 +118,34 @@ class AISchemaEnhancer:
     async def _call_openai_api(self, schema_summary: str) -> Dict[str, Any]:
         """Call OpenAI API to get AI insights about the schema."""
         prompt = f"""
-Analyze this data schema and provide insights:
+As a senior database architect, analyze this data schema and provide comprehensive insights:
 
 {schema_summary}
 
-Please provide analysis in JSON format with these fields:
-1. "business_context": What type of business domain this data likely represents
-2. "table_purpose": What this table is likely used for
-3. "key_relationships": Potential relationships with other tables
-4. "data_quality_issues": Potential data quality concerns
-5. "optimization_suggestions": Suggestions for schema optimization
-6. "missing_columns": Columns that might be missing for this type of data
-7. "semantic_meaning": Semantic meaning of key columns
+Provide detailed analysis in JSON format with these fields:
+1. "business_context": Detailed analysis of the business domain and use case this data represents
+2. "table_purpose": Comprehensive explanation of this table's role in the system architecture
+3. "key_relationships": Detailed potential relationships with other tables, including cardinality and foreign key suggestions
+4. "data_quality_issues": Comprehensive data quality concerns including validation rules, constraints, and potential edge cases
+5. "optimization_suggestions": Advanced suggestions for schema optimization including indexing strategies, partitioning, and performance considerations
+6. "missing_columns": Detailed analysis of columns that might be missing for production use (audit fields, soft deletes, versioning, etc.)
+7. "semantic_meaning": In-depth semantic analysis of key columns with business context
+8. "security_considerations": Security best practices for this schema (encryption, access control, data masking)
+9. "scalability_recommendations": Recommendations for handling growth and performance at scale
+10. "advanced_features": Suggestions for advanced database features (triggers, stored procedures, views, etc.)
 
-Respond with valid JSON only.
+Provide production-ready, enterprise-level insights. Respond with valid JSON only.
 """
         
         try:
             response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a database schema analysis expert. Always respond with valid JSON."},
+                    {"role": "system", "content": "You are a senior database architect and backend engineer. Always respond with valid JSON containing detailed, production-ready insights."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=1024
+                max_tokens=2048
             )
             
             content = response.choices[0].message.content.strip()

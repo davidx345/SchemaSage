@@ -8,6 +8,13 @@ import httpx
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    OpenAI = None
+
 from config import settings
 from models.schemas import TableInfo, ColumnInfo, Relationship, SchemaResponse, SchemaMetadata
 
@@ -16,12 +23,22 @@ logger = logging.getLogger(__name__)
 
 class AISchemaConverter:
     """
-    AI-powered schema generation using external AI services
+    AI-powered schema generation using OpenAI (GPT-4) first, then fallback to Gemini
     """
     
     def __init__(self):
         self.api_timeout = 30
         self.max_retries = 3
+        
+        # Initialize OpenAI client if available
+        self.openai_client = None
+        if OPENAI_AVAILABLE and settings.OPENAI_API_KEY:
+            try:
+                self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                logger.info("OpenAI client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
+                self.openai_client = None
     
     async def generate_schema_with_ai(
         self,
@@ -29,7 +46,7 @@ class AISchemaConverter:
         options: Optional[Dict[str, Any]] = None
     ) -> Optional[SchemaResponse]:
         """
-        Generate schema using AI service
+        Generate schema using AI service (OpenAI first, then Gemini fallback)
         
         Args:
             description: Natural language description
@@ -38,18 +55,18 @@ class AISchemaConverter:
         Returns:
             Generated schema or None if failed
         """
-        if not settings.GEMINI_API_KEY:
-            logger.warning("No Gemini API key configured for AI schema generation")
+        if not self.openai_client and not settings.GEMINI_API_KEY:
+            logger.warning("No AI API keys configured for schema generation")
             return None
-        
+
         try:
             logger.info(f"Generating schema with AI for: {description[:100]}...")
             
-            # Build prompt
-            prompt = self._build_schema_generation_prompt(description, options)
+            # Build enhanced prompt for production-ready schema
+            prompt = self._build_enhanced_schema_generation_prompt(description, options)
             
-            # Make API request
-            ai_response = await self._make_gemini_request(prompt)
+            # Try OpenAI first, then fallback to Gemini
+            ai_response = await self._make_ai_request(prompt)
             
             if ai_response:
                 # Parse response to schema
@@ -69,7 +86,7 @@ class AISchemaConverter:
         options: Optional[Dict[str, Any]] = None
     ) -> List[TableInfo]:
         """
-        Enhance existing schema using AI
+        Enhance existing schema using AI (OpenAI first, then Gemini fallback)
         
         Args:
             tables: Existing table definitions
@@ -79,16 +96,16 @@ class AISchemaConverter:
         Returns:
             Enhanced table definitions
         """
-        if not settings.GEMINI_API_KEY:
-            logger.debug("No Gemini API key, returning tables as-is")
+        if not self.openai_client and not settings.GEMINI_API_KEY:
+            logger.debug("No AI API keys available, returning tables as-is")
             return tables
         
         try:
             # Build enhancement prompt
             prompt = self._build_enhancement_prompt(tables, description, options)
             
-            # Make API request
-            ai_response = await self._make_gemini_request(prompt)
+            # Make AI request with fallback
+            ai_response = await self._make_ai_request(prompt)
             
             if ai_response:
                 # Parse enhanced schema
@@ -109,7 +126,7 @@ class AISchemaConverter:
         description: str
     ) -> List[Relationship]:
         """
-        Suggest relationships using AI
+        Suggest relationships using AI (OpenAI first, then Gemini fallback)
         
         Args:
             tables: Table definitions
@@ -118,15 +135,16 @@ class AISchemaConverter:
         Returns:
             Suggested relationships
         """
-        if not settings.GEMINI_API_KEY:
+        if not self.openai_client and not settings.GEMINI_API_KEY:
+            logger.debug("No AI API keys available for relationship suggestions")
             return []
         
         try:
             # Build relationship prompt
             prompt = self._build_relationship_prompt(tables, description)
             
-            # Make API request
-            ai_response = await self._make_gemini_request(prompt)
+            # Make AI request with fallback
+            ai_response = await self._make_ai_request(prompt)
             
             if ai_response:
                 # Parse relationships
@@ -138,6 +156,71 @@ class AISchemaConverter:
             logger.error(f"AI relationship suggestion failed: {str(e)}")
         
         return []
+    
+    async def _make_ai_request(self, prompt: str) -> Optional[str]:
+        """
+        Make AI request with fallback: OpenAI (GPT-4) first, then Gemini
+        
+        Args:
+            prompt: Prompt text
+            
+        Returns:
+            AI response text or None if failed
+        """
+        # Try OpenAI first
+        if self.openai_client:
+            try:
+                logger.info("Trying OpenAI API (GPT-4) for schema generation")
+                return await self._make_openai_request(prompt)
+            except Exception as e:
+                logger.warning(f"OpenAI API failed, falling back to Gemini: {e}")
+        
+        # Fallback to Gemini
+        if settings.GEMINI_API_KEY:
+            try:
+                logger.info("Using Gemini API for schema generation")
+                return await self._make_gemini_request(prompt)
+            except Exception as e:
+                logger.error(f"Gemini API also failed: {e}")
+                raise
+        
+        raise Exception("No working AI API available")
+    
+    async def _make_openai_request(self, prompt: str) -> Optional[str]:
+        """
+        Make request to OpenAI API using GPT-4
+        
+        Args:
+            prompt: Prompt text
+            
+        Returns:
+            AI response text or None if failed
+        """
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a senior database architect and schema expert. Always respond with valid, production-ready JSON schemas."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=4096
+            )
+            
+            content = response.choices[0].message.content.strip()
+            
+            # Clean the response (remove markdown formatting if present)
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            
+            return content
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            raise
     
     async def _make_gemini_request(self, prompt: str) -> Optional[str]:
         """
@@ -193,6 +276,129 @@ class AISchemaConverter:
                     raise
         
         return None
+    
+    def _build_enhanced_schema_generation_prompt(
+        self,
+        description: str,
+        options: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Build enhanced prompt for production-ready schema generation"""
+        options = options or {}
+        
+        database_type = options.get('database_type', 'PostgreSQL')
+        include_indexes = options.get('include_indexes', True)
+        include_constraints = options.get('include_constraints', True)
+        include_security = options.get('include_security', True)
+        
+        return f"""
+You are a senior database architect with 15+ years of experience designing production-grade database schemas. 
+Convert this natural language description into a comprehensive, enterprise-ready database schema for {database_type}.
+
+REQUIREMENTS DESCRIPTION:
+{description}
+
+Generate a detailed JSON response with the following structure. Include ALL the following elements for a production-ready system:
+
+{{
+  "tables": [
+    {{
+      "name": "table_name",
+      "description": "detailed table description with business context",
+      "columns": [
+        {{
+          "name": "column_name",
+          "type": "String|Integer|Float|Boolean|DateTime|Text|JSON|UUID|JSONB",
+          "nullable": true/false,
+          "is_primary_key": true/false,
+          "unique": true/false,
+          "default": "default_value or null",
+          "description": "detailed column description with business meaning",
+          "validation": "email|url|phone|regex pattern (if applicable)",
+          "max_length": 255,
+          "constraints": ["check constraints", "foreign key constraints"],
+          "index_type": "btree|gin|gist|hash (if indexed)",
+          "security_level": "public|restricted|encrypted"
+        }}
+      ],
+      "indexes": [
+        {{
+          "name": "idx_table_column",
+          "columns": ["column1", "column2"],
+          "type": "btree|gin|gist|hash",
+          "unique": true/false,
+          "purpose": "performance optimization reason"
+        }}
+      ],
+      "constraints": [
+        {{
+          "name": "constraint_name",
+          "type": "check|unique|foreign_key",
+          "definition": "constraint definition",
+          "purpose": "business rule being enforced"
+        }}
+      ],
+      "triggers": [
+        {{
+          "name": "trigger_name",
+          "event": "before_insert|after_update|etc",
+          "purpose": "audit|validation|business logic"
+        }}
+      ],
+      "estimated_rows": 10000,
+      "growth_pattern": "linear|exponential|seasonal",
+      "audit_fields": true
+    }}
+  ],
+  "relationships": [
+    {{
+      "source_table": "table1",
+      "source_column": "table2_id",
+      "target_table": "table2", 
+      "target_column": "id",
+      "type": "one_to_one|one_to_many|many_to_many",
+      "on_delete": "cascade|restrict|set_null",
+      "on_update": "cascade|restrict",
+      "description": "business relationship explanation"
+    }}
+  ],
+  "security_policies": [
+    {{
+      "table": "table_name",
+      "policy_name": "row_level_security_policy",
+      "rule": "security rule definition",
+      "applies_to": "select|insert|update|delete"
+    }}
+  ],
+  "performance_recommendations": [
+    {{
+      "table": "table_name",
+      "recommendation": "specific performance optimization",
+      "reasoning": "why this optimization is needed"
+    }}
+  ],
+  "business_rules": [
+    {{
+      "rule": "business rule description",
+      "implementation": "how it's enforced in the schema",
+      "tables_affected": ["table1", "table2"]
+    }}
+  ]
+}}
+
+ADDITIONAL REQUIREMENTS:
+1. Include proper audit fields (created_at, updated_at, created_by, updated_by) for all main entities
+2. Add soft delete support where appropriate (deleted_at, is_deleted)
+3. Include proper indexing strategy for performance
+4. Add data validation constraints
+5. Consider security and privacy requirements
+6. Include version/optimistic locking fields where needed
+7. Add proper foreign key relationships with cascading rules
+8. Include check constraints for data integrity
+9. Consider partitioning strategies for large tables
+10. Add proper data types optimized for the use case
+
+Respond with ONLY the JSON - no explanations, no markdown formatting.
+"""
     
     def _build_schema_generation_prompt(
         self,
