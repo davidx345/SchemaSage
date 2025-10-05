@@ -210,7 +210,7 @@ async def generate_from_natural_language(
     """Generate code from natural language description"""
     try:
         # Convert natural language to schema
-        schema_response = await nl_converter.convert_to_schema(description)
+        schema_response = nl_converter.convert_to_schema(description)
         
         # Generate code from schema
         generated_code = await code_generator.generate_code(
@@ -240,7 +240,7 @@ async def generate_schema_from_description(
 ):
     """Generate schema from natural language description"""
     try:
-        schema_response = await nl_converter.convert_to_schema(
+        schema_response = nl_converter.convert_to_schema(
             description, 
             options=options or {}
         )

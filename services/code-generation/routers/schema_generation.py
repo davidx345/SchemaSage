@@ -50,7 +50,7 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
         logger.info(f"Generating multi-format schema for: {request.description[:100]}...")
         
         # Step 1: Convert natural language to schema using our enhanced AI converter
-        schema_response = await nl_converter.convert_to_schema(
+        schema_response = nl_converter.convert_to_schema(
             request.description, 
             options=request.options or {}
         )
