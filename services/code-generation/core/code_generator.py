@@ -164,24 +164,12 @@ class CodeGenerator:
             "singularize": self._singularize,
             "sql_type_to_python": self._sql_type_to_python,
             "get_primary_key_columns": self._get_primary_key_columns,
-            "get_foreign_key_columns": self._get_foreign_key_columns
+            "get_foreign_key_columns": self._get_foreign_key_columns,
+            "get_table_metadata": self._get_table_metadata,
+            "get_column_foreign_key": self._get_column_foreign_key,
+            "get_column_comment": self._get_column_comment,
+            "get_column_typescript_type": self._get_column_typescript_type
         })
-        
-        # Enhance table and column objects with missing fields that templates expect
-        for table in context["tables"]:
-            # Ensure table has all needed attributes
-            if not hasattr(table, 'metadata') or table.metadata is None:
-                table.metadata = type('obj', (object,), {'comments': ''})()
-            
-            # Enhance columns with missing fields
-            for column in table.columns:
-                # Add missing fields that templates expect
-                if not hasattr(column, 'foreign_key'):
-                    column.foreign_key = None
-                if not hasattr(column, 'comment'):
-                    column.comment = column.description if hasattr(column, 'description') else None
-                if not hasattr(column, 'typescript_type'):
-                    column.typescript_type = self._sql_type_to_typescript(column.type)
         
         return context
     
@@ -299,6 +287,37 @@ class CodeGenerator:
         
         sql_type_upper = sql_type.upper()
         return type_mapping.get(sql_type_upper, 'string')
+    
+    def _get_table_metadata(self, table):
+        """Safely get table metadata with default values"""
+        if hasattr(table, 'metadata') and table.metadata:
+            return table.metadata
+        # Return a mock metadata object with default values
+        return type('Metadata', (), {
+            'comments': '',
+            'description': getattr(table, 'description', ''),
+            'version': '1.0'
+        })()
+    
+    def _get_column_foreign_key(self, column):
+        """Safely get column foreign key reference"""
+        if hasattr(column, 'foreign_key') and column.foreign_key:
+            return column.foreign_key
+        # Check if this is a foreign key column and try to infer the reference
+        if getattr(column, 'is_foreign_key', False):
+            # Try to infer foreign key from column name (e.g., user_id -> users.id)
+            if column.name.endswith('_id'):
+                table_name = column.name[:-3] + 's'
+                return f"{table_name}.id"
+        return None
+    
+    def _get_column_comment(self, column):
+        """Safely get column comment"""
+        return getattr(column, 'description', '') or getattr(column, 'comment', '')
+    
+    def _get_column_typescript_type(self, column):
+        """Safely get TypeScript type for column"""
+        return self._sql_type_to_typescript(getattr(column, 'type', 'VARCHAR'))
 
 
 # Re-export the exception from etl_code_generator for compatibility

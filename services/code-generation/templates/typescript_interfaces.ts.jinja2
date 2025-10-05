@@ -14,7 +14,7 @@ export interface {{ table.name|title }} {
   {% if column.description %}
   /** {{ column.description }} */
   {% endif %}
-  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ column.typescript_type }};
+  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ get_column_typescript_type(column) }};
   {% endfor %}
 
   {% if relationships[table.name]['outgoing'] %}
@@ -40,7 +40,7 @@ export interface {{ table.name|title }} {
  */
 export interface Create{{ table.name|title }}Input {
   {% for column in table.columns if not column.is_primary_key and not column.auto_generated %}
-  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ column.typescript_type }};
+  {{ column.name }}{% if column.nullable %}?{% endif %}: {{ get_column_typescript_type(column) }};
   {% endfor %}
 }
 
@@ -49,7 +49,7 @@ export interface Create{{ table.name|title }}Input {
  */
 export interface Update{{ table.name|title }}Input {
   {% for column in table.columns if not column.is_primary_key %}
-  {{ column.name }}?: {{ column.typescript_type }};
+  {{ column.name }}?: {{ get_column_typescript_type(column) }};
   {% endfor %}
 }
 {% endif %}
@@ -85,7 +85,7 @@ export interface {{ table.name|title }}ListResponse {
 export const {{ table.name|camelCase }}Schema = {
   {% for column in table.columns %}
   {{ column.name }}: {
-    type: '{{ column.typescript_type }}',
+    type: '{{ get_column_typescript_type(column) }}',
     required: {{ not column.nullable | lower }},
     {% if column.validation %}
     validation: '{{ column.validation }}',

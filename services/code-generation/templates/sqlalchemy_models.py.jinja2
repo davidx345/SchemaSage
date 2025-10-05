@@ -45,10 +45,10 @@ class {{ table.name|capitalize }}({{ base_class }}):
         {% if column.is_primary_key %}primary_key=True,{% endif %}
         {% if not column.nullable %}nullable=False,{% endif %}
         {% if column.default %}default={{ column.default }},{% endif %}
-        {% if column.foreign_key %}ForeignKey('{{ column.foreign_key }}'),{% endif %}
+        {% set fk = get_column_foreign_key(column) %}{% if fk %}ForeignKey('{{ fk }}'),{% endif %}
         {% if column.unique %}unique=True,{% endif %}
         {% if column.index %}index=True,{% endif %}
-        {% if column.comment %}comment="{{ column.comment }}",{% endif %}
+        {% set comment = get_column_comment(column) %}{% if comment %}comment="{{ comment }}",{% endif %}
     )
     {% if column.statistics %}
     # Stats: {{ column.statistics.unique_count }} unique values ({{ "%.1f"|format(column.statistics.unique_percentage) }}% unique)
