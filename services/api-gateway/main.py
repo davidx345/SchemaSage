@@ -190,8 +190,15 @@ async def generate_proxy(request: Request, path: str):
     """Proxy generation requests."""
     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
 
-# ===== SCHEMA DETECTION SERVICE ROUTES =====
+# ===== SCHEMA ROUTES =====
 
+# Specific route for schema generation (goes to Code Generation Service)
+@app.api_route("/api/schema/generate", methods=["POST", "OPTIONS"])
+async def schema_generate_proxy(request: Request):
+    """Proxy schema generation requests to Code Generation Service."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+# General schema detection routes (goes to Schema Detection Service)
 @app.api_route("/api/schema/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def schema_proxy(request: Request, path: str):
     """Proxy schema detection requests."""
@@ -289,8 +296,8 @@ async def root():
         "description": "Routes requests to appropriate microservices",
         "routes": {
             "authentication": "/api/auth/*",
-            "code_generation": "/api/code-generation/* | /api/generate/*",
-            "schema_detection": "/api/schema/* | /api/detect/*",
+            "code_generation": "/api/code-generation/* | /api/generate/* | /api/schema/generate",
+            "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/*",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
             "database_migration": "/api/database/* | /api/migration/*",
@@ -321,6 +328,7 @@ async def catch_all(request: Request, path: str):
             "available_routes": [
                 "/api/auth/* -> Authentication Service",
                 "/api/code-generation/* -> Code Generation Service",
+                "/api/schema/generate -> Code Generation Service",
                 "/api/schema/* -> Schema Detection Service",
                 "/api/projects/* -> Project Management Service",
                 "/api/chat/* -> AI Chat Service",
