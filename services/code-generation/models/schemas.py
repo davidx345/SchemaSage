@@ -35,11 +35,17 @@ class ColumnInfo(BaseModel):
     format: Optional[str] = Field(None, description="Format hint for the column")
     validation: Optional[str] = Field(None, description="Validation rule for the column")
     statistics: Optional[ColumnStatistics] = Field(None, description="Statistical information")
+    max_length: Optional[int] = Field(None, description="Maximum length for string columns")
+    description: Optional[str] = Field(None, description="Column description")
 
 class TableInfo(BaseModel):
     """Information about a table"""
     name: str = Field(..., description="Table name")
     columns: List[ColumnInfo] = Field(..., description="List of columns")
+    primary_keys: List[str] = Field(default_factory=list, description="List of primary key column names")
+    foreign_keys: List[str] = Field(default_factory=list, description="List of foreign key references")
+    indexes: List[str] = Field(default_factory=list, description="List of index names")
+    description: Optional[str] = Field(None, description="Table description")
 
 class Relationship(BaseModel):
     """Database relationship information"""

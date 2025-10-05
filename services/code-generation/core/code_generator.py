@@ -44,7 +44,11 @@ class CodeGenerator:
             CodeGenFormat.SQL: "sql_ddl.sql.jinja2", 
             CodeGenFormat.JSON: "json_schema.json.jinja2",
             CodeGenFormat.PYTHON_DATACLASSES: "python_dataclasses.py.jinja2",
-            CodeGenFormat.DBML: "dbml_schema.dbml.jinja2"
+            CodeGenFormat.DBML: "dbml_schema.dbml.jinja2",
+            CodeGenFormat.PRISMA: "prisma.schema.jinja2",
+            CodeGenFormat.TYPEORM: "typeorm.entities.ts.jinja2",
+            CodeGenFormat.DJANGO_ORM: "django_models.py.jinja2",
+            CodeGenFormat.TYPESCRIPT_INTERFACES: "typescript_interfaces.ts.jinja2"
         }
         
         logger.info(f"CodeGenerator initialized with template directory: {self.template_dir}")

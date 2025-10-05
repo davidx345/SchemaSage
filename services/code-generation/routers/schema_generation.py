@@ -143,12 +143,12 @@ datasource db {
             field_line = f"  {field_name} {field_type}"
             
             # Add modifiers
-            if column.primary_key:
+            if column.is_primary_key:
                 field_line += " @id"
                 if "id" in column.name.lower() and "int" in column.type.lower():
                     field_line += " @default(autoincrement())"
             
-            if not column.nullable and not column.primary_key:
+            if not column.nullable and not column.is_primary_key:
                 # Field is already non-nullable by default in Prisma
                 pass
             elif column.nullable:
@@ -182,7 +182,7 @@ async def _generate_typeorm_from_schema(schema_response) -> str:
             field_name = column.name
             field_type = _map_to_typescript_type(column.type)
             
-            if column.primary_key and "id" in column.name.lower():
+            if column.is_primary_key and "id" in column.name.lower():
                 typeorm_code += f"  @PrimaryGeneratedColumn()\n"
             else:
                 column_options = []
