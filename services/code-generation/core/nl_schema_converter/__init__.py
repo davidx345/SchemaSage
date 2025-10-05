@@ -67,7 +67,7 @@ class NLSchemaConverter:
         options = options or {}
         
         # Step 1: Extract patterns
-        entities, relationships, fields = self.pattern_extractor.extract_all(description)
+        entities, relationships, fields = self.pattern_extractor.extract_all_patterns(description)
         
         # Step 2: Use AI if available and requested
         if use_ai and self.ai_converter:
