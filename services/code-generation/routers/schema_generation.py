@@ -74,10 +74,14 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
         
         for format_enum, response_key in formats_to_generate:
             try:
+                # Prepare options with description from request
+                generation_options = (request.options or {}).copy()
+                generation_options['description'] = request.description
+                
                 code_result = await code_generator.generate_code(
                     schema=schema_response,
                     format=format_enum,
-                    options=request.options or {}
+                    options=generation_options
                 )
                 generated_code[response_key] = code_result.code
             except Exception as e:
