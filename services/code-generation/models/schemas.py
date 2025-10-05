@@ -8,10 +8,14 @@ from enum import Enum
 class CodeGenFormat(str, Enum):
     """Supported code generation formats"""
     SQLALCHEMY = "sqlalchemy"
+    PRISMA = "prisma"
+    TYPEORM = "typeorm"
+    DJANGO_ORM = "django_orm"
     SQL = "sql"
     JSON = "json"
     PYTHON_DATACLASSES = "python_dataclasses"
     DBML = "dbml"
+    TYPESCRIPT_INTERFACES = "typescript_interfaces"
 
 class ColumnStatistics(BaseModel):
     """Statistics for a table column"""

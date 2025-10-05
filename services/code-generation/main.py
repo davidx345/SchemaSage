@@ -280,10 +280,14 @@ def _get_format_description(format: CodeGenFormat) -> str:
     """Get description for a code generation format"""
     descriptions = {
         CodeGenFormat.SQLALCHEMY: "SQLAlchemy ORM models with relationships",
+        CodeGenFormat.PRISMA: "Prisma schema with relations and types",
+        CodeGenFormat.TYPEORM: "TypeORM entity classes with decorators",
+        CodeGenFormat.DJANGO_ORM: "Django ORM models with relationships",
         CodeGenFormat.SQL: "SQL DDL statements for database creation",
         CodeGenFormat.JSON: "JSON Schema definitions",
         CodeGenFormat.PYTHON_DATACLASSES: "Python dataclass definitions",
-        CodeGenFormat.DBML: "Database Markup Language (DBML) schema"
+        CodeGenFormat.DBML: "Database Markup Language (DBML) schema",
+        CodeGenFormat.TYPESCRIPT_INTERFACES: "TypeScript interface definitions"
     }
     return descriptions.get(format, "Code generation format")
 
@@ -303,12 +307,35 @@ def _get_format_options(format: CodeGenFormat) -> dict:
             "use_validators": {"type": "boolean", "default": True, "description": "Include Pydantic validators"},
             "base_class": {"type": "string", "default": "Base", "description": "Base class name"}
         },
+        CodeGenFormat.PRISMA: {
+            "provider": {"type": "string", "default": "postgresql", "description": "Database provider"},
+            "generate_client": {"type": "boolean", "default": True, "description": "Include Prisma client generation"}
+        },
+        CodeGenFormat.TYPEORM: {
+            "decorators": {"type": "boolean", "default": True, "description": "Include TypeORM decorators"},
+            "generate_migrations": {"type": "boolean", "default": False, "description": "Generate migration files"}
+        },
+        CodeGenFormat.DJANGO_ORM: {
+            "app_name": {"type": "string", "default": "core", "description": "Django app name"},
+            "abstract_base": {"type": "boolean", "default": False, "description": "Use abstract base classes"}
+        },
         CodeGenFormat.SQL: {
             "dialect": {"type": "string", "default": "postgresql", "description": "SQL dialect"},
             "include_indexes": {"type": "boolean", "default": True, "description": "Include index definitions"}
         },
         CodeGenFormat.JSON: {
             "format": {"type": "string", "default": "draft-07", "description": "JSON Schema version"}
+        },
+        CodeGenFormat.PYTHON_DATACLASSES: {
+            "frozen": {"type": "boolean", "default": False, "description": "Generate frozen dataclasses"},
+            "slots": {"type": "boolean", "default": True, "description": "Use __slots__"}
+        },
+        CodeGenFormat.DBML: {
+            "include_refs": {"type": "boolean", "default": True, "description": "Include relationship references"}
+        },
+        CodeGenFormat.TYPESCRIPT_INTERFACES: {
+            "export_all": {"type": "boolean", "default": True, "description": "Export all interfaces"},
+            "strict_null_checks": {"type": "boolean", "default": True, "description": "Use strict null checks"}
         }
     }
     
