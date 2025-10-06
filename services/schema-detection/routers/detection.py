@@ -159,7 +159,7 @@ async def analyze_cross_dataset_relationships(request: CrossDatasetRelationshipR
 
 
 # Additional route to match frontend expectation
-@router.post("/schema/relationships/cross-dataset", response_model=CrossDatasetRelationshipResponse)
+@router.post("/relationships/cross-dataset", response_model=CrossDatasetRelationshipResponse)
 async def analyze_cross_dataset_relationships_alt(request: CrossDatasetRelationshipRequest):
     """Analyze relationships across multiple datasets (alternative endpoint for frontend compatibility)"""
     return await analyze_cross_dataset_relationships(request)
