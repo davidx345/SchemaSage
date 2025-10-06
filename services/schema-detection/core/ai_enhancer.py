@@ -230,27 +230,26 @@ Respond with valid JSON only.
             
             return {}
     
-    async def suggest_relationships(self, tables: List[TableInfo]) -> List[Relationship]:
-        """Suggest relationships between tables using AI."""
-        if not self.openai_client and not self.gemini_api_key:
-            return []
-        
+    async def suggest_relationships(self, tables: List[TableInfo], sample_data: Dict[str, List[Dict]] = None) -> List[Relationship]:
+        """Suggest relationships between tables using hybrid AI + rule-based approach."""
         if len(tables) < 2:
             return []
         
         try:
-            # Prepare table summaries
-            table_summaries = []
-            for table in tables:
-                summary = f"Table {table.name}:\n"
-                for col in table.columns[:10]:  # Limit columns
-                    summary += f"  - {col.name}: {col.type}\n"
-                table_summaries.append(summary)
+            # Step 1: Get rule-based relationships (obvious patterns)
+            rule_based_relationships = self._detect_rule_based_relationships(tables)
             
-            combined_summary = "\n".join(table_summaries)
+            # Step 2: Get AI-suggested relationships with enriched context
+            ai_relationships = []
+            if self.openai_client or self.gemini_api_key:
+                enriched_summary = self._prepare_enriched_summary(tables, sample_data)
+                ai_relationships = await self._suggest_relationships_with_ai(enriched_summary)
             
-            # Try OpenAI first, then fallback to Gemini
-            return await self._suggest_relationships_with_ai(combined_summary)
+            # Step 3: Combine and validate results
+            all_relationships = rule_based_relationships + ai_relationships
+            validated_relationships = self._validate_relationships(all_relationships, tables)
+            
+            return validated_relationships
         
         except Exception as e:
             logger.error(f"Error suggesting relationships with AI: {e}")
@@ -277,36 +276,39 @@ Respond with valid JSON only.
         
         return []
     
-    async def _suggest_relationships_openai(self, combined_summary: str) -> List[Relationship]:
-        """Use OpenAI to suggest relationships."""
+    async def _suggest_relationships_openai(self, enriched_summary: str) -> List[Relationship]:
+        """Use OpenAI GPT-4 to suggest relationships with enriched context."""
         prompt = f"""
-Analyze these database tables and suggest relationships between them:
+You are an expert database analyst. Analyze these tables and their data to identify semantic relationships:
 
-{combined_summary}
+{enriched_summary}
 
-Identify potential foreign key relationships. For each relationship, provide:
-1. Source table and column
-2. Target table and column  
-3. Relationship type (one-to-one, one-to-many, many-to-many)
-4. Confidence level (high, medium, low)
+Focus on relationships that are NOT obvious from naming conventions but are semantically meaningful.
+Consider data patterns, value distributions, and business logic.
 
-Respond with JSON array format:
+For each relationship, provide:
+- Source/target table and column
+- Relationship type (one-to-one, one-to-many, many-to-many)
+- Confidence (high/medium/low)
+- Clear reasoning
+
+Return valid JSON array:
 [
   {{
     "source_table": "table_name",
-    "source_column": "column_name", 
-    "target_table": "table_name",
+    "source_column": "column_name",
+    "target_table": "table_name", 
     "target_column": "column_name",
     "relationship_type": "one-to-many",
     "confidence": "high",
-    "reasoning": "explanation"
+    "reasoning": "detailed explanation"
   }}
 ]
 """
         
         try:
             response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a database design expert. Always respond with valid JSON array."},
                     {"role": "user", "content": prompt}
@@ -353,29 +355,32 @@ Respond with JSON array format:
             logger.error(f"OpenAI relationship API error: {e}")
             raise
     
-    async def _suggest_relationships_gemini(self, combined_summary: str) -> List[Relationship]:
-        """Use Gemini to suggest relationships."""
+    async def _suggest_relationships_gemini(self, enriched_summary: str) -> List[Relationship]:
+        """Use Gemini to suggest relationships with enriched context."""
         prompt = f"""
-Analyze these database tables and suggest relationships between them:
+You are an expert database analyst. Analyze these tables and their data to identify semantic relationships:
 
-{combined_summary}
+{enriched_summary}
 
-Identify potential foreign key relationships. For each relationship, provide:
-1. Source table and column
-2. Target table and column  
-3. Relationship type (one-to-one, one-to-many, many-to-many)
-4. Confidence level (high, medium, low)
+Focus on relationships that are NOT obvious from naming conventions but are semantically meaningful.
+Consider data patterns, value distributions, and business logic.
 
-Respond with JSON array format:
+For each relationship, provide:
+- Source/target table and column
+- Relationship type (one-to-one, one-to-many, many-to-many)
+- Confidence (high/medium/low)
+- Clear reasoning
+
+Return valid JSON array:
 [
   {{
     "source_table": "table_name",
-    "source_column": "column_name", 
-    "target_table": "table_name",
+    "source_column": "column_name",
+    "target_table": "table_name", 
     "target_column": "column_name",
     "relationship_type": "one-to-many",
     "confidence": "high",
-    "reasoning": "explanation"
+    "reasoning": "detailed explanation"
   }}
 ]
 """
@@ -605,3 +610,104 @@ Respond with JSON format:
                     return {}
         
         return {}
+
+    def _prepare_enriched_summary(self, tables: List[TableInfo], sample_data: Dict[str, List[Dict]] = None) -> str:
+        """Prepare enriched table summary with sample data and statistics."""
+        summaries = []
+        
+        for table in tables:
+            summary = f"Table '{table.name}':\n"
+            
+            # Add column information with statistics
+            for col in table.columns[:15]:  # Limit to prevent token overflow
+                col_info = f"  - {col.name} ({col.type})"
+                
+                # Add column statistics if available
+                if hasattr(col, 'statistics') and col.statistics:
+                    stats = col.statistics
+                    col_info += f" | Unique: {stats.unique_percentage:.1f}% | Nulls: {stats.null_percentage:.1f}%"
+                
+                # Add sample values if available
+                if sample_data and table.name in sample_data:
+                    sample_values = [row.get(col.name) for row in sample_data[table.name][:3] if row.get(col.name)]
+                    if sample_values:
+                        col_info += f" | Sample: {sample_values}"
+                
+                summary += col_info + "\n"
+            
+            summaries.append(summary)
+        
+        return "\n".join(summaries)
+    
+    def _detect_rule_based_relationships(self, tables: List[TableInfo]) -> List[Relationship]:
+        """Detect obvious relationships using naming conventions and patterns."""
+        relationships = []
+        
+        for i, source_table in enumerate(tables):
+            for j, target_table in enumerate(tables):
+                if i >= j:  # Avoid duplicates and self-references
+                    continue
+                
+                # Look for foreign key patterns
+                for source_col in source_table.columns:
+                    for target_col in target_table.columns:
+                        # Pattern 1: column_name matches table_name + "_id"
+                        if (source_col.name.lower() == f"{target_table.name.lower()}_id" or
+                            source_col.name.lower() == f"{target_table.name.lower()}id"):
+                            relationships.append(Relationship(
+                                source_table=source_table.name,
+                                source_column=source_col.name,
+                                target_table=target_table.name,
+                                target_column=target_col.name,
+                                type=RelationshipType.MANY_TO_ONE.value,
+                                confidence_score=0.9
+                            ))
+                        
+                        # Pattern 2: both columns named "id" and same data type
+                        elif (source_col.name.lower() == "id" and target_col.name.lower() == "id" and
+                              source_col.type == target_col.type):
+                            relationships.append(Relationship(
+                                source_table=source_table.name,
+                                source_column=source_col.name,
+                                target_table=target_table.name,
+                                target_column=target_col.name,
+                                type=RelationshipType.ONE_TO_MANY.value,
+                                confidence_score=0.7
+                            ))
+        
+        return relationships
+    
+    def _validate_relationships(self, relationships: List[Relationship], tables: List[TableInfo]) -> List[Relationship]:
+        """Validate and deduplicate relationships."""
+        if not relationships:
+            return []
+        
+        # Create lookup for valid table/column combinations
+        valid_combinations = set()
+        for table in tables:
+            for col in table.columns:
+                valid_combinations.add((table.name, col.name))
+        
+        validated = []
+        seen_pairs = set()
+        
+        for rel in relationships:
+            # Check if tables and columns exist
+            if ((rel.source_table, rel.source_column) not in valid_combinations or
+                (rel.target_table, rel.target_column) not in valid_combinations):
+                continue
+            
+            # Avoid self-references
+            if rel.source_table == rel.target_table:
+                continue
+            
+            # Deduplicate (consider both directions as same relationship)
+            pair_key = tuple(sorted([(rel.source_table, rel.source_column), 
+                                   (rel.target_table, rel.target_column)]))
+            if pair_key in seen_pairs:
+                continue
+            
+            seen_pairs.add(pair_key)
+            validated.append(rel)
+        
+        return validated[:20]  # Limit to prevent overwhelming results

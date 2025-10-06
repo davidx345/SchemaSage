@@ -99,20 +99,21 @@ class SchemaDetector:
     async def suggest_relationships(
         self, 
         tables: List[TableInfo], 
-        enable_ai: bool = True
+        enable_ai: bool = True,
+        sample_data: Dict[str, List[Dict]] = None
     ) -> RelationshipSuggestionResponse:
-        """Suggest relationships between multiple tables."""
+        """Suggest relationships between multiple tables with enhanced AI context."""
         relationships = []
         
         try:
-            # Rule-based relationship detection
-            rule_based_relationships = self._detect_relationships_by_rules(tables)
-            relationships.extend(rule_based_relationships)
-            
-            # AI-powered relationship suggestions
+            # AI-powered relationship suggestions with enhanced context
             if enable_ai:
-                ai_relationships = await self.ai_enhancer.suggest_relationships(tables)
+                ai_relationships = await self.ai_enhancer.suggest_relationships(tables, sample_data)
                 relationships.extend(ai_relationships)
+            else:
+                # Fallback to rule-based only if AI is disabled
+                rule_based_relationships = self._detect_relationships_by_rules(tables)
+                relationships.extend(rule_based_relationships)
             
             # Remove duplicates and sort by confidence
             unique_relationships = self._deduplicate_relationships(relationships)
@@ -141,17 +142,26 @@ class SchemaDetector:
         self, 
         datasets: Dict[str, List[Dict[str, Any]]]
     ) -> CrossDatasetRelationshipResponse:
-        """Analyze relationships across multiple datasets."""
+        """Analyze relationships across multiple datasets with enhanced AI context."""
         try:
-            # Analyze each dataset
+            # Analyze each dataset and prepare sample data
             table_infos = []
+            sample_data = {}
+            
             for dataset_name, dataset_data in datasets.items():
                 normalized_data = self.data_parser.normalize_data(dataset_data)
                 table_info = self.schema_analyzer.analyze_table(normalized_data, dataset_name)
                 table_infos.append(table_info)
+                
+                # Keep sample data for AI context (limit to prevent token overflow)
+                sample_data[dataset_name] = dataset_data[:5] if len(dataset_data) > 5 else dataset_data
             
-            # Suggest relationships
-            relationship_response = await self.suggest_relationships(table_infos, enable_ai=True)
+            # Suggest relationships with enhanced context
+            relationship_response = await self.suggest_relationships(
+                table_infos, 
+                enable_ai=True, 
+                sample_data=sample_data
+            )
             
             return CrossDatasetRelationshipResponse(
                 datasets=list(datasets.keys()),
