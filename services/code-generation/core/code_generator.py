@@ -171,6 +171,23 @@ class CodeGenerator:
             "get_column_typescript_type": self._get_column_typescript_type
         })
         
+        # Organize relationships by table for easier template access
+        relationships_by_table = {}
+        for table in context["tables"]:
+            relationships_by_table[table.name] = {
+                'outgoing': [],
+                'incoming': []
+            }
+        
+        # Populate relationships by table
+        for rel in (schema.relationships or []):
+            if rel.source_table in relationships_by_table:
+                relationships_by_table[rel.source_table]['outgoing'].append(rel)
+            if rel.target_table in relationships_by_table:
+                relationships_by_table[rel.target_table]['incoming'].append(rel)
+        
+        context["relationships"] = relationships_by_table
+        
         return context
     
     async def _render_template(self, template, context: Dict[str, Any]) -> str:
