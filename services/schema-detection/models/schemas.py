@@ -202,7 +202,13 @@ class SchemaDiffResponse(BaseModel):
 class DocumentationRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     
-    request_schema: SchemaResponse = Field(..., alias="schema")
+    table_names: List[str] = Field(..., description="List of table names to document")
+    format: str = Field(default="markdown", description="Output format (markdown, html, pdf)")
+    include_examples: bool = Field(default=True, description="Include example data")
+    timestamp: Optional[str] = Field(default=None, description="Generation timestamp")
+    
+    # Optional detailed request fields for backward compatibility
+    request_schema: Optional[SchemaResponse] = Field(None, alias="schema")
     table: Optional[str] = None
     column: Optional[str] = None
     relationship: Optional[dict] = None
@@ -212,10 +218,16 @@ class DocumentationRequest(BaseModel):
 
 
 class DocumentationResponse(BaseModel):
-    object_type: str  # table, column, relationship, glossary
-    object_id: str
-    documentation: str
-    generated: bool = True
+    content: str = Field(..., description="Generated documentation content")
+    format: str = Field(..., description="Format of the documentation")
+    generated_at: Optional[str] = Field(None, description="Generation timestamp")
+    tables_included: List[str] = Field(default_factory=list, description="Tables included in documentation")
+    
+    # Optional detailed response fields for backward compatibility
+    object_type: Optional[str] = Field(None, description="table, column, relationship, glossary")
+    object_id: Optional[str] = Field(None, description="ID of the documented object")
+    documentation: Optional[str] = Field(None, description="Documentation content (alias for content)")
+    generated: bool = Field(default=True, description="Whether documentation was generated")
     last_updated: Optional[str] = None
     warnings: Optional[List[str]] = None
 
