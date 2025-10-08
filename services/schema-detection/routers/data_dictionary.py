@@ -22,7 +22,8 @@ async def get_data_dictionary(
     table_name: Optional[str] = None,
     project_id: Optional[str] = None,
     include_columns: bool = True,
-    include_relationships: bool = True
+    include_relationships: bool = True,
+    object_id: Optional[str] = Query(None, description="Object ID for documentation")
 ):
     """Get data dictionary for tables or entire project"""
     try:

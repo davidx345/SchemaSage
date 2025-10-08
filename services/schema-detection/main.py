@@ -113,6 +113,10 @@ app.include_router(data_dictionary.router)
 app.include_router(frontend_api.router)
 app.include_router(security_audit_router)
 
+# Add the documentation router to match frontend calls
+from routers.documentation import router as documentation_router
+app.include_router(documentation_router)
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)
@@ -198,6 +202,8 @@ async def root():
             "create_snapshot": "POST /history/snapshot",
             "schema_diff": "GET /history/diff/{table_name}",
             "generate_docs": "POST /documentation/generate",
+            "get_docs": "GET /documentation/get",
+            "data_dictionary": "GET /data-dictionary/get",
             "data_cleaning": "POST /cleaning/analyze",
             "health": "GET /health"
         },
