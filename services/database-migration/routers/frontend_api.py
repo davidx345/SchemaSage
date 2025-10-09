@@ -157,7 +157,7 @@ async def shutdown_event():
 @router.get("/connections")
 async def get_database_connections(
     request: Request,
-    current_user: UserContext = Depends(require_authentication)
+    current_user: Optional[UserContext] = Depends(get_current_user)
 ):
     """
     Get list of database connections for the authenticated user
@@ -167,15 +167,32 @@ async def get_database_connections(
     - Encrypted data retrieval
     - Health status monitoring
     - Audit logging
+    - Anonymous users get empty list
     """
     try:
-        logger.info(f"🔍 Getting connections for user: {current_user.user_id} (role: {current_user.role})")
-        
+        # Allow anonymous users to get empty list instead of error
         if not current_user or current_user.user_id == "anonymous":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required"
-            )
+            logger.info("🔍 Anonymous user requesting connections - returning empty list")
+            return {
+                "success": True,
+                "data": {
+                    "connections": [],
+                    "total": 0,
+                    "stats": {
+                        "total_connections": 0,
+                        "active_connections": 0,
+                        "total_schemas_imported": 0,
+                        "migrations_completed": 0
+                    }
+                },
+                "metadata": {
+                    "user_id": "anonymous",
+                    "subscription_plan": "free",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            }
+        
+        logger.info(f"🔍 Getting connections for user: {current_user.user_id} (role: {current_user.role})")
         
         # Get user connections from enterprise store
         connections = await enterprise_store.get_user_connections(current_user)
@@ -202,7 +219,7 @@ async def get_database_connections(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get connections for user {current_user.user_id}: {e}")
+        logger.error(f"❌ Failed to get connections for user {current_user.user_id if current_user else 'anonymous'}: {e}")
         return {
             "success": False,
             "message": f"Failed to retrieve connections: {str(e)}",

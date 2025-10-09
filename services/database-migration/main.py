@@ -11,9 +11,10 @@ service_root = os.path.dirname(os.path.abspath(__file__))
 if service_root not in sys.path:
     sys.path.insert(0, service_root)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from datetime import datetime
 
 # Import enterprise routers
 from routers import basic, etl, data_quality, monitoring, database_connectivity, universal_migration
@@ -88,18 +89,37 @@ async def shutdown_event():
     except Exception as e:
         logger.error(f"❌ Shutdown error: {e}")
 
-# Configure CORS with expanded origins for enterprise deployment
+# Configure CORS with explicit origins for enterprise deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
+        "http://localhost:3000",
+        "http://localhost:3001", 
         "https://schemasage.vercel.app",
-        "https://*.schemasage.com",  # Production domains
-        "https://*.herokuapp.com"    # Staging domains
+        "https://schemasage-git-main-davidx345.vercel.app",
+        "https://schemasage-davidx345.vercel.app",
+        "https://schemasage.com",
+        "https://www.schemasage.com",
+        "https://app.schemasage.com",
+        "https://schemasage-database-migration.herokuapp.com",
+        "https://schemasage-database-migration-dfc50cf95a69.herokuapp.com"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization", 
+        "Accept",
+        "Origin",
+        "User-Agent",
+        "X-Requested-With",
+        "X-Auth-Token",
+        "X-User-ID",
+        "X-Username",
+        "X-User-Email",
+        "X-User-Role",
+        "X-User-Admin"
+    ],
 )
 
 # Redis removed for now - can be added back later for real-time collaboration features
@@ -116,6 +136,64 @@ app.include_router(migration_management_router)
 app.include_router(simple_cloud_migration_router)
 app.include_router(performance_cost_calculator_router)
 app.include_router(smart_rollback_router)
+
+# Add a router for the direct path that frontend is calling
+from fastapi import APIRouter
+database_router = APIRouter(prefix="/database", tags=["Database Direct"])
+
+@database_router.get("/connections")
+async def get_connections_direct(request: Request):
+    """Direct route for /database/connections to match frontend expectations"""
+    from routers.frontend_api import get_database_connections
+    from core.auth import get_current_user
+    
+    # Get user context (allow anonymous for now to fix immediate issue)
+    user = await get_current_user(request)
+    if not user or user.user_id == "anonymous":
+        # Return empty list for unauthenticated users instead of error
+        return {
+            "success": True,
+            "data": {
+                "connections": [],
+                "total": 0,
+                "stats": {
+                    "total_connections": 0,
+                    "active_connections": 0,
+                    "total_schemas_imported": 0,
+                    "migrations_completed": 0
+                }
+            },
+            "metadata": {
+                "user_id": "anonymous",
+                "subscription_plan": "free",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        }
+    
+    return await get_database_connections(request, user)
+
+app.include_router(database_router)
+
+# Add root health check
+@app.get("/")
+async def root():
+    """Root endpoint health check"""
+    return {
+        "service": "Database Migration Service - Enterprise Edition",
+        "status": "healthy",
+        "version": "2.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {
+        "service": "Database Migration Service - Enterprise Edition", 
+        "status": "healthy",
+        "version": "2.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 # Temporarily disable complex cloud migration routers until imports are fixed
 # app.include_router(cloud_migration_router)
