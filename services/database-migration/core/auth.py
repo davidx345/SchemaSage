@@ -321,6 +321,48 @@ class JWTAuthService:
         
         return user
     
+    async def get_current_user_from_request(self, request: Request) -> Optional[UserContext]:
+        """Get current user directly from request without HTTPBearer dependency"""
+        try:
+            # Extract authorization header manually
+            auth_header = request.headers.get("authorization")
+            if not auth_header:
+                return None
+            
+            # Check if it's a Bearer token
+            if not auth_header.startswith("Bearer "):
+                return None
+            
+            # Extract token
+            token = auth_header[7:]  # Remove "Bearer " prefix
+            
+            # Verify token
+            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            username = payload.get("sub")
+            
+            if username is None:
+                return None
+            
+            # Create user context
+            user = UserContext(
+                user_id=username,
+                username=username,
+                email=payload.get("email", f"{username}@example.com"),
+                is_admin=payload.get("is_admin", False)
+            )
+            
+            return user
+            
+        except jwt.ExpiredSignatureError:
+            logger.warning("Token expired")
+            return None
+        except jwt.InvalidTokenError as e:
+            logger.warning(f"Invalid token: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user from request: {e}")
+            return None
+    
     def require_permission(self, permission: str):
         """
         Decorator to require specific permission

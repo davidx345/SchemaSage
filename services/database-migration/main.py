@@ -145,10 +145,20 @@ database_router = APIRouter(prefix="/database", tags=["Database Direct"])
 async def get_connections_direct(request: Request):
     """Direct route for /database/connections to match frontend expectations"""
     from routers.frontend_api import get_database_connections
-    from core.auth import get_current_user
+    from core.auth import auth_service
     
     # Get user context (allow anonymous for now to fix immediate issue)
-    user = await get_current_user(request)
+    try:
+        user = await auth_service.get_current_user_from_request(request)
+    except Exception as e:
+        # If auth fails, create anonymous user
+        from models.schemas import UserContext
+        user = UserContext(
+            user_id="anonymous",
+            username="anonymous",
+            email="anonymous@example.com",
+            is_admin=False
+        )
     if not user or user.user_id == "anonymous":
         # Return empty list for unauthenticated users instead of error
         return {
