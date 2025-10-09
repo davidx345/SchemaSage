@@ -34,10 +34,7 @@ class OpenAIChatService:
             
             # Format messages for OpenAI
             openai_messages = [
-                            # Format messages for OpenAI
-            openai_messages = [
                 {"role": "system", "content": "You are a helpful AI assistant. You can help with database schemas, SQL, software development, and any other topics. Provide clear, conversational responses in plain text. Avoid using bullet points (•), asterisks (*), or excessive formatting unless specifically requested. Be natural, friendly, and helpful."},
-            ],
             ]
             
             # Add schema context if provided
