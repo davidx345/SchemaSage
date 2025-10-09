@@ -11,7 +11,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 # Enterprise imports
-from core.auth import get_current_user, require_authentication, UserContext
+from core.auth import get_current_user_simple, require_authentication, UserContext
 from core.enterprise_store import enterprise_store
 from core.encryption import connection_encryption, key_manager
 
@@ -155,10 +155,7 @@ async def shutdown_event():
     logger.info("🛑 Enterprise services shut down")
 
 @router.get("/connections")
-async def get_database_connections(
-    request: Request,
-    current_user: Optional[UserContext] = Depends(get_current_user)
-):
+async def get_database_connections(request: Request):
     """
     Get list of database connections for the authenticated user
     
@@ -170,6 +167,14 @@ async def get_database_connections(
     - Anonymous users get empty list
     """
     try:
+        # Get current user manually to handle authentication issues
+        current_user = None
+        try:
+            current_user = await get_current_user_simple(request)
+        except Exception as auth_error:
+            logger.warning(f"Authentication error (continuing as anonymous): {auth_error}")
+            current_user = None
+        
         # Allow anonymous users to get empty list instead of error
         if not current_user or current_user.user_id == "anonymous":
             logger.info("🔍 Anonymous user requesting connections - returning empty list")
@@ -195,10 +200,23 @@ async def get_database_connections(
         logger.info(f"🔍 Getting connections for user: {current_user.user_id} (role: {current_user.role})")
         
         # Get user connections from enterprise store
-        connections = await enterprise_store.get_user_connections(current_user)
+        try:
+            connections = await enterprise_store.get_user_connections(current_user)
+        except Exception as store_error:
+            logger.error(f"Enterprise store error getting connections: {store_error}")
+            connections = []
         
         # Get user statistics
-        user_stats = await enterprise_store.get_user_stats(current_user)
+        try:
+            user_stats = await enterprise_store.get_user_stats(current_user)
+        except Exception as stats_error:
+            logger.error(f"Enterprise store error getting stats: {stats_error}")
+            user_stats = {
+                "total_connections": len(connections),
+                "active_connections": 0,
+                "total_schemas_imported": 0,
+                "migrations_completed": 0
+            }
         
         logger.info(f"👤 User {current_user.user_id} retrieved {len(connections)} connections")
         
