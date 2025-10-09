@@ -46,7 +46,7 @@ class GeminiChatService:
             model = genai.GenerativeModel(settings.GEMINI_MODEL)
             
             # Convert messages to Gemini format and include schema context
-            prompt = "You are a helpful database schema expert assistant.\n\n"
+            prompt = "You are a helpful AI assistant. Provide clear, conversational responses in plain text. Avoid using bullet points (•), asterisks (*), or excessive formatting unless specifically requested. Be natural, friendly, and helpful with any topic.\n\n"
             
             # Add schema context if provided
             if schema:
@@ -71,10 +71,10 @@ class GeminiChatService:
                 response=response.text,
                 ai_model_used=settings.GEMINI_MODEL,
                 suggestions=[
-                    "Tell me more about this schema",
-                    "How can I optimize this schema?",
-                    "What indexes should I add?",
-                    "Show me example queries"
+                    "Can you explain this in more detail?",
+                    "What are the best practices for this?",
+                    "Can you provide an example?",
+                    "How can I implement this?"
                 ]
             )
             

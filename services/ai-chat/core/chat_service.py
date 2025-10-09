@@ -34,7 +34,10 @@ class OpenAIChatService:
             
             # Format messages for OpenAI
             openai_messages = [
-                {"role": "system", "content": "You are a helpful assistant specializing in database schemas and SQL."},
+                            # Format messages for OpenAI
+            openai_messages = [
+                {"role": "system", "content": "You are a helpful AI assistant. You can help with database schemas, SQL, software development, and any other topics. Provide clear, conversational responses in plain text. Avoid using bullet points (•), asterisks (*), or excessive formatting unless specifically requested. Be natural, friendly, and helpful."},
+            ],
             ]
             
             # Add schema context if provided
@@ -80,10 +83,10 @@ class OpenAIChatService:
                         response=answer,
                         ai_model_used=settings.OPENAI_MODEL,
                         suggestions=[
-                            "Tell me more about the schema",
-                            "How can I optimize this schema?",
-                            "What indexes should I add?",
-                            "Show me example queries"
+                            "Can you explain this in more detail?",
+                            "What are the best practices for this?",
+                            "Can you provide an example?",
+                            "How can I implement this?"
                         ]
                     )
                     

@@ -24,7 +24,7 @@ class Settings:
         
         
         # Chat Configuration
-        self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "500"))
+        self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2000"))
         self.TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
         self.MAX_HISTORY = int(os.getenv("MAX_CHAT_HISTORY", "10"))
         
