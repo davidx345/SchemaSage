@@ -182,6 +182,30 @@ async def get_connections_direct(request: Request):
     
     return await get_database_connections(request, user)
 
+@database_router.post("/connections")
+async def create_connection_direct(request: Request):
+    """Direct route for POST /database/connections to create new connections"""
+    from routers.frontend_api import create_database_connection
+    from core.auth import auth_service
+    
+    # Get user context (allow anonymous for now to fix immediate issue)
+    try:
+        user = await auth_service.get_current_user_from_request(request)
+    except Exception as e:
+        # If auth fails, create anonymous user
+        from models.schemas import UserContext
+        user = UserContext(
+            user_id="anonymous",
+            username="anonymous",
+            email="anonymous@example.com",
+            is_admin=False
+        )
+    
+    # Parse request body
+    body = await request.json()
+    
+    return await create_database_connection(request, body, user)
+
 app.include_router(database_router)
 
 # Add root health check

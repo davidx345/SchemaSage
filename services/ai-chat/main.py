@@ -1,12 +1,12 @@
 """
-AI Chat Microservice
+AI Chat Microservice with Database Persistence
 Handles AI-powered chat functionality for schema assistance
 """
-from fastapi import FastAPI, HTTPException, Request, status, Body, Response
+from fastapi import FastAPI, HTTPException, Request, status, Body, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import logging
 from contextlib import asynccontextmanager
 
@@ -16,6 +16,8 @@ from models.schemas import (
 )
 from core.chat_service import OpenAIChatService, ChatError
 from core.gemini_service import GeminiChatService, GeminiServiceError
+from core.database_service import chat_db
+from core.auth import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan management."""
     # Startup
     logger.info("AI Chat Service starting up...")
+    
+    # Initialize database
+    try:
+        await chat_db.initialize()
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize database: {e}")
+    
     # Check AI provider configurations
     providers = []
     if settings.is_openai_configured():
@@ -42,6 +52,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info("AI Chat Service shutting down...")
+    await chat_db.close()
 
 app = FastAPI(
     title="AI Chat Service",
@@ -113,9 +124,16 @@ async def options_chat():
     )
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest = Body(...)):
+async def chat_endpoint(
+    request: ChatRequest = Body(...),
+    user_id: Optional[str] = Depends(get_optional_user)
+):
     """Generate AI chat response using available AI providers"""
     try:
+        # Use anonymous user if not authenticated
+        if not user_id:
+            user_id = "anonymous"
+        
         # Try OpenAI first if configured
         if settings.is_openai_configured():
             try:
@@ -123,6 +141,7 @@ async def chat_endpoint(request: ChatRequest = Body(...)):
                     schema=request.db_schema,
                     messages=request.messages,
                     question=request.question,
+                    user_id=user_id,
                     api_key=request.api_key
                 )
                 return response
@@ -137,6 +156,7 @@ async def chat_endpoint(request: ChatRequest = Body(...)):
                     schema=request.db_schema,
                     messages=request.messages,
                     question=request.question,
+                    user_id=user_id,
                     api_key=request.api_key
                 )
                 return response
@@ -252,10 +272,106 @@ async def root():
             "chat": "POST /chat",
             "chat_openai": "POST /chat/openai", 
             "chat_gemini": "POST /chat/gemini",
+            "conversations": "GET /conversations",
+            "conversation_history": "GET /conversations/{conversation_id}",
             "test_providers": "GET /providers/test",
             "health": "GET /health"
         }
     }
+
+@app.get("/conversations")
+async def get_user_conversations(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20
+):
+    """Get user's conversation list"""
+    try:
+        conversations = await openai_service.get_user_conversations(user_id, limit)
+        return {
+            "conversations": conversations,
+            "total": len(conversations)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get conversations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/conversations/{conversation_id}")
+async def get_conversation_history(
+    conversation_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """Get conversation history"""
+    try:
+        history = await openai_service.get_conversation_history(conversation_id, user_id)
+        return {
+            "conversation_id": conversation_id,
+            "messages": history
+        }
+    except Exception as e:
+        logger.error(f"Failed to get conversation history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/conversations/{conversation_id}/continue", response_model=ChatResponse)
+async def continue_conversation(
+    conversation_id: str,
+    question: str,
+    user_id: str = Depends(get_current_user),
+    provider: str = "auto"
+):
+    """Continue an existing conversation"""
+    try:
+        # Get conversation history for context
+        history = await openai_service.get_conversation_history(conversation_id, user_id)
+        
+        # Convert to ChatMessage format
+        messages = [
+            ChatMessage(role=msg["role"], content=msg["content"])
+            for msg in history[-10:]  # Last 10 messages for context
+        ]
+        
+        # Choose provider
+        if provider == "openai" and settings.is_openai_configured():
+            response = await openai_service.get_response(
+                schema=None,
+                messages=messages,
+                question=question,
+                user_id=user_id,
+                conversation_id=conversation_id
+            )
+        elif provider == "gemini" and settings.is_gemini_configured():
+            response = await gemini_service.get_response(
+                schema=None,
+                messages=messages,
+                question=question,
+                user_id=user_id,
+                conversation_id=conversation_id
+            )
+        else:
+            # Auto-select
+            if settings.is_openai_configured():
+                response = await openai_service.get_response(
+                    schema=None,
+                    messages=messages,
+                    question=question,
+                    user_id=user_id,
+                    conversation_id=conversation_id
+                )
+            elif settings.is_gemini_configured():
+                response = await gemini_service.get_response(
+                    schema=None,
+                    messages=messages,
+                    question=question,
+                    user_id=user_id,
+                    conversation_id=conversation_id
+                )
+            else:
+                raise HTTPException(status_code=503, detail="No AI providers configured")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to continue conversation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

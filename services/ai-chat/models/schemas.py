@@ -26,6 +26,7 @@ class ChatResponse(BaseModel):
     response: str = Field(..., description="Generated response")
     suggestions: List[str] = Field(default_factory=list, description="Suggested follow-up questions")
     ai_model_used: Optional[str] = Field(None, description="AI model used for generation", alias="model_used")
+    conversation_id: Optional[str] = Field(None, description="Conversation ID for tracking")
 
 class ApiHealthResponse(BaseModel):
     """Health check response"""

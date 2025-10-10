@@ -337,7 +337,7 @@ class JWTAuthService:
             token = auth_header[7:]  # Remove "Bearer " prefix
             
             # Verify token
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            payload = jwt.decode(token, self.config.JWT_SECRET_KEY, algorithms=[self.config.JWT_ALGORITHM])
             username = payload.get("sub")
             
             if username is None:
