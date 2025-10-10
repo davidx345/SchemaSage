@@ -13,7 +13,11 @@ class DatabaseUtils:
     def __init__(self, database_url: str, echo: bool = False):
         self.database_url = database_url
         self.echo = echo
-        self.engine = create_async_engine(database_url, echo=echo)
+        self.engine = create_async_engine(
+            database_url, 
+            echo=echo,
+            connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
+        )
         self.async_session = sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )

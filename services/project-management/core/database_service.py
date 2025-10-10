@@ -55,7 +55,8 @@ class ProjectManagementDatabaseService:
                 max_overflow=20,
                 pool_timeout=30,
                 pool_recycle=1800,
-                echo=os.getenv("DEBUG_SQL", "false").lower() == "true"
+                echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
+                connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
             )
             
             # Create session factory

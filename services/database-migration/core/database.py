@@ -290,7 +290,8 @@ class CloudDatabaseManager:
                 max_overflow=pool_config.max_connections - pool_config.min_connections,
                 pool_timeout=pool_config.connection_timeout,
                 pool_recycle=pool_config.idle_timeout,
-                echo=False  # Set to True for SQL debugging
+                echo=False,  # Set to True for SQL debugging
+                connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
             )
             
             return engine
