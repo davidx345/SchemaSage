@@ -2,7 +2,7 @@
 Code Generation Microservice
 Generates code from database schemas in various formats
 """
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from uuid import uuid4
 import os
 import httpx
 
@@ -24,6 +25,9 @@ from config import settings, CodeGenFormat
 from models.schemas import (
     CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse
 )
+from models.database_models import CodeGenerationJob, GeneratedCodeFile, CodeTemplate
+from core.database_service import CodeGenerationDatabaseService
+from core.auth import get_current_user, get_optional_user
 from core.code_generator import CodeGenerator, CodeGenerationError
 from routers import compliance_generation_router
 
@@ -50,6 +54,9 @@ _optional_components = {}
 # Initialize core components
 code_generator = CodeGenerator()
 
+# Database service
+db_service = CodeGenerationDatabaseService()
+
 # Initialize optional components safely
 nl_converter = NLSchemaConverter() if _nl_converter_available else None
 etl_generator = ETLCodeGenerator() if _etl_generator_available else None
@@ -67,9 +74,23 @@ async def lifespan(app: FastAPI):
     logger.info("Code Generation Service starting up...")
     logger.info(f"Templates loaded from: {settings.TEMPLATE_DIR}")
     logger.info(f"AI enhancement available: {settings.is_ai_enhanced()}")
+    
+    # Initialize database
+    try:
+        await db_service.initialize()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
     yield
+    
     # Shutdown
     logger.info("Code Generation Service shutting down...")
+    try:
+        await db_service.close()
+        logger.info("Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database: {e}")
 
 app = FastAPI(
     title="Code Generation Service",
@@ -364,17 +385,20 @@ async def root():
 async def get_generation_stats():
     """Get code generation statistics for WebSocket consumption"""
     try:
-        # In production, these would come from actual database queries
-        # Providing stats that match WebSocket expectations
+        # Get real stats from database
+        total_jobs = await db_service.get_total_generation_jobs()
+        successful_jobs = await db_service.get_successful_generation_jobs()
+        
         stats = {
-            "total_apis": 234,  # Total APIs generated
-            "apis_scaffolded": 189,  # Successfully scaffolded APIs
-            "apis_today": 18,
-            "templates_generated": 156,
-            "most_popular_framework": "FastAPI",
+            "total_apis": total_jobs,
+            "apis_scaffolded": successful_jobs,
+            "apis_today": await db_service.get_jobs_today_count(),
+            "templates_generated": await db_service.get_total_generated_files(),
+            "most_popular_framework": "FastAPI",  # Could be calculated from jobs
             "total_frameworks": 5,
-            "generation_success_rate": 94.2,
+            "generation_success_rate": (successful_jobs / total_jobs * 100) if total_jobs > 0 else 0,
             "service_status": "healthy",
+            "database_enabled": True,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -392,8 +416,202 @@ async def get_generation_stats():
             "total_frameworks": 0,
             "generation_success_rate": 0,
             "service_status": "error",
+            "database_enabled": False,
             "timestamp": datetime.now().isoformat()
         }
+
+
+# Database-backed code generation endpoints
+@app.post("/api/generation-jobs")
+async def create_generation_job(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Create a new code generation job"""
+    try:
+        job_data = {
+            "job_id": str(uuid4()),
+            "user_id": user_id,
+            "schema_input": request.get("schema_input", {}),
+            "format_type": request.get("format_type", "sqlalchemy"),
+            "options": request.get("options", {}),
+            "status": "pending"
+        }
+        
+        job = await db_service.create_generation_job(job_data)
+        return {
+            "status": "success",
+            "job_id": job.job_id,
+            "message": "Code generation job created successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error creating generation job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create generation job"
+        )
+
+
+@app.get("/api/generation-jobs")
+async def get_user_generation_jobs(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get user's code generation jobs"""
+    try:
+        jobs = await db_service.get_user_generation_jobs(user_id, limit, offset)
+        return {
+            "status": "success",
+            "jobs": [
+                {
+                    "job_id": job.job_id,
+                    "format_type": job.format_type,
+                    "status": job.status,
+                    "created_at": job.created_at.isoformat(),
+                    "completed_at": job.completed_at.isoformat() if job.completed_at else None
+                }
+                for job in jobs
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching generation jobs: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch generation jobs"
+        )
+
+
+@app.get("/api/generation-jobs/{job_id}")
+async def get_generation_job(
+    job_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """Get specific generation job"""
+    try:
+        job = await db_service.get_generation_job(job_id, user_id)
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Generation job not found"
+            )
+        
+        return {
+            "status": "success",
+            "job": {
+                "job_id": job.job_id,
+                "schema_input": job.schema_input,
+                "format_type": job.format_type,
+                "options": job.options,
+                "status": job.status,
+                "generated_code": job.generated_code,
+                "error_message": job.error_message,
+                "created_at": job.created_at.isoformat(),
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching generation job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch generation job"
+        )
+
+
+@app.post("/api/code-files")
+async def save_generated_code_file(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Save a generated code file"""
+    try:
+        file_data = {
+            "file_id": str(uuid4()),
+            "job_id": request.get("job_id"),
+            "user_id": user_id,
+            "filename": request.get("filename"),
+            "file_type": request.get("file_type"),
+            "content": request.get("content"),
+            "metadata": request.get("metadata", {})
+        }
+        
+        code_file = await db_service.save_generated_file(file_data)
+        return {
+            "status": "success",
+            "file_id": code_file.file_id,
+            "message": "Code file saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error saving code file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save code file"
+        )
+
+
+@app.get("/api/code-files")
+async def get_user_code_files(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get user's generated code files"""
+    try:
+        files = await db_service.get_user_generated_files(user_id, limit, offset)
+        return {
+            "status": "success",
+            "files": [
+                {
+                    "file_id": file.file_id,
+                    "job_id": file.job_id,
+                    "filename": file.filename,
+                    "file_type": file.file_type,
+                    "created_at": file.created_at.isoformat(),
+                    "file_size": len(file.content) if file.content else 0
+                }
+                for file in files
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching code files: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch code files"
+        )
+
+
+@app.post("/api/templates")
+async def create_code_template(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Create a custom code template"""
+    try:
+        template_data = {
+            "template_id": str(uuid4()),
+            "user_id": user_id,
+            "name": request.get("name"),
+            "description": request.get("description", ""),
+            "format_type": request.get("format_type"),
+            "template_content": request.get("template_content"),
+            "variables": request.get("variables", {}),
+            "is_public": request.get("is_public", False)
+        }
+        
+        template = await db_service.create_code_template(template_data)
+        return {
+            "status": "success",
+            "template_id": template.template_id,
+            "message": "Code template created successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error creating code template: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create code template"
+        )
 
 if __name__ == "__main__":
     import uvicorn

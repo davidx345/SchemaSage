@@ -2,8 +2,9 @@
 Authentication utilities for project-management service.
 """
 import os
+import jwt
 import httpx
-from fastapi import HTTPException, Security, Depends
+from fastapi import HTTPException, Security, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict
 
@@ -15,11 +16,58 @@ AUTHENTICATION_SERVICE_URL = os.getenv(
     'http://localhost:8001'
 )
 
-async def get_current_user(
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Extract user ID from JWT token"""
+    try:
+        # Get JWT secret from environment
+        jwt_secret = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
+        
+        # Decode JWT token
+        token = credentials.credentials
+        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+        
+        # Extract user ID
+        user_id = payload.get("user_id") or payload.get("sub") or payload.get("id")
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: user ID not found"
+            )
+        
+        return str(user_id)
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Authentication failed: {str(e)}"
+        )
+
+def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[str]:
+    """Extract user ID from JWT token, but don't fail if no token provided"""
+    if not credentials:
+        return None
+    
+    try:
+        return get_current_user(credentials)
+    except HTTPException:
+        return None
+
+async def get_current_user_legacy(
     credentials: HTTPAuthorizationCredentials = Security(security)
 ) -> dict:
     """
-    Validate token with authentication service and return user data.
+    Legacy method: Validate token with authentication service and return user data.
     """
     if not credentials:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -55,7 +103,7 @@ async def get_current_user(
         )
 
 async def get_current_admin_user(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_legacy)
 ) -> dict:
     """
     Ensure current user has admin privileges.

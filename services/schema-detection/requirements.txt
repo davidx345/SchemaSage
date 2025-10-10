@@ -10,6 +10,7 @@ json5==0.9.14
 httpx==0.26.0
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
+asyncpg==0.29.0
 pdfkit==1.0.0
 openai==1.6.1
 PyJWT==2.8.0

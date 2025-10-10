@@ -1,25 +1,21 @@
 """
 Project Management Microservice
-Handles project # Include all routers
-app.include_router(projects_router)
-app.include_router(stats_router)
-app.include_router(integrations_router)
-app.include_router(glossary_router)
-app.include_router(team_router)
-app.include_router(websocket_router)
-app.include_router(upload_router)
-app.include_router(compliance_router), management, and tracking
+Handles project management, and tracking
 """
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+from uuid import uuid4
 
 from config import settings
 from models.schemas import ApiHealthResponse
+from models.database_models import Project, ProjectFile, ProjectSchema, ProjectActivity
+from core.database_service import ProjectManagementDatabaseService
+from core.auth import get_current_user, get_optional_user
 from core.project_manager import ProjectError
 from routers import (
     projects_router, stats_router, integrations_router, 
@@ -28,6 +24,9 @@ from routers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Database service
+db_service = ProjectManagementDatabaseService()
 
 
 @asynccontextmanager
@@ -40,9 +39,23 @@ async def lifespan(app: FastAPI):
     else:
         logger.info(f"Using local storage: {settings.UPLOAD_DIR}")
     logger.info(f"Max file size: {settings.MAX_FILE_SIZE} bytes")
+    
+    # Initialize database
+    try:
+        await db_service.initialize()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
     yield
+    
     # Shutdown
     logger.info("Project Management Service shutting down...")
+    try:
+        await db_service.close()
+        logger.info("Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database: {e}")
 
 
 app = FastAPI(
@@ -139,18 +152,21 @@ async def health_check():
 async def get_service_stats():
     """Get project management service statistics for WebSocket consumption"""
     try:
-        # In production, these would come from actual database queries
-        # Providing stats that match WebSocket expectations
+        # Get real stats from database
+        total_projects = await db_service.get_project_count()
+        active_projects = await db_service.get_active_project_count()
+        
         stats = {
-            "total_projects": 89,  # Total projects created
-            "active_projects": 34,  # Currently active projects
-            "projects_today": 5,
-            "total_collaborations": 67,
+            "total_projects": total_projects,
+            "active_projects": active_projects,
+            "projects_today": 5,  # Would need a specific query for this
+            "total_collaborations": 67,  # Would need collaboration count
             "active_collaborations": 23,
             "marketplace_transactions": 45,
             "compliance_checks": 156,
             "team_members": 23,
             "service_status": "healthy",
+            "database_enabled": True,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -169,8 +185,207 @@ async def get_service_stats():
             "compliance_checks": 0,
             "team_members": 0,
             "service_status": "error",
+            "database_enabled": False,
             "timestamp": datetime.now().isoformat()
         }
+
+
+# Database-backed project endpoints
+@app.post("/api/projects")
+async def create_project_db(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Create a new project in database"""
+    try:
+        project_data = {
+            "project_id": str(uuid4()),
+            "user_id": user_id,
+            "name": request.get("name"),
+            "description": request.get("description", ""),
+            "project_type": request.get("project_type", "schema_design"),
+            "status": "active",
+            "metadata": request.get("metadata", {}),
+            "tags": request.get("tags", [])
+        }
+        
+        project = await db_service.create_project(project_data)
+        return {
+            "status": "success",
+            "project_id": project.project_id,
+            "message": "Project created successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error creating project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create project"
+        )
+
+
+@app.get("/api/projects")
+async def get_user_projects_db(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0,
+    status_filter: str = None
+):
+    """Get user's projects from database"""
+    try:
+        projects = await db_service.get_user_projects(user_id, limit, offset, status_filter)
+        return {
+            "status": "success",
+            "projects": [
+                {
+                    "project_id": project.project_id,
+                    "name": project.name,
+                    "description": project.description,
+                    "project_type": project.project_type,
+                    "status": project.status,
+                    "created_at": project.created_at.isoformat(),
+                    "updated_at": project.updated_at.isoformat(),
+                    "tags": project.tags
+                }
+                for project in projects
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching projects: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch projects"
+        )
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project_db(
+    project_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """Get specific project from database"""
+    try:
+        project = await db_service.get_project(project_id, user_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        return {
+            "status": "success",
+            "project": {
+                "project_id": project.project_id,
+                "name": project.name,
+                "description": project.description,
+                "project_type": project.project_type,
+                "status": project.status,
+                "metadata": project.metadata,
+                "created_at": project.created_at.isoformat(),
+                "updated_at": project.updated_at.isoformat(),
+                "tags": project.tags
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch project"
+        )
+
+
+@app.put("/api/projects/{project_id}")
+async def update_project_db(
+    project_id: str,
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Update project in database"""
+    try:
+        updated_project = await db_service.update_project(project_id, user_id, request)
+        if not updated_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        return {
+            "status": "success",
+            "message": "Project updated successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update project"
+        )
+
+
+@app.post("/api/projects/{project_id}/files")
+async def add_project_file_db(
+    project_id: str,
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Add file to project in database"""
+    try:
+        file_data = {
+            "file_id": str(uuid4()),
+            "project_id": project_id,
+            "user_id": user_id,
+            "filename": request.get("filename"),
+            "file_type": request.get("file_type"),
+            "file_size": request.get("file_size", 0),
+            "file_path": request.get("file_path"),
+            "metadata": request.get("metadata", {})
+        }
+        
+        file_record = await db_service.add_project_file(file_data)
+        return {
+            "status": "success",
+            "file_id": file_record.file_id,
+            "message": "File added to project successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error adding project file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add file to project"
+        )
+
+
+@app.post("/api/projects/{project_id}/activity")
+async def log_project_activity_db(
+    project_id: str,
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Log project activity in database"""
+    try:
+        activity_data = {
+            "activity_id": str(uuid4()),
+            "project_id": project_id,
+            "user_id": user_id,
+            "activity_type": request.get("activity_type"),
+            "description": request.get("description"),
+            "metadata": request.get("metadata", {})
+        }
+        
+        activity = await db_service.log_project_activity(activity_data)
+        return {
+            "status": "success",
+            "activity_id": activity.activity_id,
+            "message": "Activity logged successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error logging project activity: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to log project activity"
+        )
 
 @app.get("/")
 async def root():

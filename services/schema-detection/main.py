@@ -3,7 +3,7 @@ Schema Detection Microservice - Clean Version
 
 Independent service for schema detection and analysis.
 """
-from fastapi import FastAPI, Request, status, Depends, Security
+from fastapi import FastAPI, Request, status, Depends, Security, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
@@ -13,8 +13,12 @@ from contextlib import asynccontextmanager
 import os
 import jwt
 from datetime import datetime
+from uuid import uuid4
 
 from models.schemas import DetectionResponse
+from models.database_models import SchemaDetectionJob, DetectedSchema, SchemaAnalysis
+from core.database_service import SchemaDetectionDatabaseService
+from core.auth import get_current_user, get_optional_user
 from routers import detection_router, lineage_router, history_router, compliance_detection_router, enhanced_lineage
 from routers import search, query, data_cleaning, data_dictionary, frontend_api
 from routers.security_audit import router as security_audit_router
@@ -35,6 +39,9 @@ security = HTTPBearer(auto_error=False)
 
 # Rate limiting store
 request_counts = {}
+
+# Database service
+db_service = SchemaDetectionDatabaseService()
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
@@ -79,9 +86,23 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Schema Detection Service starting up...")
     logger.info(f"Version: {settings.VERSION}")
+    
+    # Initialize database
+    try:
+        await db_service.initialize()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
     yield
+    
     # Shutdown
     logger.info("Schema Detection Service shutting down...")
+    try:
+        await db_service.close()
+        logger.info("Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database: {e}")
 
 
 app = FastAPI(
@@ -222,9 +243,208 @@ async def get_service_stats():
             "ai_enhancement": bool(getattr(settings, 'GEMINI_API_KEY', None)),
             "rate_limiting": True,
             "authentication": "optional",
-            "cors": True
+            "cors": True,
+            "database_persistence": True
         }
     }
+
+
+# Database-backed endpoints
+@app.post("/api/detection-jobs")
+async def create_detection_job(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Create a new schema detection job"""
+    try:
+        job_data = {
+            "job_id": str(uuid4()),
+            "user_id": user_id,
+            "job_type": request.get("job_type", "schema_detection"),
+            "data_source": request.get("data_source"),
+            "parameters": request.get("parameters", {}),
+            "status": "pending"
+        }
+        
+        job = await db_service.create_detection_job(job_data)
+        return {
+            "status": "success",
+            "job_id": job.job_id,
+            "message": "Detection job created successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error creating detection job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create detection job"
+        )
+
+
+@app.get("/api/detection-jobs")
+async def get_user_detection_jobs(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get user's detection jobs"""
+    try:
+        jobs = await db_service.get_user_detection_jobs(user_id, limit, offset)
+        return {
+            "status": "success",
+            "jobs": [
+                {
+                    "job_id": job.job_id,
+                    "job_type": job.job_type,
+                    "data_source": job.data_source,
+                    "status": job.status,
+                    "created_at": job.created_at.isoformat(),
+                    "completed_at": job.completed_at.isoformat() if job.completed_at else None
+                }
+                for job in jobs
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching detection jobs: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch detection jobs"
+        )
+
+
+@app.get("/api/detection-jobs/{job_id}")
+async def get_detection_job(
+    job_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """Get specific detection job"""
+    try:
+        job = await db_service.get_detection_job(job_id, user_id)
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Detection job not found"
+            )
+        
+        return {
+            "status": "success",
+            "job": {
+                "job_id": job.job_id,
+                "job_type": job.job_type,
+                "data_source": job.data_source,
+                "parameters": job.parameters,
+                "status": job.status,
+                "result": job.result,
+                "error_message": job.error_message,
+                "created_at": job.created_at.isoformat(),
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching detection job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch detection job"
+        )
+
+
+@app.post("/api/schemas")
+async def save_detected_schema(
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Save a detected schema"""
+    try:
+        schema_data = {
+            "schema_id": str(uuid4()),
+            "user_id": user_id,
+            "schema_name": request.get("schema_name"),
+            "table_name": request.get("table_name"),
+            "schema_definition": request.get("schema_definition", {}),
+            "data_source": request.get("data_source"),
+            "detection_method": request.get("detection_method", "manual"),
+            "confidence_score": request.get("confidence_score", 0.0),
+            "tags": request.get("tags", [])
+        }
+        
+        schema = await db_service.create_detected_schema(schema_data)
+        return {
+            "status": "success",
+            "schema_id": schema.schema_id,
+            "message": "Schema saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error saving schema: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save schema"
+        )
+
+
+@app.get("/api/schemas")
+async def get_user_schemas(
+    user_id: str = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get user's detected schemas"""
+    try:
+        schemas = await db_service.get_user_schemas(user_id, limit, offset)
+        return {
+            "status": "success",
+            "schemas": [
+                {
+                    "schema_id": schema.schema_id,
+                    "schema_name": schema.schema_name,
+                    "table_name": schema.table_name,
+                    "data_source": schema.data_source,
+                    "detection_method": schema.detection_method,
+                    "confidence_score": schema.confidence_score,
+                    "created_at": schema.created_at.isoformat(),
+                    "tags": schema.tags
+                }
+                for schema in schemas
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching schemas: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch schemas"
+        )
+
+
+@app.post("/api/schemas/{schema_id}/analysis")
+async def create_schema_analysis(
+    schema_id: str,
+    request: dict,
+    user_id: str = Depends(get_current_user)
+):
+    """Create schema analysis"""
+    try:
+        analysis_data = {
+            "analysis_id": str(uuid4()),
+            "schema_id": schema_id,
+            "user_id": user_id,
+            "analysis_type": request.get("analysis_type", "quality"),
+            "analysis_result": request.get("analysis_result", {}),
+            "quality_score": request.get("quality_score", 0.0),
+            "recommendations": request.get("recommendations", [])
+        }
+        
+        analysis = await db_service.create_schema_analysis(analysis_data)
+        return {
+            "status": "success",
+            "analysis_id": analysis.analysis_id,
+            "message": "Schema analysis created successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error creating schema analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create schema analysis"
+        )
 
 
 if __name__ == "__main__":
