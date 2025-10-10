@@ -180,7 +180,7 @@ async def get_connections_direct(request: Request):
             }
         }
     
-    return await get_database_connections(request, user)
+    return await get_database_connections(request)
 
 @database_router.post("/connections")
 async def create_connection_direct(request: Request):
