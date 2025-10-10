@@ -291,7 +291,10 @@ class CloudDatabaseManager:
                 pool_timeout=pool_config.connection_timeout,
                 pool_recycle=pool_config.idle_timeout,
                 echo=False,  # Set to True for SQL debugging
-                connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
+                connect_args={
+                    "statement_cache_size": 0,
+                    "prepared_statement_cache_size": 0
+                }
             )
             
             return engine

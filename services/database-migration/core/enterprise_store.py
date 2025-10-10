@@ -89,7 +89,10 @@ class EnterpriseConnectionStore:
                 pool_recycle=self.config.POOL_RECYCLE,
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 # Disable prepared statement cache for pgbouncer compatibility
-                connect_args={"statement_cache_size": 0}
+                connect_args={
+                    "statement_cache_size": 0,
+                    "prepared_statement_cache_size": 0
+                }
             )
             
             # Create session factory
