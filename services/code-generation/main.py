@@ -185,10 +185,11 @@ async def health_check():
 async def generate_code(request: CodeGenerationRequest):
     """Generate code from schema in specified format"""
     try:
-        logger.info(f"Generating {request.format} code for schema with {len(request.db_schema.tables)} tables")
+        logger.info(f"Received generation request: format={request.format}, schema_tables={len(request.schema.tables)}")
+        logger.debug(f"Full request: {request.dict()}")
         
         generated_code = await code_generator.generate_code(
-            schema=request.db_schema,
+            schema=request.schema,
             format=request.format,
             options=request.options
         )
@@ -197,7 +198,7 @@ async def generate_code(request: CodeGenerationRequest):
         webhook_data = {
             "user": getattr(request, 'user_id', 'anonymous'),
             "framework": request.format.value if hasattr(request.format, 'value') else str(request.format),
-            "tables_count": len(request.db_schema.tables),
+            "tables_count": len(request.schema.tables),
             "timestamp": datetime.now().isoformat()
         }
         await send_webhook_notification(webhook_data)
@@ -221,6 +222,31 @@ async def generate_code(request: CodeGenerationRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during code generation"
         )
+
+# Add a debug endpoint to see what the frontend is sending
+@app.post("/debug/generate")
+async def debug_generate_request(request: dict):
+    """Debug endpoint to see the raw request from frontend"""
+    logger.info(f"Debug: Raw request received: {request}")
+    logger.info(f"Debug: Request keys: {list(request.keys())}")
+    logger.info(f"Debug: Request type: {type(request)}")
+    
+    # Try to parse with our schema
+    try:
+        parsed_request = CodeGenerationRequest(**request)
+        return {
+            "status": "success",
+            "message": "Request parsed successfully",
+            "parsed_format": parsed_request.format,
+            "table_count": len(parsed_request.db_schema.tables)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to parse request: {str(e)}",
+            "error_details": str(e),
+            "received_keys": list(request.keys()) if isinstance(request, dict) else "Not a dict"
+        }
 
 @app.post("/generate-from-description")
 async def generate_from_natural_language(

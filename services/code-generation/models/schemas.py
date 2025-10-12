@@ -74,7 +74,7 @@ class SchemaResponse(BaseModel):
 
 class CodeGenerationRequest(BaseModel):
     """Request for code generation"""
-    db_schema: SchemaResponse = Field(..., description="Database schema to generate code from", alias="schema")
+    schema: SchemaResponse = Field(..., description="Database schema to generate code from")
     format: CodeGenFormat = Field(..., description="Output format for generated code")
     options: Optional[Dict[str, Any]] = Field(None, description="Generation options")
     

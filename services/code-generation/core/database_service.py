@@ -440,6 +440,57 @@ class CodeGenerationDatabaseService:
         except Exception as e:
             logger.error(f"Failed to update usage statistics: {e}")
     
+    async def get_total_generation_jobs(self) -> int:
+        """Get total number of generation jobs"""
+        try:
+            async with self.get_session() as session:
+                result = await session.execute(
+                    select(func.count(CodeGenerationJob.id))
+                )
+                return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Failed to get total generation jobs: {e}")
+            return 0
+    
+    async def get_successful_generation_jobs(self) -> int:
+        """Get number of successful generation jobs"""
+        try:
+            async with self.get_session() as session:
+                result = await session.execute(
+                    select(func.count(CodeGenerationJob.id))
+                    .where(CodeGenerationJob.status == "completed")
+                )
+                return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Failed to get successful generation jobs: {e}")
+            return 0
+    
+    async def get_jobs_today_count(self) -> int:
+        """Get number of jobs created today"""
+        try:
+            async with self.get_session() as session:
+                today = datetime.now().date()
+                result = await session.execute(
+                    select(func.count(CodeGenerationJob.id))
+                    .where(func.date(CodeGenerationJob.created_at) == today)
+                )
+                return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Failed to get today's job count: {e}")
+            return 0
+    
+    async def get_total_generated_files(self) -> int:
+        """Get total number of generated files"""
+        try:
+            async with self.get_session() as session:
+                result = await session.execute(
+                    select(func.count(GeneratedCodeFile.id))
+                )
+                return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Failed to get total generated files: {e}")
+            return 0
+
     async def close(self):
         """Close database connection"""
         if self._engine:

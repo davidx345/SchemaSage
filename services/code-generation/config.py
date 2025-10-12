@@ -26,6 +26,10 @@ class Settings:
         self.SERVICE_VERSION = "1.0.0"
         # PORT and HOST are handled by Heroku via Procfile
         
+        # Database Configuration
+        self.DATABASE_URL = os.getenv("DATABASE_URL", "")
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
         
         # Template Configuration
         self.TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
