@@ -447,6 +447,77 @@ async def create_schema_analysis(
         )
 
 
+from fastapi import UploadFile, File
+from typing import List, Dict, Any
+import pandas as pd
+import io
+
+@app.post("/api/transform")
+async def transform_data(
+    request: Request
+):
+    """
+    Accepts: Uploaded data, transformation instructions, output format
+    Request Format:
+    {
+      "data": [ /* array of objects, parsed from CSV/JSON */ ],
+      "instructions": "Remove duplicates and normalize column names to lowercase",
+      "output_format": "pandas", // or "sql", "pyspark"
+      "steps": [ /* optional: previous transformation steps */ ]
+    }
+    """
+    try:
+        body = await request.json()
+        data = body.get("data")
+        instructions = body.get("instructions", "")
+        output_format = body.get("output_format", "pandas")
+        steps = body.get("steps", [])
+
+        # Validate data
+        if not isinstance(data, list) or not data:
+            return {"success": False, "error": {"message": "No data provided or data is not a list."}}
+
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        preview = None
+        code = ""
+        explanation = ""
+
+        # Example: Remove duplicates and normalize column names
+        if "remove duplicates" in instructions.lower():
+            df = df.drop_duplicates()
+            code += "df = df.drop_duplicates()\n"
+            explanation += "Removed duplicate rows. "
+        if "normalize column names" in instructions.lower() or "lowercase column names" in instructions.lower():
+            df.columns = [c.lower() for c in df.columns]
+            code += "df.columns = [c.lower() for c in df.columns]\n"
+            explanation += "Normalized column names to lowercase. "
+
+        # Add more transformation logic here as needed
+
+        preview = df.head(10).to_dict(orient="records")
+
+        # Output code for requested format
+        if output_format == "pandas":
+            code = f"import pandas as pd\n{code}"
+        elif output_format == "sql":
+            code = "-- SQL transformation code generation not implemented yet."
+        elif output_format == "pyspark":
+            code = "# PySpark transformation code generation not implemented yet."
+
+        return {
+            "success": True,
+            "data": {
+                "code": code,
+                "explanation": explanation,
+                "preview": preview
+            },
+            "error": None
+        }
+    except Exception as e:
+        return {"success": False, "error": {"message": str(e)}}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

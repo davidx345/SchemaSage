@@ -330,6 +330,13 @@ async def get_tool_metrics():
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
+# ===== DATA TRANSFORMATION PROXY ENDPOINT =====
+
+@app.api_route("/api/transform", methods=["POST", "OPTIONS"])
+async def transform_proxy(request: Request):
+    """Proxy data transformation requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
 # Catch-all for unmatched routes
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def catch_all(request: Request, path: str):
