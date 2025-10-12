@@ -24,7 +24,8 @@ WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-w
 
 from config import settings, CodeGenFormat
 from models.schemas import (
-    CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse
+    CodeGenerationRequest, CodeGenerationResponse, ApiHealthResponse, ErrorResponse,
+    TableInfo, ColumnInfo, Relationship, SchemaMetadata, SchemaResponse
 )
 from models.database_models import CodeGenerationJob, GeneratedCodeFile, CodeTemplate
 from core.database_service import CodeGenerationDatabaseService
@@ -222,34 +223,79 @@ async def health_check():
         ai_enhanced=settings.is_ai_enhanced()
     )
 
+
+# Utility: Detect JSON Schema
+def is_json_schema(obj: dict) -> bool:
+    return isinstance(obj, dict) and "$schema" in obj and "type" in obj and "properties" in obj
+
+# Utility: Convert JSON Schema to database schema format
+def convert_json_schema_to_db_schema(json_schema: dict) -> SchemaResponse:
+    tables = []
+    relationships = []
+    metadata = SchemaMetadata(version="1.0", description=json_schema.get("title", "Converted from JSON Schema"))
+    if json_schema.get("type") == "object" and "properties" in json_schema:
+        columns = []
+        for prop_name, prop in json_schema["properties"].items():
+            col_type = prop.get("type", "string")
+            columns.append(ColumnInfo(
+                name=prop_name,
+                type=col_type,
+                nullable=not (prop_name in json_schema.get("required", [])),
+                is_primary_key=False,
+                is_foreign_key=False,
+                unique=False
+            ))
+        tables.append(TableInfo(
+            name=json_schema.get("title", "MainTable"),
+            columns=columns,
+            primary_keys=[],
+            foreign_keys=[],
+            indexes=[],
+            description="Converted from JSON Schema"
+        ))
+    return SchemaResponse(tables=tables, relationships=relationships, metadata=metadata)
+
 @app.post("/generate", response_model=CodeGenerationResponse)
-async def generate_code(request: CodeGenerationRequest):
-    """Generate code from schema in specified format"""
+async def generate_code(request: Request):
+    """Generate code from schema in specified format, auto-convert JSON Schema if detected"""
     try:
-        logger.info(f"Received generation request: format={request.format}, schema_tables={len(request.schema.tables)}")
-        
+        body = await request.json()
+        # If JSON Schema detected, convert
+        if "schema" in body and is_json_schema(body["schema"]):
+            logger.info("Detected JSON Schema, converting to database schema format.")
+            converted_schema = convert_json_schema_to_db_schema(body["schema"])
+            codegen_request = CodeGenerationRequest(
+                schema=converted_schema,
+                format=body.get("format"),
+                options=body.get("options", {})
+            )
+        else:
+            codegen_request = CodeGenerationRequest(**body)
+
+        logger.info(f"Received generation request: format={codegen_request.format}, schema_tables={len(codegen_request.schema.tables)}")
+
         generated_code = await code_generator.generate_code(
-            schema=request.schema,
-            format=request.format,
-            options=request.options
+            schema=codegen_request.schema,
+            format=codegen_request.format,
+            options=codegen_request.options
         )
-        
+
         # Send webhook notification for successful code generation
         webhook_data = {
-            "user": getattr(request, 'user_id', 'anonymous'),
-            "framework": request.format.value if hasattr(request.format, 'value') else str(request.format),
-            "tables_count": len(request.schema.tables),
+            "user": getattr(codegen_request, 'user_id', 'anonymous'),
+            "framework": codegen_request.format.value if hasattr(codegen_request.format, 'value') else str(codegen_request.format),
+            "tables_count": len(codegen_request.schema.tables),
             "timestamp": datetime.now().isoformat()
         }
         await send_webhook_notification(webhook_data)
-        
+
         return CodeGenerationResponse(
             code=generated_code.code,
-            format=request.format,
+            format=codegen_request.format,
             generated_at=datetime.now(),
             metadata=generated_code.metadata
         )
-        
+
     except ValidationError as e:
         logger.error(f"❌ Validation error in /generate: {e}")
         logger.error(f"❌ Request validation details: {e.errors()}")
