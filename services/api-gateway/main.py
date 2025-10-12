@@ -7,6 +7,7 @@ import sys
 import httpx
 import json
 from typing import Dict, Any
+from datetime import datetime
 
 # Configuration
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasage.vercel.app").split(",")
@@ -312,6 +313,21 @@ async def root():
             "websocket_realtime": WEBSOCKET_REALTIME_SERVICE_URL,
             "database_migration": DATABASE_MIGRATION_SERVICE_URL
         }
+    }
+
+# ===== TOOL METRICS ENDPOINT =====
+
+@app.get("/api/tools/metrics")
+async def get_tool_metrics():
+    """Return tool metrics (stub/example)."""
+    # Example static response; replace with real metrics as needed
+    return {
+        "tools": [
+            {"name": "Code Generation", "status": "healthy", "version": "1.0.0"},
+            {"name": "Schema Detection", "status": "healthy", "version": "1.0.0"},
+            {"name": "API Gateway", "status": "healthy", "version": "3.0.0"}
+        ],
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
 # Catch-all for unmatched routes
