@@ -109,6 +109,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global exception handlers for better debugging
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors with detailed logging"""
+    logger.error(f"❌ VALIDATION ERROR for {request.method} {request.url}")
+    logger.error(f"❌ Request headers: {dict(request.headers)}")
+    
+    # Log the request body if possible
+    try:
+        body = await request.body()
+        logger.error(f"❌ Request body: {body.decode('utf-8')}")
+    except Exception as e:
+        logger.error(f"❌ Could not read request body: {e}")
+    
+    # Log detailed validation errors
+    logger.error(f"❌ Validation errors: {exc.errors()}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Request validation failed",
+            "errors": exc.errors(),
+            "body": body.decode('utf-8') if 'body' in locals() else None
+        }
+    )
+
+@app.exception_handler(ValidationError)
+async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
+    """Handle Pydantic validation errors"""
+    logger.error(f"❌ PYDANTIC VALIDATION ERROR for {request.method} {request.url}")
+    logger.error(f"❌ Validation errors: {exc.errors()}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Data validation failed",
+            "errors": exc.errors()
+        }
+    )
+
 # Include routers
 app.include_router(compliance_generation_router)
 from routers.additional_generation import router as additional_router
@@ -245,7 +285,7 @@ async def debug_generate_request(request: dict):
             "status": "success",
             "message": "Request parsed successfully",
             "parsed_format": parsed_request.format,
-            "table_count": len(parsed_request.db_schema.tables)
+            "table_count": len(parsed_request.schema.tables)
         }
     except Exception as e:
         return {
