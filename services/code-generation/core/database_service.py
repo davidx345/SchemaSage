@@ -48,15 +48,21 @@ class CodeGenerationDatabaseService:
             elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-            # Create async engine
+            # Create async engine with full pgbouncer compatibility
             self._engine = create_async_engine(
                 database_url,
-                pool_size=10,
-                max_overflow=20,
+                pool_size=5,
+                max_overflow=10,
                 pool_timeout=30,
-                pool_recycle=1800,
+                pool_recycle=300,
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
-                connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
+                connect_args={
+                    "statement_cache_size": 0,
+                    "prepared_statement_cache_size": 0,
+                    "server_settings": {
+                        "application_name": "schemasage_code_generation",
+                    }
+                }
             )
             
             # Create session factory
@@ -66,12 +72,11 @@ class CodeGenerationDatabaseService:
                 expire_on_commit=False
             )
             
-            # Create tables if they don't exist
-            async with self._engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+            # Skip table creation - tables should already exist in production
+            # Tables are managed by migration service
             
             self._initialized = True
-            logger.info("✅ Code Generation database service initialized")
+            logger.info("✅ Code Generation database service initialized (tables assumed to exist)")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize code generation database: {e}")

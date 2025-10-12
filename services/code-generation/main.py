@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from typing import Dict, Any, Optional, List
 import logging
 from contextlib import asynccontextmanager
@@ -186,7 +187,6 @@ async def generate_code(request: CodeGenerationRequest):
     """Generate code from schema in specified format"""
     try:
         logger.info(f"Received generation request: format={request.format}, schema_tables={len(request.schema.tables)}")
-        logger.debug(f"Full request: {request.dict()}")
         
         generated_code = await code_generator.generate_code(
             schema=request.schema,
@@ -210,6 +210,13 @@ async def generate_code(request: CodeGenerationRequest):
             metadata=generated_code.metadata
         )
         
+    except ValidationError as e:
+        logger.error(f"❌ Validation error in /generate: {e}")
+        logger.error(f"❌ Request validation details: {e.errors()}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Request validation failed: {e.errors()}"
+        )
     except CodeGenerationError as e:
         logger.error(f"Code generation failed: {e}")
         raise HTTPException(
