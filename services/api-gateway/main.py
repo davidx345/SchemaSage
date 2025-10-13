@@ -211,8 +211,8 @@ async def scaffold_proxy(request: Request):
         headers.pop("host", None)
         headers.pop("content-length", None)
         
-        # Build target URL - forward to /scaffold (not /api/scaffold)
-        full_url = f"{CODE_GENERATION_SERVICE_URL}/scaffold"
+        # Build target URL - forward to /schema/scaffold (correct path based on router prefix)
+        full_url = f"{CODE_GENERATION_SERVICE_URL}/schema/scaffold"
         if query_params:
             full_url += f"?{query_params}"
         
@@ -221,7 +221,7 @@ async def scaffold_proxy(request: Request):
         if method in ["POST", "PUT", "PATCH"]:
             body = await request.body()
         
-        logger.info(f"🔄 Proxying {method} /api/scaffold to Code Generation Service at /scaffold")
+        logger.info(f"🔄 Proxying {method} /api/scaffold to Code Generation Service at /schema/scaffold")
         
         # Make the proxied request
         response = await http_client.request(
