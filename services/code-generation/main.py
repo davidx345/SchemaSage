@@ -255,11 +255,86 @@ def convert_json_schema_to_db_schema(json_schema: dict) -> SchemaResponse:
         ))
     return SchemaResponse(tables=tables, relationships=relationships, metadata=metadata)
 
+def fix_schema_columns(schema_data: dict) -> dict:
+    """Fix schema columns by ensuring they have the 'type' field"""
+    if "tables" in schema_data:
+        for table in schema_data["tables"]:
+            if "columns" in table:
+                for column in table["columns"]:
+                    # If column doesn't have 'type' but has other field names, infer type
+                    if "type" not in column:
+                        # Try to infer type from column name or set default
+                        col_name = column.get("name", "").lower()
+                        
+                        # Primary key detection
+                        if "id" in col_name and column.get("is_primary_key", False):
+                            column["type"] = "INTEGER"
+                        # Timestamp fields
+                        elif any(keyword in col_name for keyword in ["created_at", "updated_at", "timestamp", "date"]):
+                            column["type"] = "TIMESTAMP"
+                        # Email fields
+                        elif "email" in col_name:
+                            column["type"] = "VARCHAR(255)"
+                        # String fields
+                        elif any(keyword in col_name for keyword in ["name", "title", "username", "first_name", "last_name"]):
+                            column["type"] = "VARCHAR(255)"
+                        # Text fields
+                        elif any(keyword in col_name for keyword in ["description", "content", "body", "text", "message", "comment"]):
+                            column["type"] = "TEXT"
+                        # Numeric fields
+                        elif any(keyword in col_name for keyword in ["price", "amount", "cost", "fee", "salary"]):
+                            column["type"] = "DECIMAL(10,2)"
+                        elif any(keyword in col_name for keyword in ["count", "quantity", "number", "age", "year"]):
+                            column["type"] = "INTEGER"
+                        # Boolean fields
+                        elif any(keyword in col_name for keyword in ["active", "enabled", "verified", "confirmed", "deleted"]) or col_name.startswith("is_") or col_name.startswith("has_"):
+                            column["type"] = "BOOLEAN"
+                        # URL fields
+                        elif any(keyword in col_name for keyword in ["url", "link", "website"]):
+                            column["type"] = "TEXT"
+                        # Phone fields
+                        elif "phone" in col_name:
+                            column["type"] = "VARCHAR(20)"
+                        # Address fields
+                        elif any(keyword in col_name for keyword in ["address", "street", "city", "state", "country", "zip"]):
+                            column["type"] = "VARCHAR(255)"
+                        # JSON/Object fields
+                        elif any(keyword in col_name for keyword in ["json", "data", "metadata", "config", "settings"]):
+                            column["type"] = "JSONB"
+                        # UUID fields
+                        elif "uuid" in col_name:
+                            column["type"] = "UUID"
+                        else:
+                            # Default type based on common patterns
+                            column["type"] = "VARCHAR(255)"
+                        
+                        logger.info(f"🔧 Inferred type '{column['type']}' for column '{column.get('name')}'")
+                    else:
+                        logger.info(f"✅ Column '{column.get('name')}' already has type '{column.get('type')}'")
+    return schema_data
+
 @app.post("/generate", response_model=CodeGenerationResponse)
 async def generate_code(request: Request):
     """Generate code from schema in specified format, auto-convert JSON Schema if detected"""
     try:
         body = await request.json()
+        
+        # Log the incoming request for debugging
+        logger.info(f"📨 Incoming request keys: {list(body.keys())}")
+        if "schema" in body:
+            logger.info(f"📨 Schema structure: tables={len(body['schema'].get('tables', []))}")
+            if body['schema'].get('tables'):
+                first_table = body['schema']['tables'][0]
+                logger.info(f"📨 First table columns: {[col.get('name') for col in first_table.get('columns', [])]}")
+                if first_table.get('columns'):
+                    first_col = first_table['columns'][0]
+                    logger.info(f"📨 First column structure: {list(first_col.keys())}")
+        
+        # Fix schema columns by ensuring they have the 'type' field
+        if "schema" in body:
+            body["schema"] = fix_schema_columns(body["schema"])
+            logger.info("🔧 Schema columns processed and types ensured")
+        
         # If JSON Schema detected, convert
         if "schema" in body and is_json_schema(body["schema"]):
             logger.info("Detected JSON Schema, converting to database schema format.")
@@ -299,9 +374,21 @@ async def generate_code(request: Request):
     except ValidationError as e:
         logger.error(f"❌ Validation error in /generate: {e}")
         logger.error(f"❌ Request validation details: {e.errors()}")
+        
+        # Enhanced debugging for column validation errors
+        for error in e.errors():
+            if 'tables' in error.get('loc', []) and 'columns' in error.get('loc', []):
+                logger.error(f"❌ Column validation error: {error}")
+                logger.error(f"❌ Error location: {error.get('loc')}")
+                logger.error(f"❌ Error input: {error.get('input')}")
+        
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Request validation failed: {e.errors()}"
+            detail={
+                "message": "Request validation failed",
+                "errors": e.errors(),
+                "help": "Each column must have a 'type' field. Common types: INTEGER, VARCHAR(255), TEXT, TIMESTAMP, BOOLEAN, DECIMAL"
+            }
         )
     except CodeGenerationError as e:
         logger.error(f"Code generation failed: {e}")
