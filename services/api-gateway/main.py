@@ -191,6 +191,18 @@ async def generate_proxy(request: Request, path: str):
     """Proxy generation requests."""
     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
 
+# Specific route for API scaffolding (goes to Code Generation Service)
+@app.api_route("/api/schema/scaffold", methods=["POST", "OPTIONS"])
+async def schema_scaffold_proxy(request: Request):
+     """Proxy API scaffolding requests to Code Generation Service."""
+     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+# Direct route for API scaffolding (frontend may POST to /api/scaffold)
+@app.api_route("/api/scaffold", methods=["POST", "OPTIONS"])
+async def scaffold_proxy(request: Request):
+     """Proxy API scaffolding requests to Code Generation Service (direct route)."""
+     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
 # ===== SCHEMA ROUTES =====
 
 # Specific route for schema generation (goes to Code Generation Service)
