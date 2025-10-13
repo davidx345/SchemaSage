@@ -101,14 +101,31 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - Enhanced for better compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://schemasage.vercel.app"],  # Configure as needed
+    allow_origins=["*"],  # Allow all origins for development - restrict in production
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
+
+# Add middleware to prevent response caching
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    """Add no-cache headers to prevent frontend caching of generated code"""
+    response = await call_next(request)
+    
+    # Add no-cache headers for code generation endpoints
+    if request.url.path in ["/generate", "/code-generation/generate"]:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["ETag"] = f'"{uuid4()}"'
+    
+    return response
 
 # Global exception handlers for better debugging
 @app.exception_handler(RequestValidationError)
@@ -348,12 +365,18 @@ async def generate_code(request: Request):
             codegen_request = CodeGenerationRequest(**body)
 
         logger.info(f"Received generation request: format={codegen_request.format}, schema_tables={len(codegen_request.schema.tables)}")
+        
+        # Log the format change for debugging caching issues
+        logger.info(f"🎯 Generating {codegen_request.format.value} code with {len(codegen_request.schema.tables)} tables")
+        logger.info(f"🎯 Generation options: {codegen_request.options}")
 
         generated_code = await code_generator.generate_code(
             schema=codegen_request.schema,
             format=codegen_request.format,
             options=codegen_request.options
         )
+        
+        logger.info(f"✅ Successfully generated {len(generated_code.code)} characters of {codegen_request.format.value} code")
 
         # Send webhook notification for successful code generation
         webhook_data = {
@@ -364,12 +387,19 @@ async def generate_code(request: Request):
         }
         await send_webhook_notification(webhook_data)
 
-        return CodeGenerationResponse(
+        # Create response with cache-busting headers
+        response = CodeGenerationResponse(
             code=generated_code.code,
             format=codegen_request.format,
             generated_at=datetime.now(),
             metadata=generated_code.metadata
         )
+        
+        # Add cache-busting to metadata to ensure frontend doesn't cache
+        response.metadata["cache_buster"] = str(uuid4())
+        response.metadata["generation_timestamp"] = datetime.now().isoformat()
+        
+        return response
 
     except ValidationError as e:
         logger.error(f"❌ Validation error in /generate: {e}")
@@ -394,7 +424,7 @@ async def generate_code(request: Request):
         logger.error(f"Code generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.message
+            detail=str(e)
         )
     except Exception as e:
         logger.error(f"Unexpected error during code generation: {e}")

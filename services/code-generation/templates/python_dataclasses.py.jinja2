@@ -1,13 +1,170 @@
 """
-Auto-generated Python dataclasses from schema
+Auto-generated Python dataclasses from database schema
+Generated on: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
 """
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime, date, time
+from decimal import Decimal
+from uuid import UUID
+import json
 
-{% for table in schema.tables %}
+{% for table in tables %}
+{% if table.description %}
+"""
+{{ table.description }}
+"""
+{% endif %}
 @dataclass
-class {{ table.name|capitalize }}:
-{% for col in table.columns %}    {{ col.name }}: {{ col.data_type|default('str') }}{% if not col.is_nullable %} = ...{% else %} = None{% endif %}
-{% endfor %}
+class {{ table.name|pascal_case }}:
+    """
+    {{ table.description or 'Data model for ' + table.name + ' table' }}
+    
+    {% if get_primary_key_columns(table) %}Primary Key(s): {{ get_primary_key_columns(table)|map(attribute='name')|join(', ') }}{% endif %}
+    {% if get_foreign_key_columns(table) %}Foreign Key(s): {{ get_foreign_key_columns(table)|map(attribute='name')|join(', ') }}{% endif %}
+    """
+    
+    {% for column in table.columns %}
+    {% if column.description %}
+    # {{ column.description }}
+    {% endif %}
+    {{ column.name }}: {% if column.nullable %}Optional[{{ sql_type_to_python(column.type) }}]{% else %}{{ sql_type_to_python(column.type) }}{% endif %}{% if column.nullable %} = None{% elif column.default %} = {{ column.default }}{% endif %}
+    {% endfor %}
+    
+    {% if options.add_timestamps and not table.columns|selectattr('name', 'equalto', 'created_at')|first %}
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    {% endif %}
+    
+    {% if options.add_methods %}
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert dataclass to dictionary"""
+        result = {}
+        {% for column in table.columns %}
+        if self.{{ column.name }} is not None:
+            {% if sql_type_to_python(column.type) == 'datetime.datetime' %}
+            result['{{ column.name }}'] = self.{{ column.name }}.isoformat() if self.{{ column.name }} else None
+            {% elif sql_type_to_python(column.type) == 'datetime.date' %}
+            result['{{ column.name }}'] = self.{{ column.name }}.isoformat() if self.{{ column.name }} else None
+            {% elif sql_type_to_python(column.type) == 'dict' %}
+            result['{{ column.name }}'] = json.dumps(self.{{ column.name }}) if self.{{ column.name }} else None
+            {% else %}
+            result['{{ column.name }}'] = self.{{ column.name }}
+            {% endif %}
+        {% endfor %}
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> '{{ table.name|pascal_case }}':
+        """Create instance from dictionary"""
+        kwargs = {}
+        {% for column in table.columns %}
+        if '{{ column.name }}' in data:
+            {% if sql_type_to_python(column.type) == 'datetime.datetime' %}
+            if data['{{ column.name }}']:
+                kwargs['{{ column.name }}'] = datetime.fromisoformat(data['{{ column.name }}'])
+            {% elif sql_type_to_python(column.type) == 'datetime.date' %}
+            if data['{{ column.name }}']:
+                kwargs['{{ column.name }}'] = date.fromisoformat(data['{{ column.name }}'])
+            {% elif sql_type_to_python(column.type) == 'dict' %}
+            if data['{{ column.name }}']:
+                kwargs['{{ column.name }}'] = json.loads(data['{{ column.name }}']) if isinstance(data['{{ column.name }}'], str) else data['{{ column.name }}']
+            {% else %}
+            kwargs['{{ column.name }}'] = data['{{ column.name }}']
+            {% endif %}
+        {% endfor %}
+        return cls(**kwargs)
+    
+    def is_valid(self) -> bool:
+        """Basic validation"""
+        {% for column in table.columns if not column.nullable %}
+        if self.{{ column.name }} is None:
+            return False
+        {% endfor %}
+        return True
+    
+    def get_primary_key(self) -> {% if get_primary_key_columns(table)|length == 1 %}{{ sql_type_to_python(get_primary_key_columns(table)[0].type) }}{% else %}tuple{% endif %}:
+        """Get primary key value(s)"""
+        {% if get_primary_key_columns(table)|length == 1 %}
+        return self.{{ get_primary_key_columns(table)[0].name }}
+        {% elif get_primary_key_columns(table)|length > 1 %}
+        return ({{ get_primary_key_columns(table)|map(attribute='name')|map('format', 'self.{}')|join(', ') }})
+        {% else %}
+        return None
+        {% endif %}
+    {% endif %}
+
 
 {% endfor %}
+
+{% if options.add_relationships %}
+# Relationship helper functions
+{% for table in tables %}
+{% if relationships[table.name]['outgoing'] %}
+{% for rel in relationships[table.name]['outgoing'] %}
+def get_{{ table.name }}_{{ rel.target_table }}({{ table.name }}_instance: {{ table.name|pascal_case }}) -> Optional[{% if rel.type in ['one-to-many', 'many-to-many'] %}List[{{ rel.target_table|pascal_case }}]{% else %}{{ rel.target_table|pascal_case }}{% endif %}]:
+    """Get related {{ rel.target_table }} for {{ table.name }}"""
+    # TODO: Implement database query logic
+    pass
+
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if options.add_crud_helpers %}
+# CRUD Helper Functions
+{% for table in tables %}
+def create_{{ table.name }}(data: Dict[str, Any]) -> {{ table.name|pascal_case }}:
+    """Create a new {{ table.name }} instance"""
+    return {{ table.name|pascal_case }}.from_dict(data)
+
+def validate_{{ table.name }}_data(data: Dict[str, Any]) -> List[str]:
+    """Validate {{ table.name }} data and return list of errors"""
+    errors = []
+    
+    {% for column in table.columns if not column.nullable %}
+    if '{{ column.name }}' not in data or data['{{ column.name }}'] is None:
+        errors.append("Field '{{ column.name }}' is required")
+    {% endfor %}
+    
+    {% for column in table.columns %}
+    if '{{ column.name }}' in data and data['{{ column.name }}'] is not None:
+        {% if column.type.upper().startswith('VARCHAR') %}
+        {% set max_length = column.type.split('(')[1].split(')')[0] if '(' in column.type else '255' %}
+        if len(str(data['{{ column.name }}'])) > {{ max_length }}:
+            errors.append("Field '{{ column.name }}' exceeds maximum length of {{ max_length }}")
+        {% endif %}
+        {% if sql_type_to_python(column.type) == 'int' %}
+        try:
+            int(data['{{ column.name }}'])
+        except (ValueError, TypeError):
+            errors.append("Field '{{ column.name }}' must be an integer")
+        {% endif %}
+    {% endfor %}
+    
+    return errors
+
+{% endfor %}
+{% endif %}
+
+{% if options.add_constants %}
+# Table and Column Constants
+{% for table in tables %}
+class {{ table.name|pascal_case }}Constants:
+    """Constants for {{ table.name }} table"""
+    TABLE_NAME = "{{ table.name }}"
+    
+    # Column names
+    {% for column in table.columns %}
+    {{ column.name|upper }} = "{{ column.name }}"
+    {% endfor %}
+    
+    # Primary keys
+    PRIMARY_KEYS = [{{ get_primary_key_columns(table)|map(attribute='name')|map('format', '"{}"')|join(', ') }}]
+    
+    # Foreign keys
+    FOREIGN_KEYS = [{{ get_foreign_key_columns(table)|map(attribute='name')|map('format', '"{}"')|join(', ') }}]
+
+{% endfor %}
+{% endif %}

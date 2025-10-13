@@ -38,6 +38,13 @@ class CodeGenerator:
             lstrip_blocks=True
         )
         
+        # Add custom filters to Jinja2 environment
+        self.env.filters['camelCase'] = self._snake_to_camel_case
+        self.env.filters['snake_case'] = self._camel_to_snake
+        self.env.filters['pascal_case'] = self._snake_to_pascal_case
+        self.env.filters['pluralize'] = self._pluralize
+        self.env.filters['singularize'] = self._singularize
+        
         # Format mapping to template files
         self.format_templates = {
             CodeGenFormat.SQLALCHEMY: "sqlalchemy_models.py.jinja2",
@@ -208,6 +215,18 @@ class CodeGenerator:
     # Helper functions for templates
     def _snake_to_camel(self, snake_str: str) -> str:
         """Convert snake_case to CamelCase"""
+        components = snake_str.split('_')
+        return ''.join(word.capitalize() for word in components)
+    
+    def _snake_to_camel_case(self, snake_str: str) -> str:
+        """Convert snake_case to camelCase (first letter lowercase)"""
+        components = snake_str.split('_')
+        if not components:
+            return snake_str
+        return components[0].lower() + ''.join(word.capitalize() for word in components[1:])
+    
+    def _snake_to_pascal_case(self, snake_str: str) -> str:
+        """Convert snake_case to PascalCase (first letter uppercase)"""
         components = snake_str.split('_')
         return ''.join(word.capitalize() for word in components)
     
