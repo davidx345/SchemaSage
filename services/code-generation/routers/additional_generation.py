@@ -234,14 +234,14 @@ async def generate_code_alternative(
 
 
 @router.post("/scaffold")
-async def generate_api_scaffolding(
-    schema_data: Dict[str, Any],
-    framework: str = "fastapi",
-    options: Optional[Dict[str, Any]] = None
-):
+async def generate_api_scaffolding(request_data: Dict[str, Any]):
     """Generate API scaffolding from schema"""
     try:
-        options = options or {}
+        # Extract data from request body to match frontend format
+        schema_data = request_data.get("schema", {})
+        framework = request_data.get("format", "fastapi")  # frontend sends "format", not "framework"
+        options = request_data.get("options", {})
+        
         tables = schema_data.get("tables", [])
         
         scaffolding_files = []
