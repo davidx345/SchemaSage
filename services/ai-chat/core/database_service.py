@@ -31,20 +31,20 @@ class ChatDatabaseService:
         self._initialized = False
         
     async def initialize(self):
-        """Initialize database connection"""
+        """Initialize database connection, skip table creation if tables already exist"""
         if self._initialized:
             return
-            
+
         try:
             # Get database URL
             database_url = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
-            
+
             # Convert to asyncpg driver if needed
             if database_url.startswith("postgres://"):
                 database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
             elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            
+
             # Create async engine
             self._engine = create_async_engine(
                 database_url,
@@ -55,21 +55,28 @@ class ChatDatabaseService:
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
             )
-            
+
             # Create session factory
             self._session_factory = sessionmaker(
-                self._engine, 
-                class_=AsyncSession, 
+                self._engine,
+                class_=AsyncSession,
                 expire_on_commit=False
             )
-            
-            # Create tables if they don't exist
+
+            # Check if tables exist before creating
             async with self._engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            
+                existing_tables = await conn.run_sync(lambda sync_conn: sync_conn.engine.table_names())
+                required_tables = set(Base.metadata.tables.keys())
+                missing_tables = required_tables - set(existing_tables)
+                if missing_tables:
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info(f"Created missing tables: {missing_tables}")
+                else:
+                    logger.info("All required tables already exist. Skipping creation.")
+
             self._initialized = True
             logger.info("✅ AI Chat database service initialized")
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to initialize chat database: {e}")
             raise
