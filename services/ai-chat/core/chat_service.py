@@ -32,6 +32,7 @@ class OpenAIChatService:
         messages: List[ChatMessage], 
         question: str, 
         user_id: str,
+        session_id: str,
         conversation_id: Optional[str] = None,
         api_key: str = None
     ) -> ChatResponse:
@@ -53,6 +54,7 @@ class OpenAIChatService:
                     user_id=user_id,
                     ai_provider="openai",
                     model_name=settings.OPENAI_MODEL,
+                    session_id=session_id,
                     title=f"Chat {time.strftime('%Y-%m-%d %H:%M')}"
                 )
             
@@ -60,7 +62,8 @@ class OpenAIChatService:
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="user",
-                content=question
+                content=question,
+                session_id=session_id
             )
             
             # Format messages for OpenAI
@@ -116,6 +119,7 @@ class OpenAIChatService:
                         conversation_id=conversation_id,
                         role="assistant",
                         content=answer,
+                        session_id=session_id,
                         ai_provider="openai",
                         model_name=settings.OPENAI_MODEL,
                         token_usage=token_usage,

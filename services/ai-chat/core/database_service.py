@@ -4,6 +4,7 @@ Handles all database operations for chat conversations and messages
 """
 import os
 import logging
+import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -94,26 +95,29 @@ class ChatDatabaseService:
                         
                         if missing_cols:
                             logger.info(f"Adding missing columns to {table_name}: {missing_cols}")
-                            # Add missing columns
+                            # Add missing columns in separate transactions to avoid rollback issues
                             for col_name in missing_cols:
-                                col = table.columns[col_name]
-                                col_type = col.type.compile(dialect=conn.dialect)
-                                nullable = "NULL" if col.nullable else "NOT NULL"
-                                default_clause = ""
-                                
-                                if col.default is not None:
-                                    if hasattr(col.default, 'arg'):
-                                        if col.default.arg is not None:
-                                            default_clause = f" DEFAULT {col.default.arg}"
-                                    elif hasattr(col.default, 'name'):
-                                        default_clause = f" DEFAULT {col.default.name}()"
-                                
-                                alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
                                 try:
-                                    await conn.execute(text(alter_sql))
-                                    logger.info(f"Added column {col_name} to {table_name}")
+                                    # Start new transaction for each column addition
+                                    async with self._engine.begin() as col_conn:
+                                        col = table.columns[col_name]
+                                        col_type = col.type.compile(dialect=col_conn.dialect)
+                                        nullable = "NULL" if col.nullable else "NOT NULL"
+                                        default_clause = ""
+                                        
+                                        if col.default is not None:
+                                            if hasattr(col.default, 'arg'):
+                                                if col.default.arg is not None:
+                                                    default_clause = f" DEFAULT {col.default.arg}"
+                                            elif hasattr(col.default, 'name'):
+                                                default_clause = f" DEFAULT {col.default.name}()"
+                                        
+                                        alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
+                                        await col_conn.execute(text(alter_sql))
+                                        logger.info(f"Added column {col_name} to {table_name}")
                                 except Exception as e:
                                     logger.warning(f"Could not add column {col_name} to {table_name}: {e}")
+                                    # Continue with other columns even if one fails
                 
                 if not missing_tables and not any(table_columns.get(t) != [col.name for col in Base.metadata.tables[t].columns] for t in existing_tables if t in Base.metadata.tables):
                     logger.info("All required tables and columns exist. Skipping creation.")
@@ -146,6 +150,7 @@ class ChatDatabaseService:
         user_id: str, 
         ai_provider: str, 
         model_name: str,
+        session_id: Optional[str] = None,
         title: Optional[str] = None,
         conversation_settings: Optional[Dict[str, Any]] = None
     ) -> str:
@@ -155,6 +160,7 @@ class ChatDatabaseService:
                 conversation = ChatConversation(
                     user_id=user_id,
                     title=title or f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    session_id=session_id or f"session_{uuid.uuid4().hex[:12]}",
                     ai_provider=ai_provider,
                     model_name=model_name,
                     conversation_settings=conversation_settings or {}
@@ -175,6 +181,7 @@ class ChatDatabaseService:
         conversation_id: str,
         role: str,
         content: str,
+        session_id: str,
         ai_provider: Optional[str] = None,
         model_name: Optional[str] = None,
         token_usage: Optional[Dict[str, int]] = None,
@@ -194,6 +201,7 @@ class ChatDatabaseService:
                 # Create message
                 message = ChatMessage(
                     conversation_id=conversation_id,
+                    session_id=session_id,
                     role=role,
                     content=content,
                     message_order=message_order,

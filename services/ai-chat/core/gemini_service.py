@@ -47,6 +47,7 @@ class GeminiChatService:
         messages: List[ChatMessage], 
         question: str, 
         user_id: str,
+        session_id: str,
         conversation_id: Optional[str] = None,
         api_key: Optional[str] = None
     ) -> ChatResponse:
@@ -66,6 +67,7 @@ class GeminiChatService:
                     user_id=user_id,
                     ai_provider="gemini",
                     model_name=settings.GEMINI_MODEL,
+                    session_id=session_id,
                     title=f"Chat {time.strftime('%Y-%m-%d %H:%M')}"
                 )
             
@@ -73,7 +75,8 @@ class GeminiChatService:
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="user",
-                content=question
+                content=question,
+                session_id=session_id
             )
             
             # Convert messages to Gemini format and include schema context
@@ -106,6 +109,7 @@ class GeminiChatService:
                 conversation_id=conversation_id,
                 role="assistant",
                 content=response.text,
+                session_id=session_id,
                 ai_provider="gemini",
                 model_name=settings.GEMINI_MODEL,
                 response_time_ms=response_time_ms

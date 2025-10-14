@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from typing import Optional, List, Dict, Any
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from config import settings
@@ -134,6 +135,9 @@ async def chat_endpoint(
         if not user_id:
             user_id = "anonymous"
         
+        # Generate session_id if not provided
+        session_id = request.session_id or f"session_{uuid.uuid4().hex[:12]}"
+        
         # Try OpenAI first if configured
         if settings.is_openai_configured():
             try:
@@ -142,6 +146,7 @@ async def chat_endpoint(
                     messages=request.messages,
                     question=request.question,
                     user_id=user_id,
+                    session_id=session_id,
                     api_key=request.api_key
                 )
                 return response
@@ -157,6 +162,7 @@ async def chat_endpoint(
                     messages=request.messages,
                     question=request.question,
                     user_id=user_id,
+                    session_id=session_id,
                     api_key=request.api_key
                 )
                 return response

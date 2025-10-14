@@ -18,6 +18,7 @@ class ChatRequest(BaseModel):
     question: str = Field(..., description="Current question from user")
     db_schema: Optional[Dict[str, Any]] = Field(None, description="Database schema context", alias="schema")
     api_key: Optional[str] = Field(None, description="Optional API key override")
+    session_id: Optional[str] = Field(None, description="Browser session ID for tracking")
 
 class ChatResponse(BaseModel):
     """Response from chat service"""
