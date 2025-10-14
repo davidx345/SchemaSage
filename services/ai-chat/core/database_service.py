@@ -63,9 +63,13 @@ class ChatDatabaseService:
                 expire_on_commit=False
             )
 
-            # Check if tables exist before creating
+            # Check if tables exist before creating using SQLAlchemy inspect
+            from sqlalchemy import inspect
             async with self._engine.begin() as conn:
-                existing_tables = await conn.run_sync(lambda sync_conn: sync_conn.engine.table_names())
+                def get_table_names(sync_conn):
+                    inspector = inspect(sync_conn)
+                    return inspector.get_table_names()
+                existing_tables = await conn.run_sync(get_table_names)
                 required_tables = set(Base.metadata.tables.keys())
                 missing_tables = required_tables - set(existing_tables)
                 if missing_tables:
