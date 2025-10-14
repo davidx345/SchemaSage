@@ -63,20 +63,60 @@ class ChatDatabaseService:
                 expire_on_commit=False
             )
 
-            # Check if tables exist before creating using SQLAlchemy inspect
-            from sqlalchemy import inspect
+            # Check if tables exist and handle schema updates
+            from sqlalchemy import inspect, text
             async with self._engine.begin() as conn:
-                def get_table_names(sync_conn):
+                def get_table_info(sync_conn):
                     inspector = inspect(sync_conn)
-                    return inspector.get_table_names()
-                existing_tables = await conn.run_sync(get_table_names)
+                    existing_tables = inspector.get_table_names()
+                    table_columns = {}
+                    for table_name in existing_tables:
+                        if table_name in Base.metadata.tables:
+                            columns = inspector.get_columns(table_name)
+                            table_columns[table_name] = [col['name'] for col in columns]
+                    return existing_tables, table_columns
+                
+                existing_tables, table_columns = await conn.run_sync(get_table_info)
                 required_tables = set(Base.metadata.tables.keys())
                 missing_tables = required_tables - set(existing_tables)
+                
+                # Create missing tables
                 if missing_tables:
                     await conn.run_sync(Base.metadata.create_all)
                     logger.info(f"Created missing tables: {missing_tables}")
-                else:
-                    logger.info("All required tables already exist. Skipping creation.")
+                
+                # Check for missing columns in existing tables
+                for table_name, table in Base.metadata.tables.items():
+                    if table_name in existing_tables:
+                        existing_cols = set(table_columns.get(table_name, []))
+                        required_cols = set(col.name for col in table.columns)
+                        missing_cols = required_cols - existing_cols
+                        
+                        if missing_cols:
+                            logger.info(f"Adding missing columns to {table_name}: {missing_cols}")
+                            # Add missing columns
+                            for col_name in missing_cols:
+                                col = table.columns[col_name]
+                                col_type = col.type.compile(dialect=conn.dialect)
+                                nullable = "NULL" if col.nullable else "NOT NULL"
+                                default_clause = ""
+                                
+                                if col.default is not None:
+                                    if hasattr(col.default, 'arg'):
+                                        if col.default.arg is not None:
+                                            default_clause = f" DEFAULT {col.default.arg}"
+                                    elif hasattr(col.default, 'name'):
+                                        default_clause = f" DEFAULT {col.default.name}()"
+                                
+                                alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
+                                try:
+                                    await conn.execute(text(alter_sql))
+                                    logger.info(f"Added column {col_name} to {table_name}")
+                                except Exception as e:
+                                    logger.warning(f"Could not add column {col_name} to {table_name}: {e}")
+                
+                if not missing_tables and not any(table_columns.get(t) != [col.name for col in Base.metadata.tables[t].columns] for t in existing_tables if t in Base.metadata.tables):
+                    logger.info("All required tables and columns exist. Skipping creation.")
 
             self._initialized = True
             logger.info("✅ AI Chat database service initialized")
