@@ -239,17 +239,16 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
     try:
         # Extract data from request body to match frontend format
         schema_data = request_data.get("schema", {})
-        framework = request_data.get("format", "fastapi")  # frontend sends "format", not "framework"
+        # Accept both "framework" and "format" for compatibility
+        framework = request_data.get("framework") or request_data.get("format") or "fastapi"
         options = request_data.get("options", {})
-        
+
         tables = schema_data.get("tables", [])
-        
+
         scaffolding_files = []
-        
+
         if framework == "fastapi":
-            # Generate FastAPI scaffolding
-            
-            # Models file
+            # ...existing code for FastAPI...
             models_content = _generate_fastapi_models(tables)
             scaffolding_files.append({
                 "filename": "models.py",
@@ -257,8 +256,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "type": "model",
                 "description": "Pydantic models for API"
             })
-            
-            # Router files
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 router_content = _generate_fastapi_router(table)
@@ -268,8 +265,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "router",
                     "description": f"API routes for {table_name}"
                 })
-            
-            # Main application file
             main_content = _generate_fastapi_main(tables)
             scaffolding_files.append({
                 "filename": "main.py",
@@ -277,8 +272,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "type": "application",
                 "description": "Main FastAPI application"
             })
-            
-            # Requirements file
             requirements_content = _generate_fastapi_requirements()
             scaffolding_files.append({
                 "filename": "requirements.txt",
@@ -286,11 +279,9 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "type": "dependency",
                 "description": "Python dependencies"
             })
-        
+
         elif framework == "express":
-            # Generate Express.js scaffolding
-            
-            # Models
+            # ...existing code for Express...
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 model_content = _generate_express_model(table)
@@ -300,8 +291,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "model",
                     "description": f"Mongoose model for {table_name}"
                 })
-            
-            # Routes
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 routes_content = _generate_express_routes(table)
@@ -311,8 +300,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "router",
                     "description": f"Express routes for {table_name}"
                 })
-            
-            # Main app file
             app_content = _generate_express_app(tables)
             scaffolding_files.append({
                 "filename": "app.js",
@@ -320,8 +307,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "type": "application",
                 "description": "Main Express application"
             })
-            
-            # Package.json
             package_content = _generate_express_package()
             scaffolding_files.append({
                 "filename": "package.json",
@@ -329,11 +314,9 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "type": "dependency",
                 "description": "Node.js dependencies"
             })
-        
+
         elif framework == "spring":
-            # Generate Spring Boot scaffolding
-            
-            # Entity classes
+            # ...existing code for Spring Boot...
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 entity_content = _generate_spring_entity(table)
@@ -344,8 +327,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "entity",
                     "description": f"JPA entity for {table_name}"
                 })
-            
-            # Repository interfaces
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 repo_content = _generate_spring_repository(table)
@@ -356,8 +337,6 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "repository",
                     "description": f"JPA repository for {table_name}"
                 })
-            
-            # Controller classes
             for table in tables:
                 table_name = table.get("table_name", "unknown")
                 controller_content = _generate_spring_controller(table)
@@ -368,7 +347,32 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                     "type": "controller",
                     "description": f"REST controller for {table_name}"
                 })
-        
+
+        # Add more frameworks here (e.g., nestjs, django, etc.)
+        elif framework == "nestjs":
+            # TODO: Implement NestJS scaffolding generation
+            scaffolding_files.append({
+                "filename": "README.md",
+                "content": "NestJS scaffolding is not yet implemented.",
+                "type": "info",
+                "description": "NestJS support placeholder"
+            })
+        elif framework == "django":
+            # TODO: Implement Django scaffolding generation
+            scaffolding_files.append({
+                "filename": "README.md",
+                "content": "Django scaffolding is not yet implemented.",
+                "type": "info",
+                "description": "Django support placeholder"
+            })
+        else:
+            scaffolding_files.append({
+                "filename": "README.md",
+                "content": f"Scaffolding for framework '{framework}' is not yet supported.",
+                "type": "info",
+                "description": f"Unsupported framework: {framework}"
+            })
+
         return {
             "framework": framework,
             "scaffolding_files": scaffolding_files,
@@ -376,7 +380,7 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "total_files": len(scaffolding_files),
                 "file_types": list(set(f["type"] for f in scaffolding_files)),
                 "tables_processed": len(tables),
-                "estimated_lines_of_code": sum(len(f["content"].split("\\n")) for f in scaffolding_files)
+                "estimated_lines_of_code": sum(len(f["content"].split("\n")) for f in scaffolding_files)
             },
             "options_applied": options,
             "next_steps": [
