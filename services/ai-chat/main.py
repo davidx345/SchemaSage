@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from typing import Optional, List, Dict, Any
 import logging
 import uuid
+from datetime import datetime
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -164,6 +165,14 @@ async def chat_endpoint(
                 status_code=503, 
                 detail="OpenAI API key not configured. Please configure OPENAI_API_KEY."
             )
+        
+        # Ensure session exists in database before processing
+        from core.database_service import chat_db
+        await chat_db.get_or_create_session(
+            session_id=session_id,
+            user_id=user_id,
+            session_name=f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
         
         # Get OpenAI response
         response = await openai_service.get_response(

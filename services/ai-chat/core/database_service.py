@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from models.database_models import (
     ChatConversation, 
     ChatMessage, 
+    ChatSession,
     UserChatPreferences, 
     ChatUsageStatistics,
     Base
@@ -232,6 +233,78 @@ class ChatDatabaseService:
                 raise
             # Session is automatically closed by the context manager
     
+    async def get_or_create_session(
+        self,
+        session_id: str,
+        user_id: str,
+        project_id: Optional[str] = None,
+        session_name: Optional[str] = None
+    ) -> str:
+        """
+        Get existing session or create new one if it doesn't exist
+        
+        Args:
+            session_id: UUID string for the session
+            user_id: User identifier
+            project_id: Optional project association
+            session_name: Optional user-friendly session name
+            
+        Returns:
+            str: The session ID (UUID as string)
+        """
+        try:
+            async with self.get_session() as session:
+                # Validate and convert session_id UUID
+                session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
+                
+                # Check if session already exists
+                existing_session_query = select(ChatSession).where(ChatSession.id == session_id_uuid)
+                result = await session.execute(existing_session_query)
+                existing_session = result.scalar_one_or_none()
+                
+                if existing_session:
+                    logger.debug(f"Found existing session: {session_id}")
+                    return str(existing_session.id)
+                
+                # Create new session
+                project_id_uuid = None
+                if project_id:
+                    project_id_uuid = validate_and_convert_uuid(project_id, "project_id")
+                
+                new_session = ChatSession(
+                    id=session_id_uuid,
+                    user_id=user_id,
+                    project_id=project_id_uuid,
+                    session_name=session_name,
+                    session_context={}
+                )
+                
+                session.add(new_session)
+                await session.flush()
+                
+                logger.info(f"✅ Created new chat session: {session_id} for user: {user_id}")
+                return str(new_session.id)
+                
+        except Exception as e:
+            logger.error(f"Failed to get/create session {session_id}: {e}")
+            raise
+    
+    async def update_session_activity(self, session_id: str) -> None:
+        """Update the last_message_at timestamp for a session"""
+        try:
+            async with self.get_session() as session:
+                session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
+                
+                await session.execute(
+                    update(ChatSession)
+                    .where(ChatSession.id == session_id_uuid)
+                    .values(last_message_at=datetime.utcnow())
+                )
+                
+        except Exception as e:
+            logger.warning(f"Failed to update session activity for {session_id}: {e}")
+            # Don't raise - this is not critical for chat functionality
+    
     async def create_conversation(
         self, 
         user_id: str, 
@@ -329,6 +402,9 @@ class ChatDatabaseService:
                         total_tokens_used=ChatConversation.total_tokens_used + (token_usage.get('total_tokens', 0) if token_usage else 0)
                     )
                 )
+                
+                # Update session activity
+                await self.update_session_activity(session_id)
                 
                 logger.info(f"Added {role} message to conversation {conversation_id}")
                 return str(message.id)

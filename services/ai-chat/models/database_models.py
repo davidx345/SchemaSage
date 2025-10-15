@@ -67,7 +67,7 @@ class ChatMessage(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey('chat_conversations.id'), nullable=False, index=True)
-    session_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # Session UUID
+    session_id = Column(UUID(as_uuid=True), ForeignKey('chat_sessions.id'), nullable=False, index=True)  # Session UUID
     
     # Message details
     role = Column(String(20), nullable=False, index=True)  # user, assistant, system
@@ -194,3 +194,27 @@ class ChatUsageStatistics(Base):
     
     def __repr__(self):
         return f"<ChatUsageStatistics(user_id='{self.user_id}', date='{self.date}')>"
+
+
+class ChatSession(Base):
+    """
+    Chat sessions table
+    Tracks user browser/app sessions for chat continuity
+    """
+    __tablename__ = "chat_sessions"
+    
+    # Primary identifiers
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(String(255), nullable=False, index=True)  # From JWT token or anonymous
+    project_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Associated project if any
+    
+    # Session metadata
+    session_name = Column(String(255), nullable=True)  # User-friendly session name
+    session_context = Column(JSONB, nullable=True)  # Session-specific context/settings
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_message_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    
+    def __repr__(self):
+        return f"<ChatSession(id='{self.id}', user_id='{self.user_id}')>"
