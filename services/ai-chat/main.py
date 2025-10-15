@@ -143,9 +143,20 @@ async def chat_endpoint(
 ):
     """Generate AI chat response using OpenAI with rate limiting"""
     try:
-        # Use anonymous user if not authenticated
+        # Generate UUID for anonymous users (database expects UUID for user_id)
         if not user_id:
-            user_id = "anonymous"
+            # For anonymous users, generate a consistent UUID based on session
+            # Or use a fixed anonymous UUID
+            ANONYMOUS_USER_UUID = "00000000-0000-0000-0000-000000000000"
+            user_id = ANONYMOUS_USER_UUID
+        else:
+            # Validate user_id is a valid UUID, if not try to convert or generate one
+            try:
+                uuid.UUID(user_id)  # Validate it's a valid UUID
+            except ValueError:
+                # If user_id is not a UUID (e.g., from old system), generate one
+                # You could also hash the user_id to create a consistent UUID
+                user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, user_id))
         
         # Generate session_id if not provided (use proper UUID)
         if not chat_request.session_id:

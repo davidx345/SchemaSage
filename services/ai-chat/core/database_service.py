@@ -257,6 +257,9 @@ class ChatDatabaseService:
                 # Validate and convert session_id UUID
                 session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
                 
+                # Validate and convert user_id UUID
+                user_id_uuid = validate_and_convert_uuid(user_id, "user_id")
+                
                 # Check if session already exists
                 existing_session_query = select(ChatSession).where(ChatSession.id == session_id_uuid)
                 result = await session.execute(existing_session_query)
@@ -273,7 +276,7 @@ class ChatDatabaseService:
                 
                 new_session = ChatSession(
                     id=session_id_uuid,
-                    user_id=user_id,
+                    user_id=user_id_uuid,
                     project_id=project_id_uuid,
                     session_name=session_name,
                     session_context={}
