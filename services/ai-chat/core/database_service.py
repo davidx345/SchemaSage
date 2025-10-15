@@ -279,7 +279,8 @@ class ChatDatabaseService:
                     user_id=user_id_uuid,
                     project_id=project_id_uuid,
                     session_name=session_name,
-                    session_context={}
+                    session_context={},
+                    last_message_at=datetime.utcnow()  # Ensure NOT NULL
                 )
                 
                 session.add(new_session)
