@@ -135,8 +135,17 @@ async def chat_endpoint(
         if not user_id:
             user_id = "anonymous"
         
-        # Generate session_id if not provided
-        session_id = request.session_id or f"session_{uuid.uuid4().hex[:12]}"
+        # Generate session_id if not provided (use proper UUID)
+        if not request.session_id:
+            session_id = str(uuid.uuid4())
+        else:
+            # Ensure session_id is a valid UUID string
+            try:
+                uuid.UUID(request.session_id)  # Validate it's a valid UUID
+                session_id = request.session_id
+            except ValueError:
+                # If not a valid UUID, generate a new one
+                session_id = str(uuid.uuid4())
         
         # Try OpenAI first if configured
         if settings.is_openai_configured():

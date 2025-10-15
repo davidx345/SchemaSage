@@ -201,7 +201,7 @@ class ChatDatabaseService:
                 # Create message
                 message = ChatMessage(
                     conversation_id=conversation_id,
-                    session_id=session_id,
+                    session_id=uuid.UUID(session_id) if isinstance(session_id, str) else session_id,
                     role=role,
                     content=content,
                     message_order=message_order,
@@ -363,27 +363,30 @@ class ChatDatabaseService:
                     stats = ChatUsageStatistics(user_id=user_id, date=today)
                     session.add(stats)
                 
-                # Update stats
-                stats.total_tokens_used += tokens_used
+                # Update stats (ensure no None values)
+                stats.total_tokens_used = (stats.total_tokens_used or 0) + tokens_used
                 if ai_provider == "openai":
-                    stats.openai_tokens_used += tokens_used
-                    stats.openai_cost_usd = str(float(stats.openai_cost_usd) + float(cost_usd))
+                    stats.openai_tokens_used = (stats.openai_tokens_used or 0) + tokens_used
+                    current_openai_cost = float(stats.openai_cost_usd or 0)
+                    stats.openai_cost_usd = str(current_openai_cost + float(cost_usd))
                 elif ai_provider == "gemini":
-                    stats.gemini_tokens_used += tokens_used
-                    stats.gemini_cost_usd = str(float(stats.gemini_cost_usd) + float(cost_usd))
+                    stats.gemini_tokens_used = (stats.gemini_tokens_used or 0) + tokens_used
+                    current_gemini_cost = float(stats.gemini_cost_usd or 0)
+                    stats.gemini_cost_usd = str(current_gemini_cost + float(cost_usd))
                 
-                stats.total_cost_usd = str(float(stats.total_cost_usd) + float(cost_usd))
-                stats.ai_responses_received += 1
+                current_total_cost = float(stats.total_cost_usd or 0)
+                stats.total_cost_usd = str(current_total_cost + float(cost_usd))
+                stats.ai_responses_received = (stats.ai_responses_received or 0) + 1
                 
                 if response_time_ms:
                     # Update average response time
-                    current_avg = stats.average_response_time_ms
+                    current_avg = stats.average_response_time_ms or 0
                     current_count = stats.ai_responses_received
                     new_avg = ((current_avg * (current_count - 1)) + response_time_ms) // current_count
                     stats.average_response_time_ms = new_avg
                 
                 if had_error:
-                    stats.error_count += 1
+                    stats.error_count = (stats.error_count or 0) + 1
                 
                 logger.info(f"Updated usage stats for user {user_id}")
                 

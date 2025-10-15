@@ -67,7 +67,7 @@ class ChatMessage(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey('chat_conversations.id'), nullable=False, index=True)
-    session_id = Column(String(255), nullable=False, index=True)  # Browser session ID
+    session_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # Session UUID
     
     # Message details
     role = Column(String(20), nullable=False, index=True)  # user, assistant, system
