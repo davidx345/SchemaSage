@@ -303,6 +303,7 @@ class ChatDatabaseService:
                     conversation_id=conv_id_uuid,
                     session_id=session_id_uuid,
                     role=role,
+                    message_type=role,  # Set message_type to match role (user/assistant/system)
                     content=content,
                     message_order=message_order,
                     ai_provider=ai_provider,

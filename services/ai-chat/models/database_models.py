@@ -71,7 +71,7 @@ class ChatMessage(Base):
     
     # Message details
     role = Column(String(20), nullable=False, index=True)  # user, assistant, system
-    message_type = Column(String(50), nullable=False, default="chat", index=True)  # chat, system, error, etc.
+    message_type = Column(String(50), nullable=False, default="user", index=True)  # user, assistant, system
     content = Column(Text, nullable=False)
     
     # Message metadata
