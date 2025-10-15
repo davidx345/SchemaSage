@@ -46,18 +46,24 @@ class ChatDatabaseService:
             elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-            # Create async engine
+            # Create async engine with comprehensive prepared statement disabling
             self._engine = create_async_engine(
                 database_url,
-                pool_size=10,
-                max_overflow=20,
+                pool_size=5,  # Reduced pool size for pgBouncer compatibility
+                max_overflow=10,
                 pool_timeout=30,
                 pool_recycle=1800,
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
-                    "statement_cache_size": 0,  # Disable prepared statements for pgBouncer transaction pooler
-                    "prepared_statement_cache_size": 0  # Additional safeguard for asyncpg
-                }
+                    "statement_cache_size": 0,  # Disable prepared statements
+                    "prepared_statement_cache_size": 0,  # Additional safeguard
+                    "command_timeout": 30,  # Connection timeout
+                },
+                # Disable SQLAlchemy query caching completely
+                pool_pre_ping=True,  # Verify connections before use
+                pool_reset_on_return="commit",  # Reset connections after use
+                query_cache_size=0,  # Disable query cache
+                compiled_cache=None  # Disable compiled query cache
             )
 
             # Create session factory
