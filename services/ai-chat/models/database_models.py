@@ -25,7 +25,7 @@ class ChatConversation(Base):
     
     # Conversation metadata
     title = Column(String(500), nullable=True)  # Auto-generated or user-set title
-    session_id = Column(String(255), nullable=True, index=True)  # Browser session
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Browser session UUID (consistent with ChatMessage)
     
     # AI service details
     ai_provider = Column(String(50), nullable=False, index=True)  # openai, gemini
@@ -99,7 +99,7 @@ class ChatMessage(Base):
     error_details = Column(JSONB, nullable=True)  # Error info if request failed
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), default=datetime.utcnow, nullable=False, index=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)  # When AI response was received
     
     # Relationships

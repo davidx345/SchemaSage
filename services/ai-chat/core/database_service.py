@@ -5,11 +5,12 @@ Handles all database operations for chat conversations and messages
 import os
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, update, delete, and_, func, desc
+from sqlalchemy import select, update, delete, and_, func, desc, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from contextlib import asynccontextmanager
 
@@ -23,123 +24,196 @@ from models.database_models import (
 
 logger = logging.getLogger(__name__)
 
+# UUID Validation Helper
+def validate_and_convert_uuid(value: Union[str, uuid.UUID, None], field_name: str) -> Optional[uuid.UUID]:
+    """
+    Safely convert string to UUID with validation.
+    
+    Args:
+        value: String, UUID object, or None
+        field_name: Name of the field for error messages
+        
+    Returns:
+        UUID object or None
+        
+    Raises:
+        ValueError: If the value is not a valid UUID format
+    """
+    if value is None:
+        return None
+    
+    if isinstance(value, uuid.UUID):
+        return value
+    
+    if isinstance(value, str):
+        try:
+            return uuid.UUID(value)
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid UUID format for {field_name}: {value}") from e
+    
+    raise TypeError(f"{field_name} must be string or UUID, got {type(value)}")
+
 class ChatDatabaseService:
-    """Database service for chat functionality"""
+    """Database service for chat functionality with thread-safe initialization"""
     
     def __init__(self):
         self._engine = None
         self._session_factory = None
         self._initialized = False
+        self._init_lock = asyncio.Lock()  # Prevent concurrent initialization
         
     async def initialize(self):
-        """Initialize database connection, skip table creation if tables already exist"""
+        """Initialize database connection with thread-safe double-check locking"""
         if self._initialized:
             return
 
-        try:
-            # Get database URL
-            database_url = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
+        async with self._init_lock:
+            # Double-check after acquiring lock
+            if self._initialized:
+                return
 
-            # Convert to asyncpg driver if needed
-            if database_url.startswith("postgres://"):
-                database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-            elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-                database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            try:
+                # Get database URL
+                database_url = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
 
-            # Create async engine with comprehensive prepared statement disabling
-            self._engine = create_async_engine(
-                database_url,
-                pool_size=5,  # Reduced pool size for pgBouncer compatibility
-                max_overflow=10,
-                pool_timeout=30,
-                pool_recycle=1800,
-                echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
-                connect_args={
-                    "statement_cache_size": 0,  # Disable prepared statements for pgBouncer
-                    "prepared_statement_cache_size": 0,  # Additional safeguard
-                    "command_timeout": 30,  # Connection timeout
-                },
-                # SQLAlchemy connection pool settings
-                pool_pre_ping=True,  # Verify connections before use
-                pool_reset_on_return="commit",  # Reset connections after use
-                query_cache_size=0  # Disable query cache
-            )
+                # Convert to asyncpg driver if needed
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
+                    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-            # Create session factory
-            self._session_factory = sessionmaker(
-                self._engine,
-                class_=AsyncSession,
-                expire_on_commit=False
-            )
+                # Create async engine with comprehensive prepared statement disabling
+                self._engine = create_async_engine(
+                    database_url,
+                    pool_size=20,  # Increased pool size for production load
+                    max_overflow=30,  # Higher overflow for traffic spikes
+                    pool_timeout=30,
+                    pool_recycle=1800,
+                    echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
+                    connect_args={
+                        "statement_cache_size": 0,  # Disable prepared statements for pgBouncer
+                        "prepared_statement_cache_size": 0,  # Additional safeguard
+                        "command_timeout": 60,  # Increased timeout for complex queries
+                        "server_settings": {
+                            "application_name": "ai-chat-service"  # For connection tracking
+                        }
+                    },
+                    # SQLAlchemy connection pool settings
+                    pool_pre_ping=True,  # Verify connections before use
+                    pool_reset_on_return="commit",  # Reset connections after use
+                    query_cache_size=0  # Disable query cache
+                )
 
-            # Check if tables exist and handle schema updates
-            from sqlalchemy import inspect, text
-            async with self._engine.begin() as conn:
-                def get_table_info(sync_conn):
-                    inspector = inspect(sync_conn)
-                    existing_tables = inspector.get_table_names()
-                    table_columns = {}
-                    for table_name in existing_tables:
-                        if table_name in Base.metadata.tables:
-                            columns = inspector.get_columns(table_name)
-                            table_columns[table_name] = [col['name'] for col in columns]
-                    return existing_tables, table_columns
-                
-                existing_tables, table_columns = await conn.run_sync(get_table_info)
-                required_tables = set(Base.metadata.tables.keys())
-                missing_tables = required_tables - set(existing_tables)
-                
-                # Create missing tables
-                if missing_tables:
-                    await conn.run_sync(Base.metadata.create_all)
-                    logger.info(f"Created missing tables: {missing_tables}")
-                
-                # Check for missing columns in existing tables
-                for table_name, table in Base.metadata.tables.items():
-                    if table_name in existing_tables:
-                        existing_cols = set(table_columns.get(table_name, []))
-                        required_cols = set(col.name for col in table.columns)
-                        missing_cols = required_cols - existing_cols
-                        
-                        if missing_cols:
-                            logger.info(f"Adding missing columns to {table_name}: {missing_cols}")
-                            # Add missing columns in separate transactions to avoid rollback issues
-                            for col_name in missing_cols:
-                                try:
-                                    # Start new transaction for each column addition
-                                    async with self._engine.begin() as col_conn:
-                                        col = table.columns[col_name]
-                                        col_type = col.type.compile(dialect=col_conn.dialect)
-                                        nullable = "NULL" if col.nullable else "NOT NULL"
-                                        default_clause = ""
-                                        
-                                        if col.default is not None:
-                                            if hasattr(col.default, 'arg'):
-                                                if col.default.arg is not None:
-                                                    default_clause = f" DEFAULT {col.default.arg}"
-                                            elif hasattr(col.default, 'name'):
-                                                default_clause = f" DEFAULT {col.default.name}()"
-                                        
-                                        alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
-                                        await col_conn.execute(text(alter_sql))
-                                        logger.info(f"Added column {col_name} to {table_name}")
-                                except Exception as e:
-                                    logger.warning(f"Could not add column {col_name} to {table_name}: {e}")
-                                    # Continue with other columns even if one fails
-                
-                if not missing_tables and not any(table_columns.get(t) != [col.name for col in Base.metadata.tables[t].columns] for t in existing_tables if t in Base.metadata.tables):
-                    logger.info("All required tables and columns exist. Skipping creation.")
+                # Create session factory
+                self._session_factory = sessionmaker(
+                    self._engine,
+                    class_=AsyncSession,
+                    expire_on_commit=False
+                )
 
-            self._initialized = True
-            logger.info("✅ AI Chat database service initialized")
+                # Check if tables exist and handle schema updates
+                from sqlalchemy import inspect
+                async with self._engine.begin() as conn:
+                    def get_table_info(sync_conn):
+                        inspector = inspect(sync_conn)
+                        existing_tables = inspector.get_table_names()
+                        table_columns = {}
+                        for table_name in existing_tables:
+                            if table_name in Base.metadata.tables:
+                                columns = inspector.get_columns(table_name)
+                                table_columns[table_name] = [col['name'] for col in columns]
+                        return existing_tables, table_columns
+                    
+                    existing_tables, table_columns = await conn.run_sync(get_table_info)
+                    required_tables = set(Base.metadata.tables.keys())
+                    missing_tables = required_tables - set(existing_tables)
+                    
+                    # Create missing tables
+                    if missing_tables:
+                        await conn.run_sync(Base.metadata.create_all)
+                        logger.info(f"Created missing tables: {missing_tables}")
+                    
+                    # Check for missing columns in existing tables
+                    for table_name, table in Base.metadata.tables.items():
+                        if table_name in existing_tables:
+                            existing_cols = set(table_columns.get(table_name, []))
+                            required_cols = set(col.name for col in table.columns)
+                            missing_cols = required_cols - existing_cols
+                            
+                            if missing_cols:
+                                logger.info(f"Adding missing columns to {table_name}: {missing_cols}")
+                                # Add missing columns in separate transactions to avoid rollback issues
+                                for col_name in missing_cols:
+                                    try:
+                                        # Start new transaction for each column addition
+                                        async with self._engine.begin() as col_conn:
+                                            col = table.columns[col_name]
+                                            col_type = col.type.compile(dialect=col_conn.dialect)
+                                            nullable = "NULL" if col.nullable else "NOT NULL"
+                                            default_clause = ""
+                                            
+                                            if col.default is not None:
+                                                if hasattr(col.default, 'arg'):
+                                                    if col.default.arg is not None:
+                                                        default_clause = f" DEFAULT {col.default.arg}"
+                                                elif hasattr(col.default, 'name'):
+                                                    default_clause = f" DEFAULT {col.default.name}()"
+                                            
+                                            alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
+                                            await col_conn.execute(text(alter_sql))
+                                            logger.info(f"Added column {col_name} to {table_name}")
+                                    except Exception as e:
+                                        logger.warning(f"Could not add column {col_name} to {table_name}: {e}")
+                                        # Continue with other columns even if one fails
+                    
+                    if not missing_tables and not any(table_columns.get(t) != [col.name for col in Base.metadata.tables[t].columns] for t in existing_tables if t in Base.metadata.tables):
+                        logger.info("All required tables and columns exist. Skipping creation.")
+                    
+                    # Fix created_at defaults if missing
+                    try:
+                        async with self._engine.begin() as fix_conn:
+                            # Ensure chat_messages.created_at has a default
+                            await fix_conn.execute(text("""
+                                ALTER TABLE chat_messages 
+                                ALTER COLUMN created_at SET DEFAULT NOW()
+                            """))
+                            
+                            # Ensure chat_conversations.created_at has a default  
+                            await fix_conn.execute(text("""
+                                ALTER TABLE chat_conversations 
+                                ALTER COLUMN created_at SET DEFAULT NOW()
+                            """))
+                            
+                            # Ensure chat_conversations.updated_at has a default
+                            await fix_conn.execute(text("""
+                                ALTER TABLE chat_conversations 
+                                ALTER COLUMN updated_at SET DEFAULT NOW()
+                            """))
+                            
+                            logger.info("✅ Fixed created_at/updated_at column defaults")
+                    except Exception as e:
+                        logger.warning(f"Could not set column defaults (may already exist): {e}")
 
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize chat database: {e}")
-            raise
+                    self._initialized = True
+                    logger.info("✅ AI Chat database service initialized")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize chat database: {e}")
+                raise
+    
+    async def close(self):
+        """Close database connections gracefully"""
+        if self._engine:
+            await self._engine.dispose()
+            logger.info("✅ Database connections closed")
     
     @asynccontextmanager
     async def get_session(self):
-        """Get database session with automatic rollback on error"""
+        """Get database session with automatic rollback on error
+        
+        Note: Session cleanup is handled by the context manager,
+        no need to manually close the session
+        """
         if not self._initialized:
             await self.initialize()
             
@@ -150,8 +224,7 @@ class ChatDatabaseService:
             except Exception:
                 await session.rollback()
                 raise
-            finally:
-                await session.close()
+            # Session is automatically closed by the context manager
     
     async def create_conversation(
         self, 
@@ -162,13 +235,19 @@ class ChatDatabaseService:
         title: Optional[str] = None,
         conversation_settings: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Create a new chat conversation"""
+        """Create a new chat conversation with proper UUID handling"""
         try:
             async with self.get_session() as session:
+                # Convert session_id to UUID if provided as string, otherwise generate new UUID
+                if session_id:
+                    session_uuid = validate_and_convert_uuid(session_id, "session_id")
+                else:
+                    session_uuid = uuid.uuid4()
+                
                 conversation = ChatConversation(
                     user_id=user_id,
                     title=title or f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                    session_id=session_id or f"session_{uuid.uuid4().hex[:12]}",
+                    session_id=session_uuid,
                     ai_provider=ai_provider,
                     model_name=model_name,
                     conversation_settings=conversation_settings or {}
@@ -196,20 +275,28 @@ class ChatDatabaseService:
         response_time_ms: Optional[int] = None,
         processing_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Add a message to a conversation"""
+        """Add a message to a conversation with proper ordering via database-level sequence"""
         try:
             async with self.get_session() as session:
-                # Get current message count for ordering
-                count_query = select(func.count(ChatMessage.id)).where(
-                    ChatMessage.conversation_id == conversation_id
-                )
-                result = await session.execute(count_query)
-                message_order = result.scalar() + 1
+                # Validate and convert UUIDs with proper error messages
+                conv_id_uuid = validate_and_convert_uuid(conversation_id, "conversation_id")
+                session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
+                
+                # Use database-level atomic operation to get next message order
+                # This prevents race conditions when multiple messages are added concurrently
+                order_query = text("""
+                    SELECT COALESCE(MAX(message_order), 0) + 1 
+                    FROM chat_messages 
+                    WHERE conversation_id = :conv_id
+                    FOR UPDATE
+                """)
+                result = await session.execute(order_query, {"conv_id": conv_id_uuid})
+                message_order = result.scalar()
                 
                 # Create message
                 message = ChatMessage(
-                    conversation_id=conversation_id,
-                    session_id=uuid.UUID(session_id) if isinstance(session_id, str) else session_id,
+                    conversation_id=conv_id_uuid,
+                    session_id=session_id_uuid,
                     role=role,
                     content=content,
                     message_order=message_order,
@@ -229,7 +316,7 @@ class ChatDatabaseService:
                 # Update conversation
                 await session.execute(
                     update(ChatConversation)
-                    .where(ChatConversation.id == conversation_id)
+                    .where(ChatConversation.id == conv_id_uuid)
                     .values(
                         message_count=ChatConversation.message_count + 1,
                         last_message_at=datetime.utcnow(),
@@ -250,13 +337,16 @@ class ChatDatabaseService:
         user_id: str,
         limit: int = 50
     ) -> List[Dict[str, Any]]:
-        """Get conversation history"""
+        """Get conversation history with validated UUID"""
         try:
             async with self.get_session() as session:
+                # Validate and convert conversation_id to UUID
+                conv_id_uuid = validate_and_convert_uuid(conversation_id, "conversation_id")
+                
                 # Get conversation and verify ownership
                 conv_query = select(ChatConversation).where(
                     and_(
-                        ChatConversation.id == conversation_id,
+                        ChatConversation.id == conv_id_uuid,
                         ChatConversation.user_id == user_id
                     )
                 )
@@ -269,7 +359,7 @@ class ChatDatabaseService:
                 # Get messages
                 messages_query = (
                     select(ChatMessage)
-                    .where(ChatMessage.conversation_id == conversation_id)
+                    .where(ChatMessage.conversation_id == conv_id_uuid)
                     .order_by(ChatMessage.message_order)
                     .limit(limit)
                 )

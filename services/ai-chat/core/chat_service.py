@@ -1,5 +1,5 @@
 """
-OpenAI Chat Service with Database Persistence
+OpenAI Chat Service with Database Persistence and Retry Logic
 """
 from typing import List, Dict, Any, Optional
 import logging
@@ -13,6 +13,14 @@ except ImportError:
     aiohttp = None
     _aiohttp_available = False
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log
+)
+
 from config import settings
 from models.schemas import ChatResponse, ChatMessage
 from core.database_service import chat_db
@@ -21,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 class ChatError(Exception):
     """Base exception for chat service errors"""
+    pass
+
+class TransientAPIError(Exception):
+    """Transient API error that should be retried"""
     pass
 
 class OpenAIChatService:
@@ -83,7 +95,7 @@ class OpenAIChatService:
             # Add current question
             openai_messages.append({"role": "user", "content": question})
             
-            # Call OpenAI API
+            # Call OpenAI API with retry logic
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
@@ -96,56 +108,47 @@ class OpenAIChatService:
                 "max_tokens": settings.MAX_TOKENS
             }
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{settings.OPENAI_API_BASE}/chat/completions",
-                    headers=headers,
-                    json=payload
-                ) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        logger.error(f"OpenAI API error: {error_text}")
-                        raise ChatError(f"OpenAI API error: {error_text}")
-                    
-                    data = await response.json()
-                    answer = data["choices"][0]["message"]["content"]
-                    
-                    # Calculate metrics
-                    response_time_ms = int((time.time() - start_time) * 1000)
-                    token_usage = data.get("usage", {})
-                    
-                    # Save AI response to database
-                    await chat_db.add_message(
-                        conversation_id=conversation_id,
-                        role="assistant",
-                        content=answer,
-                        session_id=session_id,
-                        ai_provider="openai",
-                        model_name=settings.OPENAI_MODEL,
-                        token_usage=token_usage,
-                        response_time_ms=response_time_ms
-                    )
-                    
-                    # Update usage statistics
-                    await chat_db.update_usage_statistics(
-                        user_id=user_id,
-                        ai_provider="openai",
-                        tokens_used=token_usage.get("total_tokens", 0),
-                        cost_usd=self._calculate_cost(token_usage),
-                        response_time_ms=response_time_ms
-                    )
-                    
-                    return ChatResponse(
-                        response=answer,
-                        ai_model_used=settings.OPENAI_MODEL,
-                        conversation_id=conversation_id,
-                        suggestions=[
-                            "Can you explain this in more detail?",
-                            "What are the best practices for this?",
-                            "Can you provide an example?",
-                            "How can I implement this?"
-                        ]
-                    )
+            # Use retry wrapper for transient errors
+            data = await self._call_openai_with_retry(payload, headers)
+            
+            answer = data["choices"][0]["message"]["content"]
+            
+            # Calculate metrics
+            response_time_ms = int((time.time() - start_time) * 1000)
+            token_usage = data.get("usage", {})
+            
+            # Save AI response to database
+            await chat_db.add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=answer,
+                session_id=session_id,
+                ai_provider="openai",
+                model_name=settings.OPENAI_MODEL,
+                token_usage=token_usage,
+                response_time_ms=response_time_ms
+            )
+            
+            # Update usage statistics
+            await chat_db.update_usage_statistics(
+                user_id=user_id,
+                ai_provider="openai",
+                tokens_used=token_usage.get("total_tokens", 0),
+                cost_usd=self._calculate_cost(token_usage),
+                response_time_ms=response_time_ms
+            )
+            
+            return ChatResponse(
+                response=answer,
+                ai_model_used=settings.OPENAI_MODEL,
+                conversation_id=conversation_id,
+                suggestions=[
+                    "Can you explain this in more detail?",
+                    "What are the best practices for this?",
+                    "Can you provide an example?",
+                    "How can I implement this?"
+                ]
+            )
                     
         except Exception as e:
             logger.error(f"Failed to get OpenAI chat response: {str(e)}")
@@ -162,6 +165,68 @@ class OpenAIChatService:
                 pass  # Don't fail the main request if stats update fails
             
             raise ChatError(f"Failed to get chat response: {str(e)}")
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(TransientAPIError),
+        before_sleep=before_sleep_log(logger, logging.WARNING)
+    )
+    async def _call_openai_with_retry(self, payload: Dict, headers: Dict) -> Dict:
+        """
+        Call OpenAI API with automatic retry on transient errors.
+        
+        Retries on:
+        - 429 (Rate Limit)
+        - 500, 502, 503 (Server Errors)
+        - Network timeouts
+        
+        Args:
+            payload: Request payload
+            headers: Request headers
+            
+        Returns:
+            API response data
+            
+        Raises:
+            TransientAPIError: For retryable errors
+            ChatError: For permanent errors
+        """
+        timeout = aiohttp.ClientTimeout(
+            total=60,       # Total timeout for request
+            connect=10,     # Connection timeout
+            sock_read=30    # Socket read timeout
+        )
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            try:
+                async with session.post(
+                    f"{settings.OPENAI_API_BASE}/chat/completions",
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    # Retry on transient errors
+                    if response.status in [429, 500, 502, 503]:
+                        error_msg = f"Transient API error: HTTP {response.status}"
+                        logger.warning(error_msg)
+                        raise TransientAPIError(error_msg)
+                    
+                    # Permanent errors - don't retry
+                    if response.status != 200:
+                        error_text = await response.text()
+                        # Log safely without exposing sensitive data
+                        logger.error(
+                            f"OpenAI API error: status={response.status}",
+                            extra={"status": response.status}
+                        )
+                        raise ChatError(f"API error: status {response.status}")
+                    
+                    return await response.json()
+                    
+            except aiohttp.ClientError as e:
+                # Network errors are transient
+                logger.warning(f"Network error calling OpenAI: {e}")
+                raise TransientAPIError(f"Network error: {str(e)}")
     
     def _calculate_cost(self, token_usage: Dict[str, int]) -> str:
         """Calculate estimated cost for OpenAI usage"""

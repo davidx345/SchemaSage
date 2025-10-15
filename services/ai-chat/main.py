@@ -1,5 +1,5 @@
 """
-AI Chat Microservice with Database Persistence
+AI Chat Microservice with Database Persistence and Rate Limiting
 Handles AI-powered chat functionality for schema assistance
 """
 from fastapi import FastAPI, HTTPException, Request, status, Body, Response, Depends
@@ -10,6 +10,9 @@ from typing import Optional, List, Dict, Any
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from config import settings
 from models.schemas import (
@@ -21,12 +24,15 @@ from core.auth import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Service instances
 openai_service = OpenAIChatService()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan management."""
+    """Application lifespan management with graceful shutdown."""
     # Startup
     logger.info("AI Chat Service starting up...")
     
@@ -42,17 +48,29 @@ async def lifespan(app: FastAPI):
         logger.info("OpenAI provider configured")
     else:
         logger.warning("OpenAI API key not configured")
+    
+    logger.info("✅ AI Chat Service ready")
     yield
-    # Shutdown
-    logger.info("AI Chat Service shutting down...")
-    await chat_db.close()
+    
+    # Shutdown - cleanup resources
+    logger.info("🛑 AI Chat Service shutting down gracefully...")
+    try:
+        await chat_db.close()
+        logger.info("✅ Database connections closed")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+    logger.info("✅ AI Chat Service stopped")
 
 app = FastAPI(
     title="AI Chat Service",
-    description="Microservice for AI chat interactions using OpenAI and Gemini APIs",
+    description="Microservice for AI chat interactions using OpenAI API with rate limiting",
     version=settings.SERVICE_VERSION,
     lifespan=lifespan
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware
 app.add_middleware(
@@ -116,11 +134,13 @@ async def options_chat():
     )
 
 @app.post("/chat", response_model=ChatResponse)
+@limiter.limit("20/minute")  # Max 20 requests per minute per IP
 async def chat_endpoint(
+    http_request: Request,  # Required for rate limiter
     request: ChatRequest = Body(...),
     user_id: Optional[str] = Depends(get_optional_user)
 ):
-    """Generate AI chat response using OpenAI"""
+    """Generate AI chat response using OpenAI with rate limiting"""
     try:
         # Use anonymous user if not authenticated
         if not user_id:
