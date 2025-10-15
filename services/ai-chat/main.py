@@ -136,8 +136,8 @@ async def options_chat():
 @app.post("/chat", response_model=ChatResponse)
 @limiter.limit("20/minute")  # Max 20 requests per minute per IP
 async def chat_endpoint(
-    http_request: Request,  # Required for rate limiter
-    request: ChatRequest = Body(...),
+    request: Request,  # Required for rate limiter - MUST be named 'request'
+    chat_request: ChatRequest = Body(...),
     user_id: Optional[str] = Depends(get_optional_user)
 ):
     """Generate AI chat response using OpenAI with rate limiting"""
@@ -147,19 +147,19 @@ async def chat_endpoint(
             user_id = "anonymous"
         
         # Generate session_id if not provided (use proper UUID)
-        if not request.session_id:
+        if not chat_request.session_id:
             session_id = str(uuid.uuid4())
         else:
             # Ensure session_id is a valid UUID string
             try:
-                uuid.UUID(request.session_id)  # Validate it's a valid UUID
-                session_id = request.session_id
+                uuid.UUID(chat_request.session_id)  # Validate it's a valid UUID
+                session_id = chat_request.session_id
             except ValueError:
                 # If not a valid UUID, generate a new one
                 session_id = str(uuid.uuid4())
         
         # Check if OpenAI is configured
-        if not settings.is_openai_configured() and not request.api_key:
+        if not settings.is_openai_configured() and not chat_request.api_key:
             raise HTTPException(
                 status_code=503, 
                 detail="OpenAI API key not configured. Please configure OPENAI_API_KEY."
@@ -167,12 +167,12 @@ async def chat_endpoint(
         
         # Get OpenAI response
         response = await openai_service.get_response(
-            schema=request.db_schema,
-            messages=request.messages,
-            question=request.question,
+            schema=chat_request.db_schema,
+            messages=chat_request.messages,
+            question=chat_request.question,
             user_id=user_id,
             session_id=session_id,
-            api_key=request.api_key
+            api_key=chat_request.api_key
         )
         return response
         
