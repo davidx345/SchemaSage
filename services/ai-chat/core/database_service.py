@@ -55,15 +55,14 @@ class ChatDatabaseService:
                 pool_recycle=1800,
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
-                    "statement_cache_size": 0,  # Disable prepared statements
+                    "statement_cache_size": 0,  # Disable prepared statements for pgBouncer
                     "prepared_statement_cache_size": 0,  # Additional safeguard
                     "command_timeout": 30,  # Connection timeout
                 },
-                # Disable SQLAlchemy query caching completely
+                # SQLAlchemy connection pool settings
                 pool_pre_ping=True,  # Verify connections before use
                 pool_reset_on_return="commit",  # Reset connections after use
-                query_cache_size=0,  # Disable query cache
-                compiled_cache=None  # Disable compiled query cache
+                query_cache_size=0  # Disable query cache
             )
 
             # Create session factory

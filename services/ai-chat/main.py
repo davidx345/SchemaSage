@@ -16,7 +16,6 @@ from models.schemas import (
     ChatResponse, ChatMessage, ChatRequest, ChatErrorResponse, ApiHealthResponse
 )
 from core.chat_service import OpenAIChatService, ChatError
-from core.gemini_service import GeminiChatService, GeminiServiceError
 from core.database_service import chat_db
 from core.auth import get_current_user, get_optional_user
 
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 # Service instances
 openai_service = OpenAIChatService()
-gemini_service = GeminiChatService()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,17 +37,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to initialize database: {e}")
     
-    # Check AI provider configurations
-    providers = []
+    # Check OpenAI configuration
     if settings.is_openai_configured():
-        providers.append("OpenAI")
-    if settings.is_gemini_configured():
-        providers.append("Gemini")
-    
-    if providers:
-        logger.info(f"AI providers configured: {', '.join(providers)}")
+        logger.info("OpenAI provider configured")
     else:
-        logger.warning("No AI providers configured")
+        logger.warning("OpenAI API key not configured")
     yield
     # Shutdown
     logger.info("AI Chat Service shutting down...")
@@ -99,10 +91,9 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.get("/health", response_model=ApiHealthResponse)
 async def health_check():
     """Health check endpoint"""
-    # Test AI provider configurations
+    # Test OpenAI configuration
     ai_providers = {
-        "openai": settings.is_openai_configured(),
-        "gemini": settings.is_gemini_configured()
+        "openai": settings.is_openai_configured()
     }
     
     return ApiHealthResponse(
@@ -129,7 +120,7 @@ async def chat_endpoint(
     request: ChatRequest = Body(...),
     user_id: Optional[str] = Depends(get_optional_user)
 ):
-    """Generate AI chat response using available AI providers"""
+    """Generate AI chat response using OpenAI"""
     try:
         # Use anonymous user if not authenticated
         if not user_id:
@@ -147,46 +138,29 @@ async def chat_endpoint(
                 # If not a valid UUID, generate a new one
                 session_id = str(uuid.uuid4())
         
-        # Try OpenAI first if configured
-        if settings.is_openai_configured():
-            try:
-                response = await openai_service.get_response(
-                    schema=request.db_schema,
-                    messages=request.messages,
-                    question=request.question,
-                    user_id=user_id,
-                    session_id=session_id,
-                    api_key=request.api_key
-                )
-                return response
-            except ChatError as e:
-                logger.warning(f"OpenAI chat failed: {str(e)}")
-                # Fall through to try Gemini
-                
-        # Try Gemini if OpenAI failed or not configured
-        if settings.is_gemini_configured():
-            try:
-                response = await gemini_service.get_response(
-                    schema=request.db_schema,
-                    messages=request.messages,
-                    question=request.question,
-                    user_id=user_id,
-                    session_id=session_id,
-                    api_key=request.api_key
-                )
-                return response
-            except GeminiServiceError as e:
-                logger.error(f"Gemini chat failed: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"AI chat failed: {str(e)}")
+        # Check if OpenAI is configured
+        if not settings.is_openai_configured() and not request.api_key:
+            raise HTTPException(
+                status_code=503, 
+                detail="OpenAI API key not configured. Please configure OPENAI_API_KEY."
+            )
         
-        # No AI providers configured
-        raise HTTPException(
-            status_code=503, 
-            detail="No AI providers are configured. Please configure OpenAI or Gemini API keys."
+        # Get OpenAI response
+        response = await openai_service.get_response(
+            schema=request.db_schema,
+            messages=request.messages,
+            question=request.question,
+            user_id=user_id,
+            session_id=session_id,
+            api_key=request.api_key
         )
+        return response
         
     except HTTPException:
         raise
+    except ChatError as e:
+        logger.error(f"OpenAI chat failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"AI chat failed: {str(e)}")
     except Exception as e:
         logger.error(f"Unexpected chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -216,34 +190,11 @@ async def chat_openai(request: ChatRequest):
         logger.error(f"Unexpected OpenAI chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.post("/chat/gemini", response_model=ChatResponse)
-async def chat_gemini(request: ChatRequest):
-    """Generate chat response specifically using Gemini"""
-    try:
-        if not settings.is_gemini_configured() and not request.api_key:
-            raise HTTPException(
-                status_code=400, 
-                detail="Gemini API key not configured"
-            )
-            
-        response = await gemini_service.get_response(
-            schema=request.db_schema,
-            messages=request.messages,
-            question=request.question,
-            api_key=request.api_key
-        )
-        return response
-        
-    except GeminiServiceError as e:
-        logger.error(f"Gemini chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        logger.error(f"Unexpected Gemini chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @app.get("/providers/test")
 async def test_providers():
-    """Test AI provider connections"""
+    """Test OpenAI connection"""
     results = {}
     
     # Test OpenAI
@@ -261,19 +212,6 @@ async def test_providers():
     else:
         results["openai"] = {"status": "not_configured", "message": "API key not set"}
     
-    # Test Gemini
-    if settings.is_gemini_configured():
-        try:
-            success, message = await gemini_service.verify_connection()
-            results["gemini"] = {
-                "status": "ok" if success else "error", 
-                "message": message
-            }
-        except Exception as e:
-            results["gemini"] = {"status": "error", "message": str(e)}
-    else:
-        results["gemini"] = {"status": "not_configured", "message": "API key not set"}
-    
     return results
 
 @app.get("/")
@@ -286,9 +224,9 @@ async def root():
         "endpoints": {
             "chat": "POST /chat",
             "chat_openai": "POST /chat/openai", 
-            "chat_gemini": "POST /chat/gemini",
             "conversations": "GET /conversations",
             "conversation_history": "GET /conversations/{conversation_id}",
+            "continue_conversation": "GET /conversations/{conversation_id}/continue",
             "test_providers": "GET /providers/test",
             "health": "GET /health"
         }
@@ -344,43 +282,17 @@ async def continue_conversation(
             for msg in history[-10:]  # Last 10 messages for context
         ]
         
-        # Choose provider
-        if provider == "openai" and settings.is_openai_configured():
-            response = await openai_service.get_response(
-                schema=None,
-                messages=messages,
-                question=question,
-                user_id=user_id,
-                conversation_id=conversation_id
-            )
-        elif provider == "gemini" and settings.is_gemini_configured():
-            response = await gemini_service.get_response(
-                schema=None,
-                messages=messages,
-                question=question,
-                user_id=user_id,
-                conversation_id=conversation_id
-            )
-        else:
-            # Auto-select
-            if settings.is_openai_configured():
-                response = await openai_service.get_response(
-                    schema=None,
-                    messages=messages,
-                    question=question,
-                    user_id=user_id,
-                    conversation_id=conversation_id
-                )
-            elif settings.is_gemini_configured():
-                response = await gemini_service.get_response(
-                    schema=None,
-                    messages=messages,
-                    question=question,
-                    user_id=user_id,
-                    conversation_id=conversation_id
-                )
-            else:
-                raise HTTPException(status_code=503, detail="No AI providers configured")
+        # Use OpenAI
+        if not settings.is_openai_configured():
+            raise HTTPException(status_code=503, detail="OpenAI API not configured")
+        
+        response = await openai_service.get_response(
+            schema=None,
+            messages=messages,
+            question=question,
+            user_id=user_id,
+            conversation_id=conversation_id
+        )
         
         return response
         
