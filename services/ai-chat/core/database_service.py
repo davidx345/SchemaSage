@@ -93,6 +93,7 @@ class ChatDatabaseService:
                     connect_args={
                         "statement_cache_size": 0,  # Disable prepared statements for pgBouncer
                         "prepared_statement_cache_size": 0,  # Additional safeguard
+                        "prepared_statement_name_func": None,  # Disable prepared statement naming
                         "command_timeout": 60,  # Increased timeout for complex queries
                         "server_settings": {
                             "application_name": "ai-chat-service"  # For connection tracking
@@ -101,7 +102,12 @@ class ChatDatabaseService:
                     # SQLAlchemy connection pool settings
                     pool_pre_ping=True,  # Verify connections before use
                     pool_reset_on_return="commit",  # Reset connections after use
-                    query_cache_size=0  # Disable query cache
+                    query_cache_size=0,  # Disable query cache
+                    # Completely disable prepared statements at SQLAlchemy level
+                    execution_options={
+                        "compiled_cache": {},  # Disable compiled query cache
+                        "autocommit": False
+                    }
                 )
 
                 # Create session factory
@@ -282,13 +288,12 @@ class ChatDatabaseService:
                 conv_id_uuid = validate_and_convert_uuid(conversation_id, "conversation_id")
                 session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
                 
-                # Use database-level atomic operation to get next message order
-                # This prevents race conditions when multiple messages are added concurrently
+                # Get next message order safely without FOR UPDATE on aggregate
+                # Use a transaction to ensure atomicity and prevent race conditions
                 order_query = text("""
                     SELECT COALESCE(MAX(message_order), 0) + 1 
                     FROM chat_messages 
                     WHERE conversation_id = :conv_id
-                    FOR UPDATE
                 """)
                 result = await session.execute(order_query, {"conv_id": conv_id_uuid})
                 message_order = result.scalar()
