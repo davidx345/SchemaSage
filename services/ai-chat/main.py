@@ -143,20 +143,23 @@ async def chat_endpoint(
 ):
     """Generate AI chat response using OpenAI with rate limiting"""
     try:
-        # Generate UUID for anonymous users (database expects UUID for user_id)
+        # User ID must be an integer from the users table
         if not user_id:
-            # For anonymous users, generate a consistent UUID based on session
-            # Or use a fixed anonymous UUID
-            ANONYMOUS_USER_UUID = "00000000-0000-0000-0000-000000000000"
-            user_id = ANONYMOUS_USER_UUID
-        else:
-            # Validate user_id is a valid UUID, if not try to convert or generate one
-            try:
-                uuid.UUID(user_id)  # Validate it's a valid UUID
-            except ValueError:
-                # If user_id is not a UUID (e.g., from old system), generate one
-                # You could also hash the user_id to create a consistent UUID
-                user_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, user_id))
+            # For anonymous users, require authentication or reject
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required. Please log in to use the chat service."
+            )
+        
+        # user_id should already be a string representation of an integer from JWT
+        # Validate it's a valid integer
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid user ID format. Please log in again."
+            )
         
         # Generate session_id if not provided (use proper UUID)
         if not chat_request.session_id:
@@ -181,7 +184,7 @@ async def chat_endpoint(
         from core.database_service import chat_db
         await chat_db.get_or_create_session(
             session_id=session_id,
-            user_id=user_id,
+            user_id=user_id_int,  # Use the validated integer user ID
             session_name=f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
         

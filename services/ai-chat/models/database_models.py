@@ -205,7 +205,7 @@ class ChatSession(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # User UUID from JWT token
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)  # User integer ID from users table
     project_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Associated project if any
     
     # Session metadata

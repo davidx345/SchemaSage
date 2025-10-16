@@ -236,7 +236,7 @@ class ChatDatabaseService:
     async def get_or_create_session(
         self,
         session_id: str,
-        user_id: str,
+        user_id: Union[str, int],
         project_id: Optional[str] = None,
         session_name: Optional[str] = None
     ) -> str:
@@ -245,7 +245,7 @@ class ChatDatabaseService:
         
         Args:
             session_id: UUID string for the session
-            user_id: User identifier
+            user_id: User identifier (integer ID from users table)
             project_id: Optional project association
             session_name: Optional user-friendly session name
             
@@ -257,8 +257,11 @@ class ChatDatabaseService:
                 # Validate and convert session_id UUID
                 session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
                 
-                # Validate and convert user_id UUID
-                user_id_uuid = validate_and_convert_uuid(user_id, "user_id")
+                # Convert user_id to integer
+                try:
+                    user_id_int = int(user_id)
+                except (ValueError, TypeError):
+                    raise ValueError(f"Invalid user_id: {user_id}. Must be an integer.")
                 
                 # Check if session already exists
                 existing_session_query = select(ChatSession).where(ChatSession.id == session_id_uuid)
@@ -276,7 +279,7 @@ class ChatDatabaseService:
                 
                 new_session = ChatSession(
                     id=session_id_uuid,
-                    user_id=user_id_uuid,
+                    user_id=user_id_int,
                     project_id=project_id_uuid,
                     session_name=session_name,
                     session_context={},
