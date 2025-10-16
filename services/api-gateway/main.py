@@ -283,9 +283,67 @@ async def projects_proxy(request: Request, path: str):
 
 # ===== AI CHAT SERVICE ROUTES =====
 
+@app.api_route("/api/chat", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def chat_direct_proxy(request: Request):
+    """Proxy AI chat requests to /chat endpoint."""
+    try:
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
+        
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        # Build target URL - forward to /chat
+        full_url = f"{AI_CHAT_SERVICE_URL}/chat"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        # Get request body if present
+        body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        logger.info(f"🔄 Proxying {method} /api/chat to AI Chat Service at /chat")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            content=body,
+            follow_redirects=False
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ AI Chat Service responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to AI Chat Service")
+        raise HTTPException(status_code=504, detail="AI Chat Service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to AI Chat Service")
+        raise HTTPException(status_code=503, detail="AI Chat Service unavailable")
+    except Exception as e:
+        logger.error(f"❌ Chat proxy error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
+
 @app.api_route("/api/chat/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def chat_proxy(request: Request, path: str):
-    """Proxy AI chat requests."""
+    """Proxy AI chat requests with subpaths."""
     return await proxy_request(request, AI_CHAT_SERVICE_URL, "AI Chat Service")
 
 @app.api_route("/api/ai/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
