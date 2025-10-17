@@ -62,7 +62,7 @@ class OpenAIChatService:
             if not api_key:
                 raise ChatError("OpenAI API key not configured")
             
-            # Create conversation if none provided
+            # Create conversation if none provided - do this before saving user message
             if not conversation_id:
                 logger.debug(f"Creating new conversation for user {user_id}")
                 conversation_id = await chat_db.create_conversation(
@@ -74,14 +74,17 @@ class OpenAIChatService:
                 )
                 logger.info(f"✅ Created conversation {conversation_id}")
             
-            # Save user message to database
+            # Save user message to database BEFORE calling OpenAI
+            # This ensures we capture the user's question even if OpenAI fails
             logger.debug(f"Saving user message to conversation {conversation_id}")
+            user_message_start = time.time()
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="user",
                 content=question,
                 session_id=session_id
             )
+            logger.debug(f"✅ User message saved in {int((time.time() - user_message_start) * 1000)}ms")
             
             # Format messages for OpenAI
             openai_messages = [
@@ -130,6 +133,7 @@ class OpenAIChatService:
             
             # Save AI response to database
             logger.debug(f"Saving AI response to conversation {conversation_id}")
+            db_save_start = time.time()
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="assistant",
@@ -140,18 +144,20 @@ class OpenAIChatService:
                 token_usage=token_usage,
                 response_time_ms=response_time_ms
             )
-            logger.debug("✅ AI response saved to database")
+            logger.debug(f"✅ AI response saved in {int((time.time() - db_save_start) * 1000)}ms")
             
-            # Update usage statistics
-            logger.debug(f"Updating usage statistics for user {user_id}")
-            await chat_db.update_usage_statistics(
-                user_id=user_id,
-                ai_provider="openai",
-                tokens_used=token_usage.get("total_tokens", 0),
-                cost_usd=self._calculate_cost(token_usage),
-                response_time_ms=response_time_ms
+            # Update usage statistics - Fire and forget (don't block response)
+            # This runs in background and doesn't delay the user's response
+            logger.debug(f"Scheduling usage statistics update for user {user_id}")
+            asyncio.create_task(
+                self._update_stats_background(
+                    user_id=user_id,
+                    ai_provider="openai",
+                    tokens_used=token_usage.get("total_tokens", 0),
+                    cost_usd=self._calculate_cost(token_usage),
+                    response_time_ms=response_time_ms
+                )
             )
-            logger.debug("✅ Usage statistics updated")
             
             return ChatResponse(
                 response=answer,
@@ -168,16 +174,10 @@ class OpenAIChatService:
         except Exception as e:
             logger.error(f"❌ Failed to get OpenAI chat response: {str(e)}", exc_info=True)
             
-            # Update error statistics
-            try:
-                await chat_db.update_usage_statistics(
-                    user_id=user_id,
-                    ai_provider="openai",
-                    tokens_used=0,
-                    had_error=True
-                )
-            except Exception as stats_error:
-                logger.warning(f"Failed to update error statistics: {stats_error}")
+            # Update error statistics - Fire and forget (don't block error response)
+            asyncio.create_task(
+                self._update_error_stats_background(user_id=user_id, ai_provider="openai")
+            )
             
             raise ChatError(f"Failed to get chat response: {str(e)}")
     
@@ -246,6 +246,42 @@ class OpenAIChatService:
                 # Timeout errors - log specifically
                 logger.error(f"⏱️ TIMEOUT calling OpenAI API after {timeout.total}s: {e}")
                 raise TransientAPIError(f"OpenAI API timeout after {timeout.total}s")
+    
+    async def _update_stats_background(
+        self,
+        user_id: str,
+        ai_provider: str,
+        tokens_used: int,
+        cost_usd: str,
+        response_time_ms: int
+    ):
+        """Update usage statistics in background without blocking the main response"""
+        try:
+            await chat_db.update_usage_statistics(
+                user_id=user_id,
+                ai_provider=ai_provider,
+                tokens_used=tokens_used,
+                cost_usd=cost_usd,
+                response_time_ms=response_time_ms
+            )
+            logger.debug(f"✅ Usage statistics updated in background for user {user_id}")
+        except Exception as e:
+            # Log but don't fail - this is non-critical
+            logger.warning(f"Background stats update failed for user {user_id}: {e}")
+    
+    async def _update_error_stats_background(self, user_id: str, ai_provider: str):
+        """Update error statistics in background without blocking the error response"""
+        try:
+            await chat_db.update_usage_statistics(
+                user_id=user_id,
+                ai_provider=ai_provider,
+                tokens_used=0,
+                had_error=True
+            )
+            logger.debug(f"✅ Error statistics updated in background for user {user_id}")
+        except Exception as e:
+            # Log but don't fail - this is non-critical
+            logger.warning(f"Background error stats update failed for user {user_id}: {e}")
     
     def _calculate_cost(self, token_usage: Dict[str, int]) -> str:
         """Calculate estimated cost for OpenAI usage"""

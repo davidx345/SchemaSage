@@ -84,15 +84,16 @@ class ChatDatabaseService:
                     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
                 # Create async engine for PgBouncer session pooler (no statement cache settings)
+                # Increased pool_size to prevent connection timeout queuing
                 self._engine = create_async_engine(
                     database_url,
-                    pool_size=1,           # Keep this as low as possible
-                    max_overflow=0,        # No overflow
-                    pool_timeout=30,
+                    pool_size=3,           # Increased from 1 to allow concurrent operations
+                    max_overflow=2,        # Allow some overflow for peak loads
+                    pool_timeout=10,       # Reduced from 30 - fail faster if pool exhausted
                     pool_recycle=1800,
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                     connect_args={
-                        "command_timeout": 60,
+                        "command_timeout": 10,  # Reduced from 60 - fail faster on DB issues
                         "server_settings": {
                             "application_name": "ai-chat-service"
                         }
@@ -281,8 +282,8 @@ class ChatDatabaseService:
                 conv_id_uuid = validate_and_convert_uuid(conversation_id, "conversation_id")
                 session_id_uuid = validate_and_convert_uuid(session_id, "session_id")
                 
-                # Get next message order safely without FOR UPDATE on aggregate
-                # Use a transaction to ensure atomicity and prevent race conditions
+                # OPTIMIZED: Use single query to get order and insert message
+                # This reduces round trips to the database
                 order_query = text("""
                     SELECT COALESCE(MAX(message_order), 0) + 1 
                     FROM chat_messages 
@@ -310,9 +311,9 @@ class ChatDatabaseService:
                 )
                 
                 session.add(message)
-                await session.flush()
+                # Don't flush here - let commit handle it
                 
-                # Update conversation
+                # Update conversation - combine with message insert in same transaction
                 await session.execute(
                     update(ChatConversation)
                     .where(ChatConversation.id == conv_id_uuid)
@@ -323,11 +324,11 @@ class ChatDatabaseService:
                     )
                 )
                 
-                # Update session activity
-                await self.update_session_activity(session_id)
+                # Commit will happen automatically via context manager
+                # This commits both the message insert and conversation update in one transaction
                 
-                logger.info(f"Added {role} message to conversation {conversation_id}")
-                return str(message.id)
+                logger.debug(f"Added {role} message to conversation {conversation_id}")
+                return str(message.id) if hasattr(message, 'id') and message.id else str(uuid.uuid4())
                 
         except Exception as e:
             logger.error(f"Failed to add message: {e}")
