@@ -84,16 +84,16 @@ class ChatDatabaseService:
                     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
                 # Create async engine with comprehensive prepared statement disabling
+                # PgBouncer (transaction pooler) safe asyncpg engine setup
                 self._engine = create_async_engine(
                     database_url,
-                    pool_size=5,  # Reduced for better stability with pgBouncer
-                    max_overflow=10,  # Reduced overflow
+                    pool_size=5,  # Keep pool small for PgBouncer
+                    max_overflow=0,  # No overflow for transaction pooler
                     pool_timeout=30,
                     pool_recycle=1800,
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                     connect_args={
-                        "statement_cache_size": 0,  # Critical: Disable prepared statements for pgBouncer
-                        "prepared_statement_cache_size": 0,  # Additional safeguard
+                        "statement_cache_size": 0,  # REQUIRED: Disable prepared statements for PgBouncer
                         "command_timeout": 60,
                         "server_settings": {
                             "application_name": "ai-chat-service"
