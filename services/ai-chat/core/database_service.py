@@ -86,8 +86,8 @@ class ChatDatabaseService:
                 # Create async engine with comprehensive prepared statement disabling
                 self._engine = create_async_engine(
                     database_url,
-                    pool_size=10,  # Reduced for better stability
-                    max_overflow=20,  # Reduced overflow
+                    pool_size=5,  # Reduced for better stability with pgBouncer
+                    max_overflow=10,  # Reduced overflow
                     pool_timeout=30,
                     pool_recycle=1800,
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
@@ -110,10 +110,9 @@ class ChatDatabaseService:
                     expire_on_commit=False
                 )
 
-                # Simple table creation - just create all tables if they don't exist
-                async with self._engine.begin() as conn:
-                    await conn.run_sync(Base.metadata.create_all)
-                    logger.info("✅ Database tables verified/created")
+                # Skip table creation - tables should already exist and be managed externally
+                # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
+                logger.info("✅ Database connection established (tables managed externally)")
 
                 self._initialized = True
                 logger.info("✅ AI Chat database service initialized")
