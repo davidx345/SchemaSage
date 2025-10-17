@@ -38,7 +38,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for your domains in production
+    allow_origins=CORS_ORIGINS,  # Use specific origins instead of wildcard with credentials
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -291,9 +291,19 @@ async def chat_direct_proxy(request: Request):
         headers = dict(request.headers)
         query_params = str(request.query_params)
         
+        # Log received headers for debugging
+        logger.info(f"🔍 Gateway received headers for /api/chat: {list(headers.keys())}")
+        auth_header = headers.get('Authorization') or headers.get('authorization')
+        logger.info(f"🔍 Gateway Authorization header: {auth_header[:50] if auth_header else 'None'}...")
+        
         # Remove host-specific headers
         headers.pop("host", None)
         headers.pop("content-length", None)
+        
+        # Log headers being forwarded
+        logger.info(f"🔍 Gateway forwarding headers: {list(headers.keys())}")
+        forward_auth = headers.get('Authorization') or headers.get('authorization')
+        logger.info(f"🔍 Gateway forwarding Authorization: {forward_auth[:50] if forward_auth else 'None'}...")
         
         # Build target URL - forward to /chat
         full_url = f"{AI_CHAT_SERVICE_URL}/chat"
@@ -316,13 +326,14 @@ async def chat_direct_proxy(request: Request):
             follow_redirects=False
         )
         
+        # Log response
+        logger.info(f"✅ AI Chat Service responded with {response.status_code}")
+        
         # Create response with original headers
         response_headers = {
             key: value for key, value in response.headers.items()
             if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
         }
-        
-        logger.info(f"✅ AI Chat Service responded with {response.status_code}")
         
         return Response(
             content=response.content,

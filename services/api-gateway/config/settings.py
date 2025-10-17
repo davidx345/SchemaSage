@@ -10,22 +10,22 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://schemasa
 # Service configuration
 SERVICES = {
     "schema-detection": {
-        "url": os.getenv("SCHEMA_DETECTION_URL", "http://localhost:8001"),
+        "url": os.getenv("SCHEMA_DETECTION_URL", "https://schemasage-schema-detection-0cc19b546c3c.herokuapp.com"),
         "health_endpoint": "/health",
         "timeout": 30
     },
     "code-generation": {
-        "url": os.getenv("CODE_GENERATION_URL", "http://localhost:8002"),
+        "url": os.getenv("CODE_GENERATION_URL", "https://schemasage-code-generation-56faa300323b.herokuapp.com"),
         "health_endpoint": "/health",
         "timeout": 30
     },
     "ai-chat": {
-        "url": os.getenv("AI_CHAT_URL", "http://localhost:8003"),
+        "url": os.getenv("AI_CHAT_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com"),
         "health_endpoint": "/health",
         "timeout": 30
     },
     "project-management": {
-        "url": os.getenv("PROJECT_MANAGEMENT_URL", "http://localhost:8004"),
+        "url": os.getenv("PROJECT_MANAGEMENT_URL", "https://schemasage-project-management-48496f02644b.herokuapp.com"),
         "health_endpoint": "/health",
         "timeout": 30
     },

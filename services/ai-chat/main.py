@@ -151,11 +151,15 @@ async def chat_endpoint(
                 detail="Authentication required. Please log in to use the chat service."
             )
         
-        # user_id should already be a string representation of an integer from JWT
-        # Validate it's a valid integer
+        # user_id comes from JWT - could be integer or string representation
+        # Validate and convert to integer
         try:
-            user_id_int = int(user_id)
-        except ValueError:
+            if isinstance(user_id, str):
+                user_id_int = int(user_id)
+            else:
+                user_id_int = user_id
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid user_id format from JWT: {user_id} (type: {type(user_id)})")
             raise HTTPException(
                 status_code=400,
                 detail="Invalid user ID format. Please log in again."
@@ -207,6 +211,53 @@ async def chat_endpoint(
     except Exception as e:
         logger.error(f"Unexpected chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/chat")
+async def chat_status(user_id: Optional[str] = Depends(get_optional_user)):
+    """Get chat service status and user session info"""
+    try:
+        # Check if user is authenticated
+        if not user_id:
+            return {
+                "status": "available",
+                "service": "AI Chat Service",
+                "version": settings.SERVICE_VERSION,
+                "authenticated": False,
+                "message": "Authentication required for chat functionality",
+                "providers": {
+                    "openai": settings.is_openai_configured()
+                }
+            }
+        
+        # For authenticated users, return session info
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            user_id_int = None
+        
+        return {
+            "status": "ready",
+            "service": "AI Chat Service", 
+            "version": settings.SERVICE_VERSION,
+            "authenticated": True,
+            "user_id": user_id,
+            "providers": {
+                "openai": settings.is_openai_configured()
+            },
+            "endpoints": {
+                "chat": "POST /chat",
+                "conversations": "GET /conversations",
+                "test_providers": "GET /providers/test"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Chat status error: {str(e)}")
+        return {
+            "status": "error",
+            "service": "AI Chat Service",
+            "message": str(e)
+        }
 
 @app.post("/chat/openai", response_model=ChatResponse)
 async def chat_openai(request: ChatRequest):

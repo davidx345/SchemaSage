@@ -202,10 +202,14 @@ def authenticate_user(db: Session, username: str, password: str, client_ip: str)
     
     return user
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, user_id: int = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
-    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    to_encode.update({
+        "exp": expire, 
+        "iat": datetime.utcnow(),
+        "user_id": user_id  # Add user_id as integer for AI Chat service
+    })
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 app = FastAPI(
@@ -262,7 +266,10 @@ async def signup(user: UserCreate, request: Request, db: Session = Depends(get_d
     
     try:
         db_user = create_user(db, user)
-        access_token = create_access_token({"sub": db_user.username, "is_admin": db_user.is_admin})
+        access_token = create_access_token(
+            {"sub": db_user.username, "is_admin": db_user.is_admin}, 
+            user_id=db_user.id
+        )
         
         # Send webhook notification for new user
         webhook_data = {
@@ -302,7 +309,10 @@ def login(user_data: UserLogin, request: Request = None, db: Session = Depends(g
                 detail="Incorrect username or password"
             )
         
-        access_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+        access_token = create_access_token(
+            {"sub": user.username, "is_admin": user.is_admin}, 
+            user_id=user.id
+        )
         
         logger.info(f"Successful login: {user.username} from {client_ip}")
         
@@ -375,7 +385,10 @@ def get_me(current_user: User = Depends(get_current_user)):
 @app.post("/refresh-token", response_model=TokenResponse)
 def refresh_token(current_user: User = Depends(get_current_user)):
     """Refresh the access token for authenticated users"""
-    access_token = create_access_token({"sub": current_user.username, "is_admin": current_user.is_admin})
+    access_token = create_access_token(
+        {"sub": current_user.username, "is_admin": current_user.is_admin}, 
+        user_id=current_user.id
+    )
     
     user_response = UserResponse(
         id=current_user.id,
@@ -518,7 +531,10 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
             logger.info(f"✅ User data committed to database: {user.username}")
             
             # Create JWT token
-            jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+            jwt_token = create_access_token(
+                {"sub": user.username, "is_admin": user.is_admin}, 
+                user_id=user.id
+            )
             logger.info(f"✅ JWT token created for user: {user.username}")
             
             # Create user data for frontend
@@ -595,7 +611,10 @@ async def google_mobile_auth(google_token: dict, db: Session = Depends(get_db)):
             db.refresh(user)
             
             # Create JWT token
-            jwt_token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+            jwt_token = create_access_token(
+                {"sub": user.username, "is_admin": user.is_admin}, 
+                user_id=user.id
+            )
             
             user_response = UserResponse(
                 id=user.id,
@@ -616,6 +635,30 @@ async def google_mobile_auth(google_token: dict, db: Session = Depends(get_db)):
         logger.error(f"Google mobile auth error: {str(e)}")
         raise HTTPException(status_code=400, detail="Google authentication failed")
 
+@app.get("/")
+def root():
+    """Root endpoint for authentication service"""
+    return {
+        "service": "SchemaSage Authentication Service",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "signup": "POST /signup",
+            "login": "POST /login", 
+            "oauth_login": "POST /token",
+            "google_auth": "POST /google",
+            "google_callback": "GET /google/callback",
+            "google_mobile": "POST /google/mobile",
+            "me": "GET /me",
+            "refresh_token": "POST /refresh-token",
+            "logout": "POST /logout",
+            "users": "GET /users (admin only)",
+            "health": "GET /health"
+        },
+        "oauth_providers": ["google"],
+        "features": ["JWT", "bcrypt", "rate_limiting", "account_lockout"]
+    }
+
 @app.get("/health")
 def health_check():
     """Health check endpoint for monitoring"""
@@ -629,10 +672,33 @@ def health_check():
 @app.on_event("startup")
 def on_startup():
     try:
+        # Test database connection first
+        logger.info(f"Testing database connection to: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'localhost'}")
+        with engine.connect() as conn:
+            result = conn.execute("SELECT 1")
+            logger.info("✅ Database connection successful")
+        
+        # Create tables
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        logger.info("✅ Database tables created successfully")
+        
+        # Verify critical environment variables
+        config_status = {
+            "DATABASE_URL": "✅ Configured" if DATABASE_URL != "postgresql://localhost:5432/schemasage" else "⚠️ Using default",
+            "JWT_SECRET_KEY": "✅ Configured" if JWT_SECRET_KEY != "dev_jwt_secret_key_not_for_production" else "⚠️ Using default (dev only)",
+            "GOOGLE_CLIENT_ID": "✅ Configured" if GOOGLE_CLIENT_ID else "❌ Missing",
+            "GOOGLE_CLIENT_SECRET": "✅ Configured" if GOOGLE_CLIENT_SECRET else "❌ Missing",
+            "FRONTEND_URL": f"✅ {FRONTEND_URL}"
+        }
+        
+        logger.info("🔧 Environment Configuration:")
+        for key, status in config_status.items():
+            logger.info(f"   {key}: {status}")
+            
     except Exception as e:
-        logger.error(f"Failed to create database tables: {e}")
+        logger.error(f"❌ Database startup failed: {e}")
+        logger.error(f"❌ DATABASE_URL: {DATABASE_URL[:30]}...")
         # Don't fail startup if database is not available
         # This allows the service to start even if DB is temporarily unavailable
-    logger.info("Authentication service started successfully")
+        
+    logger.info("🚀 Authentication service started successfully")
