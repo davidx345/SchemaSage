@@ -8,6 +8,12 @@ class Settings:
     """Configuration settings for AI Chat service"""
     
     def __init__(self):
+        # Database Configuration
+        self.DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
+        
+        # JWT Configuration
+        self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
+        
         # OpenAI Configuration
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
         self.OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
@@ -20,8 +26,8 @@ class Settings:
         # Service Configuration
         self.SERVICE_NAME = "ai-chat"
         self.SERVICE_VERSION = "1.0.0"
-        # PORT and HOST are handled by Heroku via Procfile
-        
+        self.HOST = os.getenv("HOST", "0.0.0.0")
+        self.PORT = int(os.getenv("PORT", "8000"))
         
         # Chat Configuration
         self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2000"))

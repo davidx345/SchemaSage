@@ -86,29 +86,21 @@ class ChatDatabaseService:
                 # Create async engine with comprehensive prepared statement disabling
                 self._engine = create_async_engine(
                     database_url,
-                    pool_size=20,  # Increased pool size for production load
-                    max_overflow=30,  # Higher overflow for traffic spikes
+                    pool_size=10,  # Reduced for better stability
+                    max_overflow=20,  # Reduced overflow
                     pool_timeout=30,
                     pool_recycle=1800,
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                     connect_args={
-                        "statement_cache_size": 0,  # Disable prepared statements for pgBouncer
+                        "statement_cache_size": 0,  # Critical: Disable prepared statements for pgBouncer
                         "prepared_statement_cache_size": 0,  # Additional safeguard
-                        "prepared_statement_name_func": None,  # Disable prepared statement naming
-                        "command_timeout": 60,  # Increased timeout for complex queries
+                        "command_timeout": 60,
                         "server_settings": {
-                            "application_name": "ai-chat-service"  # For connection tracking
+                            "application_name": "ai-chat-service"
                         }
                     },
-                    # SQLAlchemy connection pool settings
                     pool_pre_ping=True,  # Verify connections before use
-                    pool_reset_on_return="commit",  # Reset connections after use
-                    query_cache_size=0,  # Disable query cache
-                    # Completely disable prepared statements at SQLAlchemy level
-                    execution_options={
-                        "compiled_cache": {},  # Disable compiled query cache
-                        "autocommit": False
-                    }
+                    pool_reset_on_return="commit"  # Reset connections after use
                 )
 
                 # Create session factory
@@ -118,91 +110,13 @@ class ChatDatabaseService:
                     expire_on_commit=False
                 )
 
-                # Check if tables exist and handle schema updates
-                from sqlalchemy import inspect
+                # Simple table creation - just create all tables if they don't exist
                 async with self._engine.begin() as conn:
-                    def get_table_info(sync_conn):
-                        inspector = inspect(sync_conn)
-                        existing_tables = inspector.get_table_names()
-                        table_columns = {}
-                        for table_name in existing_tables:
-                            if table_name in Base.metadata.tables:
-                                columns = inspector.get_columns(table_name)
-                                table_columns[table_name] = [col['name'] for col in columns]
-                        return existing_tables, table_columns
-                    
-                    existing_tables, table_columns = await conn.run_sync(get_table_info)
-                    required_tables = set(Base.metadata.tables.keys())
-                    missing_tables = required_tables - set(existing_tables)
-                    
-                    # Create missing tables
-                    if missing_tables:
-                        await conn.run_sync(Base.metadata.create_all)
-                        logger.info(f"Created missing tables: {missing_tables}")
-                    
-                    # Check for missing columns in existing tables
-                    for table_name, table in Base.metadata.tables.items():
-                        if table_name in existing_tables:
-                            existing_cols = set(table_columns.get(table_name, []))
-                            required_cols = set(col.name for col in table.columns)
-                            missing_cols = required_cols - existing_cols
-                            
-                            if missing_cols:
-                                logger.info(f"Adding missing columns to {table_name}: {missing_cols}")
-                                # Add missing columns in separate transactions to avoid rollback issues
-                                for col_name in missing_cols:
-                                    try:
-                                        # Start new transaction for each column addition
-                                        async with self._engine.begin() as col_conn:
-                                            col = table.columns[col_name]
-                                            col_type = col.type.compile(dialect=col_conn.dialect)
-                                            nullable = "NULL" if col.nullable else "NOT NULL"
-                                            default_clause = ""
-                                            
-                                            if col.default is not None:
-                                                if hasattr(col.default, 'arg'):
-                                                    if col.default.arg is not None:
-                                                        default_clause = f" DEFAULT {col.default.arg}"
-                                                elif hasattr(col.default, 'name'):
-                                                    default_clause = f" DEFAULT {col.default.name}()"
-                                            
-                                            alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}{default_clause} {nullable}"
-                                            await col_conn.execute(text(alter_sql))
-                                            logger.info(f"Added column {col_name} to {table_name}")
-                                    except Exception as e:
-                                        logger.warning(f"Could not add column {col_name} to {table_name}: {e}")
-                                        # Continue with other columns even if one fails
-                    
-                    if not missing_tables and not any(table_columns.get(t) != [col.name for col in Base.metadata.tables[t].columns] for t in existing_tables if t in Base.metadata.tables):
-                        logger.info("All required tables and columns exist. Skipping creation.")
-                    
-                    # Fix created_at defaults if missing
-                    try:
-                        async with self._engine.begin() as fix_conn:
-                            # Ensure chat_messages.created_at has a default
-                            await fix_conn.execute(text("""
-                                ALTER TABLE chat_messages 
-                                ALTER COLUMN created_at SET DEFAULT NOW()
-                            """))
-                            
-                            # Ensure chat_conversations.created_at has a default  
-                            await fix_conn.execute(text("""
-                                ALTER TABLE chat_conversations 
-                                ALTER COLUMN created_at SET DEFAULT NOW()
-                            """))
-                            
-                            # Ensure chat_conversations.updated_at has a default
-                            await fix_conn.execute(text("""
-                                ALTER TABLE chat_conversations 
-                                ALTER COLUMN updated_at SET DEFAULT NOW()
-                            """))
-                            
-                            logger.info("✅ Fixed created_at/updated_at column defaults")
-                    except Exception as e:
-                        logger.warning(f"Could not set column defaults (may already exist): {e}")
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info("✅ Database tables verified/created")
 
-                    self._initialized = True
-                    logger.info("✅ AI Chat database service initialized")
+                self._initialized = True
+                logger.info("✅ AI Chat database service initialized")
 
             except Exception as e:
                 logger.error(f"❌ Failed to initialize chat database: {e}")

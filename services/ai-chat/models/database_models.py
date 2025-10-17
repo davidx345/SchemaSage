@@ -50,8 +50,7 @@ class ChatConversation(Base):
     total_tokens_used = Column(Integer, default=0)
     total_cost_usd = Column(String(20), default="0.00")  # Store as string for precision
     
-    # Relationships
-    messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan")
+    # Note: No SQLAlchemy relationship defined to avoid cross-microservice dependencies
     
     def __repr__(self):
         return f"<ChatConversation(id='{self.id}', user_id='{self.user_id}', title='{self.title}')>"
@@ -66,7 +65,7 @@ class ChatMessage(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey('chat_conversations.id'), nullable=False, index=True)
+    conversation_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # No FK constraint for microservices
     session_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Session UUID (no FK constraint for microservices)
     
     # Message details
@@ -102,8 +101,7 @@ class ChatMessage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), default=datetime.utcnow, nullable=False, index=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)  # When AI response was received
     
-    # Relationships
-    conversation = relationship("ChatConversation", back_populates="messages")
+    # Note: No SQLAlchemy relationship defined to avoid cross-microservice dependencies
     
     def __repr__(self):
         return f"<ChatMessage(id='{self.id}', role='{self.role}', conversation_id='{self.conversation_id}')>"
