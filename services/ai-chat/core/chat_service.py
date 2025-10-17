@@ -4,6 +4,7 @@ OpenAI Chat Service with Database Persistence and Retry Logic
 from typing import List, Dict, Any, Optional
 import logging
 import time
+import asyncio
 
 # Try to import aiohttp, make it optional for local development
 try:
@@ -53,6 +54,7 @@ class OpenAIChatService:
         
         try:
             # Initialize database if not already done
+            logger.debug("Initializing database connection")
             await chat_db.initialize()
             
             # Use provided API key or default from settings
@@ -62,6 +64,7 @@ class OpenAIChatService:
             
             # Create conversation if none provided
             if not conversation_id:
+                logger.debug(f"Creating new conversation for user {user_id}")
                 conversation_id = await chat_db.create_conversation(
                     user_id=user_id,
                     ai_provider="openai",
@@ -69,8 +72,10 @@ class OpenAIChatService:
                     session_id=session_id,
                     title=f"Chat {time.strftime('%Y-%m-%d %H:%M')}"
                 )
+                logger.info(f"✅ Created conversation {conversation_id}")
             
             # Save user message to database
+            logger.debug(f"Saving user message to conversation {conversation_id}")
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="user",
@@ -108,8 +113,14 @@ class OpenAIChatService:
                 "max_tokens": settings.MAX_TOKENS
             }
             
+            # Log before OpenAI call
+            logger.info(f"🚀 Calling OpenAI API - Model: {settings.OPENAI_MODEL}, Messages: {len(openai_messages)}, User: {user_id}")
+            logger.debug(f"OpenAI Request Payload: {payload}")
+            
             # Use retry wrapper for transient errors
             data = await self._call_openai_with_retry(payload, headers)
+            
+            logger.info(f"✅ OpenAI API responded successfully - Tokens: {data.get('usage', {}).get('total_tokens', 0)}")
             
             answer = data["choices"][0]["message"]["content"]
             
@@ -118,6 +129,7 @@ class OpenAIChatService:
             token_usage = data.get("usage", {})
             
             # Save AI response to database
+            logger.debug(f"Saving AI response to conversation {conversation_id}")
             await chat_db.add_message(
                 conversation_id=conversation_id,
                 role="assistant",
@@ -128,8 +140,10 @@ class OpenAIChatService:
                 token_usage=token_usage,
                 response_time_ms=response_time_ms
             )
+            logger.debug("✅ AI response saved to database")
             
             # Update usage statistics
+            logger.debug(f"Updating usage statistics for user {user_id}")
             await chat_db.update_usage_statistics(
                 user_id=user_id,
                 ai_provider="openai",
@@ -137,6 +151,7 @@ class OpenAIChatService:
                 cost_usd=self._calculate_cost(token_usage),
                 response_time_ms=response_time_ms
             )
+            logger.debug("✅ Usage statistics updated")
             
             return ChatResponse(
                 response=answer,
@@ -151,7 +166,7 @@ class OpenAIChatService:
             )
                     
         except Exception as e:
-            logger.error(f"Failed to get OpenAI chat response: {str(e)}")
+            logger.error(f"❌ Failed to get OpenAI chat response: {str(e)}", exc_info=True)
             
             # Update error statistics
             try:
@@ -161,8 +176,8 @@ class OpenAIChatService:
                     tokens_used=0,
                     had_error=True
                 )
-            except:
-                pass  # Don't fail the main request if stats update fails
+            except Exception as stats_error:
+                logger.warning(f"Failed to update error statistics: {stats_error}")
             
             raise ChatError(f"Failed to get chat response: {str(e)}")
     
@@ -200,6 +215,7 @@ class OpenAIChatService:
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
+                logger.debug(f"Sending POST to {settings.OPENAI_API_BASE}/chat/completions")
                 async with session.post(
                     f"{settings.OPENAI_API_BASE}/chat/completions",
                     headers=headers,
@@ -216,8 +232,7 @@ class OpenAIChatService:
                         error_text = await response.text()
                         # Log safely without exposing sensitive data
                         logger.error(
-                            f"OpenAI API error: status={response.status}",
-                            extra={"status": response.status}
+                            f"OpenAI API error: status={response.status}, error={error_text[:200]}"
                         )
                         raise ChatError(f"API error: status {response.status}")
                     
@@ -227,6 +242,10 @@ class OpenAIChatService:
                 # Network errors are transient
                 logger.warning(f"Network error calling OpenAI: {e}")
                 raise TransientAPIError(f"Network error: {str(e)}")
+            except asyncio.TimeoutError as e:
+                # Timeout errors - log specifically
+                logger.error(f"⏱️ TIMEOUT calling OpenAI API after {timeout.total}s: {e}")
+                raise TransientAPIError(f"OpenAI API timeout after {timeout.total}s")
     
     def _calculate_cost(self, token_usage: Dict[str, int]) -> str:
         """Calculate estimated cost for OpenAI usage"""

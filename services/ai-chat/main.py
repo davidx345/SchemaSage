@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from typing import Optional, List, Dict, Any
 import logging
+import sys
 import uuid
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -23,6 +24,12 @@ from core.chat_service import OpenAIChatService, ChatError
 from core.database_service import chat_db
 from core.auth import get_current_user, get_optional_user
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
 
 # Initialize rate limiter
@@ -143,6 +150,8 @@ async def chat_endpoint(
 ):
     """Generate AI chat response using OpenAI with rate limiting"""
     try:
+        logger.info(f"📨 /chat endpoint called from IP: {request.client.host if request.client else 'unknown'}")
+        
         # User ID must be an integer from the users table
         if not user_id:
             # For anonymous users, require authentication or reject
@@ -204,14 +213,17 @@ async def chat_endpoint(
         
         # Ensure session exists in database before processing
         from core.database_service import chat_db
+        logger.debug(f"Getting or creating session {session_id} for user {user_id_int}")
         await chat_db.get_or_create_session(
             session_id=session_id,
             user_id=user_id_int,  # Use the validated integer user ID
             username=username,  # Store username for convenience
             session_name=f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
+        logger.info(f"✅ Session ready: {session_id}")
         
         # Get OpenAI response
+        logger.info(f"🤖 Requesting OpenAI response for question: {chat_request.question[:50]}...")
         response = await openai_service.get_response(
             schema=chat_request.db_schema,
             messages=chat_request.messages,
@@ -220,6 +232,7 @@ async def chat_endpoint(
             session_id=session_id,
             api_key=chat_request.api_key
         )
+        logger.info(f"✅ Chat request completed successfully for user {user_id_int}")
         return response
         
     except HTTPException:
@@ -279,20 +292,59 @@ async def chat_status(user_id: Optional[str] = Depends(get_optional_user)):
         }
 
 @app.post("/chat/openai", response_model=ChatResponse)
-async def chat_openai(request: ChatRequest):
+async def chat_openai(
+    chat_request: ChatRequest,
+    user_id: Optional[str] = Depends(get_optional_user)
+):
     """Generate chat response specifically using OpenAI"""
     try:
-        if not settings.is_openai_configured() and not request.api_key:
+        # Require authentication
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required. Please log in to use the chat service."
+            )
+        
+        # Validate and convert user_id to integer
+        try:
+            if isinstance(user_id, str):
+                user_id_int = int(user_id)
+            else:
+                user_id_int = user_id
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid user_id format from JWT: {user_id}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid user ID format. Please log in again."
+            )
+        
+        # Check if OpenAI is configured
+        if not settings.is_openai_configured() and not chat_request.api_key:
             raise HTTPException(
                 status_code=400, 
                 detail="OpenAI API key not configured"
             )
-            
+        
+        # Generate session_id if not provided
+        if not chat_request.session_id:
+            session_id = str(uuid.uuid4())
+        else:
+            try:
+                uuid.UUID(chat_request.session_id)
+                session_id = chat_request.session_id
+            except ValueError:
+                session_id = str(uuid.uuid4())
+        
+        logger.info(f"📨 /chat/openai request from user {user_id_int}, session {session_id}")
+        
+        # Get OpenAI response with required parameters
         response = await openai_service.get_response(
-            schema=request.db_schema,
-            messages=request.messages,
-            question=request.question,
-            api_key=request.api_key
+            schema=chat_request.db_schema,
+            messages=chat_request.messages,
+            question=chat_request.question,
+            user_id=user_id,
+            session_id=session_id,
+            api_key=chat_request.api_key
         )
         return response
         
@@ -306,21 +358,31 @@ async def chat_openai(request: ChatRequest):
 
 
 @app.get("/providers/test")
-async def test_providers():
+async def test_providers(user_id: Optional[str] = Depends(get_optional_user)):
     """Test OpenAI connection"""
     results = {}
     
     # Test OpenAI
     if settings.is_openai_configured():
         try:
+            # Use a test user_id and session_id for provider testing
+            test_user_id = user_id if user_id else "test_user"
+            test_session_id = str(uuid.uuid4())
+            
+            logger.info(f"🧪 Testing OpenAI provider for user {test_user_id}")
+            
             # Simple test request
             test_response = await openai_service.get_response(
                 schema=None,
                 messages=[],
-                question="Hello, this is a test."
+                question="Hello, this is a test.",
+                user_id=test_user_id,
+                session_id=test_session_id
             )
             results["openai"] = {"status": "ok", "message": "Connection successful"}
+            logger.info("✅ OpenAI provider test passed")
         except Exception as e:
+            logger.error(f"❌ OpenAI provider test failed: {e}")
             results["openai"] = {"status": "error", "message": str(e)}
     else:
         results["openai"] = {"status": "not_configured", "message": "API key not set"}
