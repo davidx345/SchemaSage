@@ -33,6 +33,9 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://schemasage.vercel.app")
 # WebSocket service URL for push notifications
 WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
 
+# AI Chat service URL for pre-authentication
+AI_CHAT_SERVICE_URL = os.getenv("AI_CHAT_SERVICE_URL", "https://schemasage-ai-chat-b619aa05a30e.herokuapp.com")
+
 # Rate limiting store (use Redis in production)
 login_attempts: Dict[str, List[float]] = {}
 
@@ -191,7 +194,7 @@ def authenticate_user(db: Session, username: str, password: str, client_ip: str)
             db.commit()
         
         # Consistent response time to prevent timing attacks
-        time.sleep(0.5)
+        time.sleep(0.5) 
         return None
     
     # Reset failed attempts on successful login
@@ -249,6 +252,33 @@ async def send_webhook_notification(webhook_data: dict):
         logger.warning(f"Failed to send user webhook: {e}")
 
 
+async def pre_authenticate_ai_chat(jwt_token: str, user_id: int, username: str):
+    """Pre-authenticate with AI Chat service to warm up the session"""
+    try:
+        logger.info(f"🤖 Pre-authenticating user {username} with AI Chat service...")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Test authentication with AI Chat service using GET endpoint
+            response = await client.get(
+                f"{AI_CHAT_SERVICE_URL}/chat",
+                headers={
+                    "Authorization": f"Bearer {jwt_token}",
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ AI Chat pre-authentication successful for user {username}")
+                return True
+            else:
+                logger.warning(f"⚠️ AI Chat pre-authentication failed: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        logger.warning(f"⚠️ AI Chat pre-authentication error for user {username}: {e}")
+        return False
+
+
 @app.post("/signup", response_model=Token)
 async def signup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     client_ip = request.client.host
@@ -271,6 +301,9 @@ async def signup(user: UserCreate, request: Request, db: Session = Depends(get_d
             user_id=db_user.id
         )
         
+        # Pre-authenticate with AI Chat service
+        await pre_authenticate_ai_chat(access_token, db_user.id, db_user.username)
+        
         # Send webhook notification for new user
         webhook_data = {
             "user": db_user.username,
@@ -290,7 +323,7 @@ async def signup(user: UserCreate, request: Request, db: Session = Depends(get_d
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/login", response_model=TokenResponse)
-def login(user_data: UserLogin, request: Request = None, db: Session = Depends(get_db)):
+async def login(user_data: UserLogin, request: Request = None, db: Session = Depends(get_db)):
     client_ip = request.client.host if request else "unknown"
     
     # Rate limiting
@@ -313,6 +346,9 @@ def login(user_data: UserLogin, request: Request = None, db: Session = Depends(g
             {"sub": user.username, "is_admin": user.is_admin}, 
             user_id=user.id
         )
+        
+        # Pre-authenticate with AI Chat service
+        await pre_authenticate_ai_chat(access_token, user.id, user.username)
         
         logger.info(f"Successful login: {user.username} from {client_ip}")
         
@@ -536,6 +572,9 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
                 user_id=user.id
             )
             logger.info(f"✅ JWT token created for user: {user.username}")
+            
+            # Pre-authenticate with AI Chat service
+            await pre_authenticate_ai_chat(jwt_token, user.id, user.username)
             
             # Create user data for frontend
             user_data = {
