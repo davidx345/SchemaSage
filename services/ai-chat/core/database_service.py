@@ -238,7 +238,8 @@ class ChatDatabaseService:
         session_id: str,
         user_id: Union[str, int],
         project_id: Optional[str] = None,
-        session_name: Optional[str] = None
+        session_name: Optional[str] = None,
+        username: Optional[str] = None
     ) -> str:
         """
         Get existing session or create new one if it doesn't exist
@@ -280,6 +281,7 @@ class ChatDatabaseService:
                 new_session = ChatSession(
                     id=session_id_uuid,
                     user_id=user_id_int,
+                    username=username,  # Store username for convenience (no FK needed)
                     project_id=project_id_uuid,
                     session_name=session_name,
                     session_context={},

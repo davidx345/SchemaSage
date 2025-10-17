@@ -67,7 +67,7 @@ class ChatMessage(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey('chat_conversations.id'), nullable=False, index=True)
-    session_id = Column(UUID(as_uuid=True), ForeignKey('chat_sessions.id'), nullable=False, index=True)  # Session UUID
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Session UUID (no FK constraint for microservices)
     
     # Message details
     role = Column(String(20), nullable=False, index=True)  # user, assistant, system
@@ -205,7 +205,8 @@ class ChatSession(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)  # User integer ID from users table
+    user_id = Column(Integer, nullable=False, index=True)  # User integer ID from JWT token (no FK constraint)
+    username = Column(String(100), nullable=True, index=True)  # Store username for convenience
     project_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Associated project if any
     
     # Session metadata

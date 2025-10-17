@@ -19,7 +19,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         token = credentials.credentials
         payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
         
-        # Extract user ID
+        # Extract user ID (prioritize user_id integer field)
         user_id = payload.get("user_id") or payload.get("sub") or payload.get("id")
         
         if not user_id:
@@ -29,6 +29,47 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             )
         
         return str(user_id)
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Authentication failed: {str(e)}"
+        )
+
+def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Extract user info from JWT token - returns both user_id and username"""
+    try:
+        # Get JWT secret from environment
+        jwt_secret = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_not_for_production")
+        
+        # Decode JWT token
+        token = credentials.credentials
+        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+        
+        # Extract user information
+        user_id = payload.get("user_id") or payload.get("sub") or payload.get("id")
+        username = payload.get("sub")  # Username is typically in 'sub' claim
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: user ID not found"
+            )
+        
+        return {
+            "user_id": str(user_id),
+            "username": username
+        }
         
     except jwt.ExpiredSignatureError:
         raise HTTPException(

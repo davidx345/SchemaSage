@@ -184,11 +184,30 @@ async def chat_endpoint(
                 detail="OpenAI API key not configured. Please configure OPENAI_API_KEY."
             )
         
+        # Get user info from JWT token for session creation
+        from core.auth import get_current_user_info, security
+        try:
+            # Extract Authorization header manually for user info
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                from fastapi.security import HTTPAuthorizationCredentials
+                credentials = HTTPAuthorizationCredentials(
+                    scheme="Bearer", 
+                    credentials=auth_header.split(" ")[1]
+                )
+                user_info = get_current_user_info(credentials)
+                username = user_info.get("username")
+            else:
+                username = None
+        except Exception:
+            username = None
+        
         # Ensure session exists in database before processing
         from core.database_service import chat_db
         await chat_db.get_or_create_session(
             session_id=session_id,
             user_id=user_id_int,  # Use the validated integer user ID
+            username=username,  # Store username for convenience
             session_name=f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         )
         
