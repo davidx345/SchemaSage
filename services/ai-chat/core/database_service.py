@@ -94,6 +94,7 @@ class ChatDatabaseService:
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                     connect_args={
                         "statement_cache_size": 0,  # REQUIRED: Disable prepared statements for PgBouncer
+                        "prepared_statement_cache_size": 0,  # Additional safeguard for asyncpg
                         "command_timeout": 60,
                         "server_settings": {
                             "application_name": "ai-chat-service"
