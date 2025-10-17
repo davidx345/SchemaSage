@@ -85,6 +85,12 @@ class ChatDatabaseService:
 
                 # Create async engine with comprehensive prepared statement disabling
                 # PgBouncer (transaction pooler) safe asyncpg engine setup
+                # Ensure URL includes proper driver for asyncpg with statement cache disabled
+                if "?" in database_url:
+                    database_url += "&statement_cache_size=0&prepared_statement_cache_size=0"
+                else:
+                    database_url += "?statement_cache_size=0&prepared_statement_cache_size=0"
+                
                 self._engine = create_async_engine(
                     database_url,
                     pool_size=5,  # Keep pool small for PgBouncer
