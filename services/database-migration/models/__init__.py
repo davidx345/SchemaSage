@@ -96,3 +96,24 @@ class ColumnSchema(BaseModel):
     is_unique: bool = False
     is_indexed: bool = False
     comment: Optional[str] = None
+
+class ConnectionTest(BaseModel):
+    """Connection test result model."""
+    connection_id: str
+    status: str  # "success", "failed", "error"
+    message: str
+    details: Dict[str, Any] = {}
+
+class SchemaInfo(BaseModel):
+    """Schema information model."""
+    database_name: str
+    tables: List[Dict[str, Any]] = []
+    views: List[Dict[str, Any]] = []
+    metadata: Dict[str, Any] = {}
+
+class SchemaComparison(BaseModel):
+    """Schema comparison result model."""
+    source_schema: str
+    target_schema: str
+    differences: List[Dict[str, Any]] = []
+    statistics: Dict[str, Any] = {}

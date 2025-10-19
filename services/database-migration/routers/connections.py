@@ -10,24 +10,20 @@ import logging
 from ..models import DatabaseConnection, SchemaInfo, ConnectionTest, SchemaComparison
 from ..core.handlers import get_database_handler
 from ..core.intelligence import MigrationIntelligence
+from ..core.connection_store import get_connection_store
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 logger = logging.getLogger(__name__)
 
-# External dependencies (these would be injected in production)
-connections_store: Dict[str, DatabaseConnection] = {}
-
 # Initialize services
 intelligence = MigrationIntelligence()
+store = get_connection_store()
 
 @router.post("", response_model=Dict[str, Any])
 async def create_connection(connection: DatabaseConnection):
     """Create a new database connection."""
     try:
-        connection_id = str(uuid.uuid4())
-        connection.connection_id = connection_id
-        
-        # Test the connection
+        # Test the connection first
         handler = get_database_handler(connection)
         is_connected = handler.connect()
         
@@ -38,8 +34,8 @@ async def create_connection(connection: DatabaseConnection):
         test_result = handler.test_connection()
         handler.disconnect()
         
-        # Store connection
-        connections_store[connection_id] = connection
+        # Save connection to persistent storage
+        connection_id = await store.save_connection(connection)
         
         return {
             "connection_id": connection_id,
@@ -55,33 +51,24 @@ async def create_connection(connection: DatabaseConnection):
 @router.get("", response_model=List[Dict[str, Any]])
 async def list_connections():
     """List all database connections."""
-    connections_list = []
-    for conn_id, connection in connections_store.items():
-        connections_list.append({
-            "connection_id": conn_id,
-            "name": connection.name,
-            "database_type": connection.database_type,
-            "host": connection.host,
-            "database": connection.database,
-            "created_at": connection.created_at
-        })
-    return connections_list
+    return await store.list_connections()
 
 @router.get("/{connection_id}", response_model=DatabaseConnection)
 async def get_connection(connection_id: str):
     """Get a specific database connection."""
-    if connection_id not in connections_store:
+    connection = await store.get_connection(connection_id)
+    if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
-    return connections_store[connection_id]
+    return connection
 
 @router.post("/{connection_id}/test", response_model=ConnectionTest)
 async def test_connection(connection_id: str):
     """Test a database connection."""
-    if connection_id not in connections_store:
+    connection = await store.get_connection(connection_id)
+    if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
     
     try:
-        connection = connections_store[connection_id]
         handler = get_database_handler(connection)
         
         is_connected = handler.connect()
@@ -115,20 +102,20 @@ async def test_connection(connection_id: str):
 @router.delete("/{connection_id}")
 async def delete_connection(connection_id: str):
     """Delete a database connection."""
-    if connection_id not in connections_store:
+    deleted = await store.delete_connection(connection_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Connection not found")
     
-    del connections_store[connection_id]
     return {"message": "Connection deleted successfully"}
 
 @router.post("/{connection_id}/analyze", response_model=SchemaInfo)
 async def analyze_schema(connection_id: str):
     """Analyze database schema."""
-    if connection_id not in connections_store:
+    connection = await store.get_connection(connection_id)
+    if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
     
     try:
-        connection = connections_store[connection_id]
         handler = get_database_handler(connection)
         
         if not handler.connect():
@@ -146,21 +133,22 @@ async def analyze_schema(connection_id: str):
 @router.post("/compare", response_model=SchemaComparison)
 async def compare_schemas(source_connection_id: str, target_connection_id: str):
     """Compare two database schemas."""
-    if source_connection_id not in connections_store:
+    source_connection = await store.get_connection(source_connection_id)
+    if not source_connection:
         raise HTTPException(status_code=404, detail="Source connection not found")
-    if target_connection_id not in connections_store:
+    
+    target_connection = await store.get_connection(target_connection_id)
+    if not target_connection:
         raise HTTPException(status_code=404, detail="Target connection not found")
     
     try:
         # Get source schema
-        source_connection = connections_store[source_connection_id]
         source_handler = get_database_handler(source_connection)
         source_handler.connect()
         source_schema = source_handler.extract_schema()
         source_handler.disconnect()
         
         # Get target schema
-        target_connection = connections_store[target_connection_id]
         target_handler = get_database_handler(target_connection)
         target_handler.connect()
         target_schema = target_handler.extract_schema()
