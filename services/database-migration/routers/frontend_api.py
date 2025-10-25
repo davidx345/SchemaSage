@@ -262,8 +262,13 @@ async def save_database_connection(
     - Connection validation
     """
     try:
+        # Support both 'type' and 'db_type' for compatibility
+        db_type = request_data.get('type') or request_data.get('db_type')
+        if db_type:
+            request_data['type'] = db_type
+        
         # Extract and validate connection data
-        required_fields = ['name', 'type', 'host', 'username', 'database']
+        required_fields = ['name', 'host', 'username']
         for field in required_fields:
             if not request_data.get(field):
                 raise HTTPException(
@@ -271,8 +276,14 @@ async def save_database_connection(
                     detail=f"Missing required field: {field}"
                 )
         
+        # db_type/type is required
+        if not db_type:
+            raise HTTPException(
+                status_code=400, 
+                detail="Missing required field: type or db_type"
+            )
+        
         # Build connection URL for testing
-        db_type = request_data.get('type')
         host = request_data.get('host')
         port = request_data.get('port')
         database = request_data.get('database')
