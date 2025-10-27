@@ -85,6 +85,14 @@ class EnterpriseConnectionStore:
             # Scripts should use DATABASE_URL_SESSION (session pooler)
             db_url = self.config.DATABASE_URL
             
+            # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
+            if "?" in db_url:
+                db_url += "&prepared_statement_cache_size=0"
+            else:
+                db_url += "?prepared_statement_cache_size=0"
+            
+            logger.info(f"🔧 PgBouncer transaction pooler: prepared_statement_cache_size=0 added to connection URL")
+            
             # Create async engine with transaction pooler settings
             self._engine = create_async_engine(
                 db_url,
@@ -96,11 +104,13 @@ class EnterpriseConnectionStore:
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
                     "statement_cache_size": 0,  # CRITICAL: No prepared statements
-                    "prepared_statement_cache_size": 0,  # Extra safety
                     "server_settings": {
                         "jit": "off",  # Disable JIT
                         "statement_timeout": "30000"  # 30s timeout
                     }
+                },
+                execution_options={
+                    "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
             )
             

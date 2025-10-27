@@ -13,7 +13,14 @@ class DatabaseUtils:
     def __init__(self, database_url: str, echo: bool = False):
         self.database_url = database_url
         self.echo = echo
+        
         # ✅ TRANSACTION POOLER CONFIGURATION
+        # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
+        if "?" in database_url:
+            database_url += "&prepared_statement_cache_size=0"
+        else:
+            database_url += "?prepared_statement_cache_size=0"
+        
         self.engine = create_async_engine(
             database_url, 
             echo=echo,
@@ -28,6 +35,9 @@ class DatabaseUtils:
                     "jit": "off",
                     "statement_timeout": "30000"
                 }
+            },
+            execution_options={
+                "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
             }
         )
         self.async_session = sessionmaker(

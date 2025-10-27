@@ -49,6 +49,14 @@ class SchemaDetectionDatabaseService:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
             # ✅ TRANSACTION POOLER CONFIGURATION
+            # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
+            if "?" in database_url:
+                database_url += "&prepared_statement_cache_size=0"
+            else:
+                database_url += "?prepared_statement_cache_size=0"
+            
+            logger.info(f"🔧 PgBouncer transaction pooler: prepared_statement_cache_size=0 added to connection URL")
+            
             # Using transaction-friendly settings for PgBouncer
             self._engine = create_async_engine(
                 database_url,
@@ -65,6 +73,9 @@ class SchemaDetectionDatabaseService:
                         "jit": "off",  # Disable JIT compilation
                         "statement_timeout": "30000"  # 30 second query timeout
                     }
+                },
+                execution_options={
+                    "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
             )
             

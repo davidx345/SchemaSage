@@ -49,6 +49,14 @@ class CodeGenerationDatabaseService:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
             # ✅ TRANSACTION POOLER CONFIGURATION
+            # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
+            if "?" in database_url:
+                database_url += "&prepared_statement_cache_size=0"
+            else:
+                database_url += "?prepared_statement_cache_size=0"
+            
+            logger.info(f"🔧 PgBouncer transaction pooler: prepared_statement_cache_size=0 added to connection URL")
+            
             # Optimized for PgBouncer transaction mode
             self._engine = create_async_engine(
                 database_url,
@@ -60,12 +68,14 @@ class CodeGenerationDatabaseService:
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
                     "statement_cache_size": 0,  # CRITICAL: No prepared statements
-                    "prepared_statement_cache_size": 0,  # Extra safety
                     "server_settings": {
                         "application_name": "schemasage_code_generation",
                         "jit": "off",  # Disable JIT
                         "statement_timeout": "30000"  # 30s timeout
                     }
+                },
+                execution_options={
+                    "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
             )
             
