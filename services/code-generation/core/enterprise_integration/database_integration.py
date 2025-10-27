@@ -26,7 +26,18 @@ class DatabaseIntegration(BaseIntegration):
         """Establish database connection"""
         try:
             connection_string = self._build_connection_string()
-            self.engine = create_engine(connection_string)
+            # ✅ TRANSACTION POOLER CONFIGURATION
+            # Using NullPool for external database connections
+            from sqlalchemy.pool import NullPool
+            self.engine = create_engine(
+                connection_string,
+                poolclass=NullPool,  # No pooling for external connections
+                pool_pre_ping=True,
+                connect_args={
+                    "connect_timeout": 10,
+                    "options": "-c statement_timeout=30000"
+                }
+            )
             
             # Test connection
             with self.engine.connect() as conn:

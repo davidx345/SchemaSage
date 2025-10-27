@@ -49,13 +49,35 @@ async def get_current_stats() -> Dict:
     }
     
     async with httpx.AsyncClient(timeout=5.0) as client:
+        # Get activity tracking stats from project management service
+        # This endpoint provides real-time dashboard stats
+        try:
+            activity_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/stats")
+            if activity_response.status_code == 200:
+                activity_data = activity_response.json()
+                
+                # Map activity stats to dashboard stats
+                # Activity tracking provides accurate counts from database
+                stats["schemasGenerated"] = activity_data.get("schema_generated", 0)
+                stats["apisScaffolded"] = activity_data.get("api_scaffolded", 0)
+                stats["dataFilesCleaned"] = activity_data.get("data_cleaned", 0)
+                stats["activeDevelopers"] = activity_data.get("unique_users", 0)
+                stats["codeTemplatesGenerated"] = activity_data.get("code_generated", 0)
+                stats["migrationsCompleted"] = activity_data.get("migration_executed", 0)
+                
+                logger.debug(f"Activity tracking stats: {activity_data}")
+        except Exception as e:
+            logger.warning(f"Failed to get activity tracking stats: {e}")
+        
         try:
             # Get schema detection stats
             schema_response = await client.get(f"{SCHEMA_SERVICE_URL}/stats")
             if schema_response.status_code == 200:
                 schema_data = schema_response.json()
                 stats["totalSchemas"] = schema_data.get("total_schemas", 0)
-                stats["schemasGenerated"] = schema_data.get("schemas_generated", schema_data.get("total_schemas", 0))
+                # Use activity tracking count if available, otherwise fall back to schema service
+                if stats["schemasGenerated"] == 0:
+                    stats["schemasGenerated"] = schema_data.get("schemas_generated", schema_data.get("total_schemas", 0))
                 logger.debug(f"Schema stats: {schema_data}")
         except Exception as e:
             logger.warning(f"Failed to get schema stats: {e}")
@@ -77,8 +99,11 @@ async def get_current_stats() -> Dict:
             if code_response.status_code == 200:
                 code_data = code_response.json()
                 stats["totalAPIs"] = code_data.get("total_apis", 0)
-                stats["apisScaffolded"] = code_data.get("apis_scaffolded", code_data.get("total_apis", 0))
-                stats["codeTemplatesGenerated"] = code_data.get("templates_generated", 0)
+                # Use activity tracking count if available, otherwise fall back to code service
+                if stats["apisScaffolded"] == 0:
+                    stats["apisScaffolded"] = code_data.get("apis_scaffolded", code_data.get("total_apis", 0))
+                if stats["codeTemplatesGenerated"] == 0:
+                    stats["codeTemplatesGenerated"] = code_data.get("templates_generated", 0)
                 logger.debug(f"Code generation stats: {code_data}")
         except Exception as e:
             logger.warning(f"Failed to get code generation stats: {e}")
@@ -90,8 +115,11 @@ async def get_current_stats() -> Dict:
                 db_data = db_response.json()
                 stats["totalDatabaseConnections"] = db_data.get("total_connections", 0)
                 stats["activeDatabaseConnections"] = db_data.get("active_connections", 0)
-                stats["migrationsCompleted"] = db_data.get("migrations_completed", 0)
-                stats["dataFilesCleaned"] = db_data.get("schemas_imported", 0)
+                # Use activity tracking count if available, otherwise fall back to db service
+                if stats["migrationsCompleted"] == 0:
+                    stats["migrationsCompleted"] = db_data.get("migrations_completed", 0)
+                if stats["dataFilesCleaned"] == 0:
+                    stats["dataFilesCleaned"] = db_data.get("schemas_imported", 0)
                 logger.debug(f"Database migration stats: {db_data}")
         except Exception as e:
             logger.warning(f"Failed to get database migration stats: {e}")

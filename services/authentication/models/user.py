@@ -4,6 +4,7 @@ Database models for authentication service
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from datetime import datetime
 from config.settings import DATABASE_URL
 
@@ -43,8 +44,17 @@ class User(Base):
             "is_locked": self.is_locked()
         }
 
-# Database setup
-engine = create_engine(DATABASE_URL)
+# ✅ TRANSACTION POOLER CONFIGURATION
+# Using NullPool for PgBouncer transaction mode compatibility
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=NullPool,
+    pool_pre_ping=True,
+    connect_args={
+        "connect_timeout": 10,
+        "options": "-c statement_timeout=30000"
+    }
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_database():

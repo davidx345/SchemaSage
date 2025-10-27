@@ -22,6 +22,7 @@ from core.auth import get_current_user, get_optional_user
 from routers import detection_router, lineage_router, history_router, compliance_detection_router, enhanced_lineage
 from routers import search, query, data_cleaning, data_dictionary, frontend_api
 from routers.security_audit import router as security_audit_router
+from routers.schema_analysis import router as schema_analysis_router
 from config import get_settings
 
 # Setup logging
@@ -133,6 +134,7 @@ app.include_router(data_cleaning.router)
 app.include_router(data_dictionary.router)
 app.include_router(frontend_api.router)
 app.include_router(security_audit_router)
+app.include_router(schema_analysis_router)
 
 # Add the documentation router to match frontend calls
 from routers.documentation import router as documentation_router

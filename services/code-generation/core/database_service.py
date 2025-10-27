@@ -48,19 +48,23 @@ class CodeGenerationDatabaseService:
             elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-            # Create async engine with full pgbouncer compatibility
+            # ✅ TRANSACTION POOLER CONFIGURATION
+            # Optimized for PgBouncer transaction mode
             self._engine = create_async_engine(
                 database_url,
-                pool_size=5,
+                pool_size=5,  # Small pool for transaction pooler
                 max_overflow=10,
                 pool_timeout=30,
-                pool_recycle=300,
+                pool_recycle=300,  # Recycle every 5 minutes
+                pool_pre_ping=True,  # Verify connections
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
-                    "statement_cache_size": 0,
-                    "prepared_statement_cache_size": 0,
+                    "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                    "prepared_statement_cache_size": 0,  # Extra safety
                     "server_settings": {
                         "application_name": "schemasage_code_generation",
+                        "jit": "off",  # Disable JIT
+                        "statement_timeout": "30000"  # 30s timeout
                     }
                 }
             )

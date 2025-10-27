@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, validator
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool
 from passlib.context import CryptContext
 import jwt
 import os
@@ -43,7 +44,19 @@ login_attempts: Dict[str, List[float]] = {}
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-engine = create_engine(DATABASE_URL)
+# ✅ TRANSACTION POOLER CONFIGURATION
+# Using NullPool for PgBouncer transaction mode compatibility
+# This prevents connection pooling issues and "prepared statement" errors
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=NullPool,  # Essential for PgBouncer transaction pooler
+    pool_pre_ping=True,  # Verify connections before using them
+    echo=False,  # Set to True for SQL debugging
+    connect_args={
+        "connect_timeout": 10,
+        "options": "-c statement_timeout=30000"  # 30 second query timeout
+    }
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

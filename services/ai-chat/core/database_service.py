@@ -83,23 +83,26 @@ class ChatDatabaseService:
                 elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-                # Create async engine for PgBouncer session pooler (no statement cache settings)
-                # Increased pool_size to prevent connection timeout queuing
+                # ✅ TRANSACTION POOLER CONFIGURATION
+                # Optimized for PgBouncer transaction mode
                 self._engine = create_async_engine(
                     database_url,
-                    pool_size=3,           # Increased from 1 to allow concurrent operations
-                    max_overflow=2,        # Allow some overflow for peak loads
-                    pool_timeout=10,       # Reduced from 30 - fail faster if pool exhausted
-                    pool_recycle=1800,
+                    pool_size=3,           # Small pool for transaction pooler
+                    max_overflow=5,        # Limited overflow
+                    pool_timeout=10,       # Fail fast if pool exhausted
+                    pool_recycle=300,      # Recycle every 5 minutes
+                    pool_pre_ping=True,    # Verify connections
                     echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                     connect_args={
-                        "command_timeout": 10,  # Reduced from 60 - fail faster on DB issues
+                        "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                        "command_timeout": 10,  # Fast timeout
                         "server_settings": {
-                            "application_name": "ai-chat-service"
+                            "application_name": "ai-chat-service",
+                            "jit": "off",  # Disable JIT
+                            "statement_timeout": "30000"  # 30s timeout
                         }
                     },
-                    pool_pre_ping=True,
-                    pool_reset_on_return="commit"
+                    pool_reset_on_return="commit"  # Reset on return
                 )
 
                 # Create session factory

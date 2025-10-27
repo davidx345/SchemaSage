@@ -80,18 +80,27 @@ class EnterpriseConnectionStore:
             return
             
         try:
-            # Create async engine
+            # ✅ TRANSACTION POOLER CONFIGURATION
+            # Use DATABASE_URL for API (transaction pooler)
+            # Scripts should use DATABASE_URL_SESSION (session pooler)
+            db_url = self.config.DATABASE_URL
+            
+            # Create async engine with transaction pooler settings
             self._engine = create_async_engine(
-                self.config.DATABASE_URL,
-                pool_size=self.config.POOL_SIZE,
-                max_overflow=self.config.MAX_OVERFLOW,
-                pool_timeout=self.config.POOL_TIMEOUT,
-                pool_recycle=self.config.POOL_RECYCLE,
+                db_url,
+                pool_size=5,  # Small pool for transaction pooler
+                max_overflow=10,  # Limited overflow
+                pool_timeout=30,
+                pool_recycle=300,  # Recycle every 5 minutes
+                pool_pre_ping=True,  # Verify connections
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
-                # Disable prepared statement cache for pgbouncer compatibility
                 connect_args={
-                    "statement_cache_size": 0,
-                    "prepared_statement_cache_size": 0
+                    "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                    "prepared_statement_cache_size": 0,  # Extra safety
+                    "server_settings": {
+                        "jit": "off",  # Disable JIT
+                        "statement_timeout": "30000"  # 30s timeout
+                    }
                 }
             )
             

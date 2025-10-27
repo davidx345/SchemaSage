@@ -13,10 +13,22 @@ class DatabaseUtils:
     def __init__(self, database_url: str, echo: bool = False):
         self.database_url = database_url
         self.echo = echo
+        # ✅ TRANSACTION POOLER CONFIGURATION
         self.engine = create_async_engine(
             database_url, 
             echo=echo,
-            connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=300,
+            pool_pre_ping=True,
+            connect_args={
+                "statement_cache_size": 0,  # CRITICAL: Prevents prepared statement errors
+                "server_settings": {
+                    "jit": "off",
+                    "statement_timeout": "30000"
+                }
+            }
         )
         self.async_session = sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False

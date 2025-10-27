@@ -48,15 +48,24 @@ class SchemaDetectionDatabaseService:
             elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-            # Create async engine
+            # ✅ TRANSACTION POOLER CONFIGURATION
+            # Using transaction-friendly settings for PgBouncer
             self._engine = create_async_engine(
                 database_url,
-                pool_size=10,
-                max_overflow=20,
+                poolclass=None,  # Use default pool with transaction-friendly settings
+                pool_size=5,  # Small pool size for transaction pooler
+                max_overflow=10,  # Limited overflow
                 pool_timeout=30,
-                pool_recycle=1800,
+                pool_recycle=300,  # Recycle connections every 5 minutes
+                pool_pre_ping=True,  # Verify connections before using
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
-                connect_args={"statement_cache_size": 0}  # Fix for Supabase pgbouncer compatibility
+                connect_args={
+                    "statement_cache_size": 0,  # CRITICAL: Prevents prepared statement errors
+                    "server_settings": {
+                        "jit": "off",  # Disable JIT compilation
+                        "statement_timeout": "30000"  # 30 second query timeout
+                    }
+                }
             )
             
             # Create session factory

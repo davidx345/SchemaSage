@@ -23,8 +23,14 @@ from routers.migration_management import router as migration_management_router
 from routers.simple_cloud_migration import router as simple_cloud_migration_router
 from routers.performance_cost_calculator import router as performance_cost_calculator_router
 from routers.smart_rollback import router as smart_rollback_router
-from routers.performance_cost_calculator import router as performance_cost_calculator_router
-from routers.smart_rollback import router as smart_rollback_router
+
+# New enterprise feature routers
+from routers.infrastructure_optimization import router as infrastructure_optimization_router
+from routers.cost_optimization import router as cost_optimization_router
+from routers.full_stack_deployment import router as full_stack_deployment_router
+from routers.environment_management import router as environment_management_router
+from routers.multi_cloud_comparison import router as multi_cloud_comparison_router
+from routers.cost_tracking import router as cost_tracking_router
 
 # Enterprise services
 from core.enterprise_store import enterprise_store
@@ -136,6 +142,14 @@ app.include_router(migration_management_router)
 app.include_router(simple_cloud_migration_router)
 app.include_router(performance_cost_calculator_router)
 app.include_router(smart_rollback_router)
+
+# Include new enterprise feature routers
+app.include_router(infrastructure_optimization_router)
+app.include_router(cost_optimization_router)
+app.include_router(full_stack_deployment_router)
+app.include_router(environment_management_router)
+app.include_router(multi_cloud_comparison_router)
+app.include_router(cost_tracking_router)
 
 # Add a router for the direct path that frontend is calling
 from fastapi import APIRouter
