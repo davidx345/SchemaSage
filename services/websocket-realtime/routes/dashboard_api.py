@@ -63,6 +63,42 @@ def create_dashboard_router(manager):
             logger.error(f"Failed to increment stat: {e}")
             raise HTTPException(status_code=500, detail="Stat increment failed")
 
+    @router.post("/broadcast-stats")
+    async def broadcast_stats_now(request: dict = None):
+        """
+        ⚡ INSTANT STATS BROADCAST
+        
+        Triggers an immediate broadcast of current dashboard stats to all 
+        connected WebSocket clients. Called when a user becomes active or 
+        performs an important action.
+        
+        This bypasses the periodic timer to provide instant real-time updates
+        for activeDevelopers and other metrics.
+        """
+        try:
+            # Fetch the latest stats from all services
+            stats = await get_current_stats()
+            
+            # Update connection-based stats
+            stats["totalConnections"] = manager.get_total_connection_count()
+            stats["activeUsers"] = manager.get_active_user_count()
+            
+            # Broadcast to all connected clients
+            await manager.broadcast_to_all({
+                "type": "stats_update",
+                "data": stats
+            })
+            
+            logger.info(f"⚡ Instant stats broadcast to {manager.get_total_connection_count()} clients")
+            return {
+                "status": "success", 
+                "message": "Stats broadcasted instantly",
+                "clients_notified": manager.get_total_connection_count()
+            }
+        except Exception as e:
+            logger.error(f"Failed to broadcast stats instantly: {e}")
+            raise HTTPException(status_code=500, detail="Instant broadcast failed")
+
     @router.get("/stats")
     async def get_dashboard_stats():
         """Get current dashboard statistics"""

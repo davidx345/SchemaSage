@@ -265,6 +265,29 @@ async def send_webhook_notification(webhook_data: dict):
         logger.warning(f"Failed to send user webhook: {e}")
 
 
+async def trigger_instant_stats_broadcast():
+    """
+    ⚡ INSTANT DASHBOARD STATS UPDATE
+    
+    Triggers immediate WebSocket broadcast of dashboard stats when a user
+    logs in or becomes active. This makes the activeDevelopers count update
+    in real-time without waiting for the periodic timer.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                f"{WEBSOCKET_SERVICE_URL}/api/dashboard/broadcast-stats",
+                json={"trigger": "user_login"}
+            )
+            if response.status_code == 200:
+                logger.info("⚡ Instant dashboard stats broadcast triggered")
+            else:
+                logger.warning(f"Stats broadcast returned {response.status_code}")
+    except Exception as e:
+        # Don't fail login if broadcast fails
+        logger.warning(f"Failed to trigger instant stats broadcast: {e}")
+
+
 async def pre_authenticate_ai_chat(jwt_token: str, user_id: int, username: str):
     """Pre-authenticate with AI Chat service to warm up the session"""
     try:
@@ -362,6 +385,9 @@ async def login(user_data: UserLogin, request: Request = None, db: Session = Dep
         
         # Pre-authenticate with AI Chat service
         await pre_authenticate_ai_chat(access_token, user.id, user.username)
+        
+        # ⚡ Trigger instant dashboard stats broadcast (activeDevelopers, etc.)
+        await trigger_instant_stats_broadcast()
         
         logger.info(f"Successful login: {user.username} from {client_ip}")
         

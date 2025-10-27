@@ -118,6 +118,33 @@ async def increment_dashboard_stat(stat_name: str):
         logger.warning(f"Failed to increment dashboard stat: {e}")
 
 
+async def broadcast_realtime_stats_update():
+    """
+    ⚡ INSTANT STATS UPDATE
+    
+    Triggers an immediate WebSocket broadcast of current dashboard stats
+    to all connected clients. This makes the dashboard update in real-time
+    without waiting for the periodic timer.
+    
+    Called when:
+    - A user becomes active (tracks an activity)
+    - Important stats change (schema generated, API scaffolded, etc.)
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Trigger the WebSocket service to broadcast latest stats NOW
+            response = await client.post(
+                f"{WEBSOCKET_SERVICE_URL}/api/dashboard/broadcast-stats",
+                json={"trigger": "user_activity"}
+            )
+            if response.status_code == 200:
+                logger.info("⚡ Instant dashboard stats broadcast triggered")
+            else:
+                logger.warning(f"Stats broadcast returned {response.status_code}")
+    except Exception as e:
+        logger.warning(f"Failed to trigger instant stats broadcast: {e}")
+
+
 @router.post("/track", response_model=ActivityTrackResponse)
 async def track_activity(
     request: ActivityTrackRequest,
@@ -272,6 +299,11 @@ async def track_activity(
         stat_name = stat_name_map.get(request.activity_type)
         if stat_name:
             await increment_dashboard_stat(stat_name)
+        
+        # ⚡ INSTANT DASHBOARD UPDATE
+        # Trigger immediate WebSocket broadcast so all connected clients
+        # see the updated stats (including activeDevelopers) in real-time
+        await broadcast_realtime_stats_update()
         
         return ActivityTrackResponse(
             success=True,
