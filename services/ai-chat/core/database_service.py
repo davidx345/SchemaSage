@@ -85,6 +85,14 @@ class ChatDatabaseService:
 
                 # ✅ TRANSACTION POOLER CONFIGURATION
                 # Optimized for PgBouncer transaction mode
+                # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
+                if "?" in database_url:
+                    database_url += "&prepared_statement_cache_size=0"
+                else:
+                    database_url += "?prepared_statement_cache_size=0"
+                
+                logger.info(f"🔧 PgBouncer transaction pooler: prepared_statement_cache_size=0 added to connection URL")
+                
                 self._engine = create_async_engine(
                     database_url,
                     pool_size=3,           # Small pool for transaction pooler
@@ -102,7 +110,10 @@ class ChatDatabaseService:
                             "statement_timeout": "30000"  # 30s timeout
                         }
                     },
-                    pool_reset_on_return="commit"  # Reset on return
+                    pool_reset_on_return="commit",  # Reset on return
+                    execution_options={
+                        "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
+                    }
                 )
 
                 # Create session factory
