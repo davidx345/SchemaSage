@@ -36,6 +36,8 @@ class MultiFormatResponse(BaseModel):
     raw_sql: str
     generated_at: datetime
     description: str
+    tables: list = []  # Add tables for visualization
+    relationships: list = []  # Add relationships for visualization
 
 
 @router.post("/generate", response_model=MultiFormatResponse)
@@ -88,6 +90,43 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
                 logger.warning(f"Failed to generate {response_key}: {e}")
                 generated_code[response_key] = f"# Error generating {response_key}: {str(e)}"
         
+        # Convert schema_response tables and relationships to dict for JSON serialization
+        tables_data = []
+        if hasattr(schema_response, 'tables'):
+            for table in schema_response.tables:
+                table_dict = {
+                    "name": table.name,
+                    "columns": [
+                        {
+                            "name": col.name,
+                            "type": col.type,
+                            "nullable": col.nullable,
+                            "is_primary_key": col.is_primary_key,
+                            "is_foreign_key": getattr(col, 'is_foreign_key', False),
+                            "default": col.default,
+                            "unique": col.unique,
+                            "description": col.description
+                        }
+                        for col in table.columns
+                    ],
+                    "primary_keys": table.primary_keys,
+                    "foreign_keys": table.foreign_keys,
+                    "description": table.description
+                }
+                tables_data.append(table_dict)
+        
+        relationships_data = []
+        if hasattr(schema_response, 'relationships'):
+            for rel in schema_response.relationships:
+                rel_dict = {
+                    "source_table": rel.source_table,
+                    "source_column": rel.source_column,
+                    "target_table": rel.target_table,
+                    "target_column": rel.target_column,
+                    "type": rel.type
+                }
+                relationships_data.append(rel_dict)
+        
         return MultiFormatResponse(
             sqlalchemy=generated_code.get('sqlalchemy', ''),
             prisma=generated_code.get('prisma', ''),
@@ -95,7 +134,9 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
             django=generated_code.get('django', ''),
             raw_sql=generated_code.get('raw_sql', ''),
             generated_at=datetime.now(),
-            description=request.description
+            description=request.description,
+            tables=tables_data,
+            relationships=relationships_data
         )
         
     except HTTPException:
