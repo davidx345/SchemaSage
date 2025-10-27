@@ -115,13 +115,8 @@ class ChatDatabaseService:
                 # Skip table creation - tables should already exist and be managed externally
                 # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
                 logger.info("✅ Database connection established (tables managed externally)")
+                logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
 
-                                    # Log engine config for debugging PgBouncer/asyncpg issues
-                engine_config = self._engine.url.render_as_string(hide_password=False)
-                connect_args = self._engine._opts.get('connect_args', {})
-                logger.info(f"ENGINE CONFIG: url={engine_config}, connect_args={connect_args}")
-                statement_cache_size = connect_args.get('statement_cache_size', None)
-                logger.info(f"PgBouncer/asyncpg statement_cache_size: {statement_cache_size}")
                 self._initialized = True
                 logger.info("✅ AI Chat database service initialized")
 
