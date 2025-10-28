@@ -343,6 +343,8 @@ async def get_recent_activities(
     - total: Total count of activities
     """
     try:
+        from sqlalchemy import select, desc, func
+        
         # Use provided user_id or fall back to authenticated user
         target_user_id = user_id if user_id else current_user
         
@@ -350,19 +352,61 @@ async def get_recent_activities(
         if limit > 100:
             limit = 100
         
-        # TODO: Query database for activities
-        # For now, return empty list (will be populated when database integration is complete)
-        activities = []
+        # Query database for recent activities
+        try:
+            async with db_service.get_session() as session:
+                query = select(ProjectActivity).order_by(desc(ProjectActivity.created_at))
+                
+                # Filter by user if specified
+                if target_user_id:
+                    query = query.where(ProjectActivity.user_id == target_user_id)
+                
+                # Apply pagination
+                query = query.limit(limit).offset(offset)
+                
+                result = await session.execute(query)
+                db_activities = result.scalars().all()
+                
+                # Convert to dict
+                activities = [
+                    {
+                        "id": act.id,
+                        "activity_type": act.activity_type,
+                        "description": act.description,
+                        "user_id": act.user_id,
+                        "timestamp": act.created_at.isoformat() if act.created_at else None,
+                        "metadata": act.details if hasattr(act, 'details') else {}
+                    }
+                    for act in db_activities
+                ]
+                
+                # Get total count
+                count_query = select(func.count(ProjectActivity.id))
+                if target_user_id:
+                    count_query = count_query.where(ProjectActivity.user_id == target_user_id)
+                
+                total = await session.scalar(count_query) or 0
+                
+                logger.info(f"✅ Fetched {len(activities)} recent activities (total: {total})")
+                
+                return {
+                    "success": True,
+                    "activities": activities,
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset
+                }
         
-        logger.info(f"Fetching recent activities for user: {target_user_id} (limit: {limit}, offset: {offset})")
-        
-        return {
-            "success": True,
-            "activities": activities,
-            "total": len(activities),
-            "limit": limit,
-            "offset": offset
-        }
+        except Exception as db_error:
+            logger.warning(f"Database query failed for recent activities: {db_error}")
+            # Return empty list as fallback
+            return {
+                "success": False,
+                "activities": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset
+            }
         
     except Exception as e:
         logger.error(f"Error fetching recent activities: {e}")

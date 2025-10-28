@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/schema", tags=["Schema Generation"])
 # Project Management Service URL for activity tracking
 PROJECT_MANAGEMENT_URL = os.getenv(
     "PROJECT_MANAGEMENT_SERVICE_URL",
-    "https://schemasage-project-management.herokuapp.com"
+    "https://schemasage-project-management-48496f02644b.herokuapp.com"
 )
 
 # Initialize components

@@ -8,6 +8,8 @@ from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
 import uuid
+import httpx
+import os
 
 from models.schemas import DetectionResponse, SchemaHistoryResponse
 from core.schema_detector import SchemaDetector
@@ -24,6 +26,12 @@ security = HTTPBearer(auto_error=False)
 
 # Initialize schema detector
 schema_detector = SchemaDetector()
+
+# Project Management Service URL for activity tracking
+PROJECT_MANAGEMENT_URL = os.getenv(
+    "PROJECT_MANAGEMENT_SERVICE_URL",
+    "https://schemasage-project-management-48496f02644b.herokuapp.com"
+)
 
 @router.post("/detect-from-file")
 async def detect_schema_from_file(
@@ -75,7 +83,7 @@ async def detect_schema_from_file(
         )
         
         # Convert to frontend expected format
-        return {
+        response_data = {
             "success": True,
             "message": "Schema detected successfully from file",
             "data": {
@@ -95,6 +103,33 @@ async def detect_schema_from_file(
                 "suggestions": getattr(result, 'suggestions', [])
             }
         }
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = "file_upload_user"  # Extract from auth in production
+            tables_count = len(result.tables) if hasattr(result, 'tables') else 0
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "schema_generated",
+                        "metadata": {
+                            "file_name": file.filename,
+                            "file_type": file_format or "unknown",
+                            "table_name": table_name or file.filename or "uploaded_file",
+                            "tables_count": tables_count,
+                            "detection_method": "file_upload_frontend_api",
+                            "service": "schema-detection-frontend-api"
+                        }
+                    }
+                )
+                logger.info(f"✅ File upload schema detection activity tracked for user {user_id}, tables: {tables_count}")
+        except Exception as e:
+            logger.warning(f"Failed to track file upload activity: {e}")
+        
+        return response_data
         
     except HTTPException:
         raise

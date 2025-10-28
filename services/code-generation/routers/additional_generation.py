@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
+import httpx
+import os
 
 from models.schemas import CodeGenerationRequest, CodeGenerationResponse
 from core.code_generator import CodeGenerator
@@ -15,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 # Router for additional generation endpoints
 router = APIRouter(prefix="/schema", tags=["schema_generation"])
+
+# Project Management Service URL for activity tracking
+PROJECT_MANAGEMENT_URL = os.getenv(
+    "PROJECT_MANAGEMENT_SERVICE_URL",
+    "https://schemasage-project-management-48496f02644b.herokuapp.com"
+)
 
 # Service instance
 code_generator = CodeGenerator()
@@ -228,6 +236,30 @@ async def generate_code_alternative(
             "generated_at": datetime.now().isoformat()
         }
         
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = schema_data.get('user_id', 'anonymous')
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "code_generated",
+                        "metadata": {
+                            "format": format,
+                            "tables_count": len(tables),
+                            "lines_of_code": len(generated_code.split("\\n")),
+                            "service": "code-generation"
+                        }
+                    }
+                )
+                logger.info(f"✅ Code generation activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track code generation activity: {e}")
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Alternative code generation error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate code")
@@ -373,7 +405,7 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
                 "description": f"Unsupported framework: {framework}"
             })
 
-        return {
+        result = {
             "framework": framework,
             "scaffolding_files": scaffolding_files,
             "generation_summary": {
@@ -391,6 +423,30 @@ async def generate_api_scaffolding(request_data: Dict[str, Any]):
             ],
             "generated_at": datetime.now().isoformat()
         }
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = schema_data.get('user_id', 'anonymous')
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "api_scaffolded",
+                        "metadata": {
+                            "framework": framework,
+                            "tables_count": len(tables),
+                            "files_generated": len(scaffolding_files),
+                            "service": "code-generation"
+                        }
+                    }
+                )
+                logger.info(f"✅ API scaffolding activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track API scaffolding activity: {e}")
+        
+        return result
         
     except Exception as e:
         logger.error(f"API scaffolding generation error: {e}")

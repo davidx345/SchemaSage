@@ -29,7 +29,7 @@ WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-w
 # Project Management Service URL for activity tracking
 PROJECT_MANAGEMENT_URL = os.getenv(
     "PROJECT_MANAGEMENT_SERVICE_URL",
-    "https://schemasage-project-management.herokuapp.com"
+    "https://schemasage-project-management-48496f02644b.herokuapp.com"
 )
 
 # Service instance

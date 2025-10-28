@@ -8,11 +8,19 @@ from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
 import re
+import httpx
+import os
 
 logger = logging.getLogger(__name__)
 
 # Router for data cleaning endpoints
 router = APIRouter(prefix="/cleaning", tags=["data_cleaning"])
+
+# Project Management Service URL for activity tracking
+PROJECT_MANAGEMENT_URL = os.getenv(
+    "PROJECT_MANAGEMENT_SERVICE_URL",
+    "https://schemasage-project-management-48496f02644b.herokuapp.com"
+)
 
 
 @router.post("/analyze")
@@ -138,7 +146,7 @@ async def analyze_data_quality(
                         "priority": "medium"
                     })
         
-        return {
+        result = {
             "table_name": table_name,
             "data_quality_score": max(0, 100 - len(issues) * 10),  # Simple scoring
             "total_issues": len(issues),
@@ -148,6 +156,31 @@ async def analyze_data_quality(
             "suggestions": suggestions if include_suggestions else [],
             "analysis_timestamp": datetime.now().isoformat()
         }
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = data.get('user_id', 'anonymous') if isinstance(data, dict) else 'anonymous'
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "data_cleaned",
+                        "metadata": {
+                            "table_name": table_name or "unknown",
+                            "total_rows": statistics.get("total_rows", 0),
+                            "issues_found": len(issues),
+                            "data_quality_score": result["data_quality_score"],
+                            "service": "schema-detection"
+                        }
+                    }
+                )
+                logger.info(f"✅ Data cleaning activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track data cleaning activity: {e}")
+        
+        return result
         
     except Exception as e:
         logger.error(f"Data quality analysis error: {e}")
