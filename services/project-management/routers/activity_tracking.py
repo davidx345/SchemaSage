@@ -85,19 +85,19 @@ async def broadcast_activity_to_websocket(activity_data: Dict[str, Any]):
     service is unavailable, it logs a warning but doesn't fail the request.
     """
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/activity",
                 json=activity_data
             )
             if response.status_code == 200:
-                logger.info(f"Activity broadcast to WebSocket service: {activity_data['activity_type']}")
+                logger.info(f"✅ Activity broadcast to WebSocket service: {activity_data.get('type', 'unknown')}")
             else:
-                logger.warning(f"WebSocket service returned {response.status_code}")
+                logger.warning(f"⚠️ WebSocket service returned {response.status_code}: {response.text}")
     except httpx.TimeoutException:
-        logger.warning("WebSocket service timeout - activity not broadcast (continuing anyway)")
+        logger.warning(f"⏱️ WebSocket service timeout - activity not broadcast (continuing anyway)")
     except Exception as e:
-        logger.warning(f"Failed to broadcast to WebSocket service: {e}")
+        logger.warning(f"❌ Failed to broadcast to WebSocket service: {e}")
 
 
 async def increment_dashboard_stat(stat_name: str):
@@ -108,14 +108,19 @@ async def increment_dashboard_stat(stat_name: str):
     in the WebSocket service for real-time dashboard updates.
     """
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/increment-stat",
-                json={"stat": stat_name}
+                json={"metric": stat_name, "value": 1}
             )
-            logger.info(f"Incremented dashboard stat: {stat_name}")
+            if response.status_code == 200:
+                logger.info(f"✅ Incremented dashboard stat: {stat_name}")
+            else:
+                logger.warning(f"⚠️ Dashboard stat increment returned {response.status_code}: {response.text}")
+    except httpx.TimeoutException:
+        logger.warning(f"⏱️ Timeout incrementing dashboard stat: {stat_name}")
     except Exception as e:
-        logger.warning(f"Failed to increment dashboard stat: {e}")
+        logger.warning(f"❌ Failed to increment dashboard stat: {e}")
 
 
 async def broadcast_realtime_stats_update():
@@ -131,7 +136,7 @@ async def broadcast_realtime_stats_update():
     - Important stats change (schema generated, API scaffolded, etc.)
     """
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             # Trigger the WebSocket service to broadcast latest stats NOW
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/broadcast-stats",
@@ -140,9 +145,11 @@ async def broadcast_realtime_stats_update():
             if response.status_code == 200:
                 logger.info("⚡ Instant dashboard stats broadcast triggered")
             else:
-                logger.warning(f"Stats broadcast returned {response.status_code}")
+                logger.warning(f"⚠️ Stats broadcast returned {response.status_code}: {response.text}")
+    except httpx.TimeoutException:
+        logger.warning("⏱️ Timeout triggering instant stats broadcast")
     except Exception as e:
-        logger.warning(f"Failed to trigger instant stats broadcast: {e}")
+        logger.warning(f"❌ Failed to trigger instant stats broadcast: {e}")
 
 
 @router.post("/track", response_model=ActivityTrackResponse)
