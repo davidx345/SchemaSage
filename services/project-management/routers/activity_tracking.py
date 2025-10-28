@@ -261,20 +261,21 @@ async def track_activity(
             "is_automated": False
         }
         
+        # Log incoming activity request
+        logger.info(f"[ACTIVITY-TRACK] Incoming request: user_id={user_id}, activity_type={request.activity_type}, metadata={request.metadata}")
+        logger.info(f"[ACTIVITY-TRACK] Full request body: {request.dict()}")
+        
         # Store in database
         try:
             from sqlalchemy import insert
-            
             async with db_service.get_session() as session:
                 stmt = insert(ProjectActivity).values(**activity_data)
                 await session.execute(stmt)
-                await session.commit()
-                
-            logger.info(f"✅ Activity persisted to database: {request.activity_type} by user {user_id}")
-            
+                # Don't call commit here - get_session() auto-commits on exit
+            logger.info(f"✅ Activity persisted to database: {request.activity_type} by user {user_id} | project_id={activity_data.get('project_id')} | activity_id={activity_id}")
         except Exception as db_error:
             logger.error(f"❌ Database persistence failed: {db_error}", exc_info=True)
-            # Continue anyway - WebSocket broadcast still works
+            logger.error(f"[ACTIVITY-TRACK] Failed activity data: {activity_data}")
         
         # Broadcast to WebSocket for real-time updates
         websocket_payload = {

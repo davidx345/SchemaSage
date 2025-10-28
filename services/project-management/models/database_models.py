@@ -209,7 +209,7 @@ class ProjectActivity(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=True, index=True)  # Made nullable for global activities
     user_id = Column(String(255), nullable=False, index=True)
     
     # Activity details

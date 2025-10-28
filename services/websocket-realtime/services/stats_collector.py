@@ -56,18 +56,26 @@ async def get_current_stats() -> Dict:
             if activity_response.status_code == 200:
                 activity_data = activity_response.json()
                 
+                # Check if we got the stats object or the wrapper
+                if "stats" in activity_data:
+                    activity_stats = activity_data["stats"]
+                else:
+                    activity_stats = activity_data
+                
                 # Map activity stats to dashboard stats
                 # Activity tracking provides accurate counts from database
-                stats["schemasGenerated"] = activity_data.get("schema_generated", 0)
-                stats["apisScaffolded"] = activity_data.get("api_scaffolded", 0)
-                stats["dataFilesCleaned"] = activity_data.get("data_cleaned", 0)
-                stats["activeDevelopers"] = activity_data.get("unique_users", 0)
-                stats["codeTemplatesGenerated"] = activity_data.get("code_generated", 0)
-                stats["migrationsCompleted"] = activity_data.get("migration_executed", 0)
+                stats["schemasGenerated"] = activity_stats.get("schema_generated", 0)
+                stats["apisScaffolded"] = activity_stats.get("api_scaffolded", 0)
+                stats["dataFilesCleaned"] = activity_stats.get("data_cleaned", 0)
+                stats["activeDevelopers"] = activity_stats.get("unique_users", 0)
+                stats["codeTemplatesGenerated"] = activity_stats.get("code_generated", 0)
+                stats["migrationsCompleted"] = activity_stats.get("migration_completed", 0)
                 
-                logger.debug(f"Activity tracking stats: {activity_data}")
+                logger.info(f"✅ Activity tracking stats retrieved: {activity_stats}")
+            else:
+                logger.warning(f"Activity stats endpoint returned status {activity_response.status_code}")
         except Exception as e:
-            logger.warning(f"Failed to get activity tracking stats: {e}")
+            logger.error(f"❌ Failed to get activity tracking stats: {e}", exc_info=True)
         
         try:
             # Get schema detection stats
