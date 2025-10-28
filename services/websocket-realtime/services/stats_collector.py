@@ -55,27 +55,56 @@ async def get_current_stats() -> Dict:
             activity_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/stats")
             if activity_response.status_code == 200:
                 activity_data = activity_response.json()
-                
                 # Check if we got the stats object or the wrapper
                 if "stats" in activity_data:
                     activity_stats = activity_data["stats"]
                 else:
                     activity_stats = activity_data
-                
                 # Map activity stats to dashboard stats
-                # Activity tracking provides accurate counts from database
                 stats["schemasGenerated"] = activity_stats.get("schema_generated", 0)
                 stats["apisScaffolded"] = activity_stats.get("api_scaffolded", 0)
                 stats["dataFilesCleaned"] = activity_stats.get("data_cleaned", 0)
                 stats["activeDevelopers"] = activity_stats.get("unique_users", 0)
                 stats["codeTemplatesGenerated"] = activity_stats.get("code_generated", 0)
                 stats["migrationsCompleted"] = activity_stats.get("migration_completed", 0)
-                
                 logger.info(f"✅ Activity tracking stats retrieved: {activity_stats}")
             else:
                 logger.warning(f"Activity stats endpoint returned status {activity_response.status_code}")
         except Exception as e:
             logger.error(f"❌ Failed to get activity tracking stats: {e}", exc_info=True)
+
+        # Fetch recent activities for dashboard
+        try:
+            recent_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/recent?limit=5")
+            if recent_response.status_code == 200:
+                recent_data = recent_response.json()
+                # Try to extract activities from possible wrappers
+                activities = None
+                if isinstance(recent_data, dict):
+                    if "activities" in recent_data:
+                        activities = recent_data["activities"]
+                    elif "data" in recent_data and isinstance(recent_data["data"], list):
+                        activities = recent_data["data"]
+                    elif isinstance(recent_data.get("data"), dict) and "activities" in recent_data["data"]:
+                        activities = recent_data["data"]["activities"]
+                if activities is None and isinstance(recent_data, list):
+                    activities = recent_data
+                if activities is None:
+                    activities = []
+                stats["activities"] = activities
+                stats["activityCount"] = len(activities)
+                stats["hasRecentActivities"] = len(activities) > 0
+                logger.info(f"✅ Recent activities attached: count={len(activities)}")
+            else:
+                stats["activities"] = []
+                stats["activityCount"] = 0
+                stats["hasRecentActivities"] = False
+                logger.warning(f"Recent activities endpoint returned status {recent_response.status_code}")
+        except Exception as e:
+            stats["activities"] = []
+            stats["activityCount"] = 0
+            stats["hasRecentActivities"] = False
+            logger.error(f"❌ Failed to get recent activities: {e}", exc_info=True)
         
         try:
             # Get schema detection stats
