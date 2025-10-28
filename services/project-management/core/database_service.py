@@ -49,6 +49,7 @@ class ProjectManagementDatabaseService:
                 database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
             # ✅ TRANSACTION POOLER CONFIGURATION
+            # Optimized for PgBouncer transaction mode
             # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
             if "?" in database_url:
                 database_url += "&prepared_statement_cache_size=0"
@@ -57,24 +58,25 @@ class ProjectManagementDatabaseService:
             
             logger.info(f"🔧 PgBouncer transaction pooler: prepared_statement_cache_size=0 added to connection URL")
             
-            # Using NullPool-like settings for PgBouncer transaction mode
-            # statement_cache_size=0 prevents "prepared statement" errors
+            # Create engine with PgBouncer-optimized settings
             self._engine = create_async_engine(
                 database_url,
-                poolclass=None,  # Use default pool but with transaction-friendly settings
-                pool_size=5,  # Small pool size for transaction pooler
-                max_overflow=10,  # Limited overflow
-                pool_timeout=30,
-                pool_recycle=300,  # Recycle connections every 5 minutes
-                pool_pre_ping=True,  # Verify connections before using
+                pool_size=3,           # Small pool for transaction pooler
+                max_overflow=5,        # Limited overflow
+                pool_timeout=10,       # Fail fast if pool exhausted
+                pool_recycle=300,      # Recycle every 5 minutes
+                pool_pre_ping=True,    # Verify connections
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
-                    "statement_cache_size": 0,  # CRITICAL: Prevents prepared statement errors
+                    "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                    "command_timeout": 10,  # Fast timeout
                     "server_settings": {
-                        "jit": "off",  # Disable JIT compilation for transaction pooler
-                        "statement_timeout": "30000"  # 30 second query timeout
+                        "application_name": "project-management-service",
+                        "jit": "off",  # Disable JIT
+                        "statement_timeout": "30000"  # 30s timeout
                     }
                 },
+                pool_reset_on_return="commit",  # Reset on return
                 execution_options={
                     "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
@@ -87,9 +89,10 @@ class ProjectManagementDatabaseService:
                 expire_on_commit=False
             )
             
-            # Create tables if they don't exist
-            async with self._engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+            # Skip table creation - tables should already exist and be managed externally
+            # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
+            logger.info("✅ Database connection established (tables managed externally)")
+            logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
             
             self._initialized = True
             logger.info("✅ Project Management database service initialized")

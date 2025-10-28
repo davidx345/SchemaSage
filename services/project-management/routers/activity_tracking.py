@@ -271,11 +271,12 @@ async def track_activity(
             async with db_service.get_session() as session:
                 stmt = insert(ProjectActivity).values(**activity_data)
                 await session.execute(stmt)
-                # Don't call commit here - get_session() auto-commits on exit
+                await session.commit()  # Explicit commit
             logger.info(f"✅ Activity persisted to database: {request.activity_type} by user {user_id} | project_id={activity_data.get('project_id')} | activity_id={activity_id}")
         except Exception as db_error:
             logger.error(f"❌ Database persistence failed: {db_error}", exc_info=True)
             logger.error(f"[ACTIVITY-TRACK] Failed activity data: {activity_data}")
+            # Don't raise - continue with WebSocket broadcast even if DB fails
         
         # Broadcast to WebSocket for real-time updates
         websocket_payload = {
