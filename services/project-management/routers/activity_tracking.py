@@ -279,15 +279,14 @@ async def track_activity(
             # Don't raise - continue with WebSocket broadcast even if DB fails
         
         # Broadcast to WebSocket for real-time updates
+        # Construct payload to match ActivityUpdate model expected by websocket-realtime
         websocket_payload = {
-            "type": "activity_logged",
-            "activity_type": request.activity_type,
-            "user_id": user_id,
+            "id": activity_id,
+            "type": request.activity_type,
             "description": description,
-            "timestamp": request.timestamp,
-            "metadata": request.metadata
+            "timestamp": request.timestamp
+            # "icon" and "color" are optional and will use defaults if omitted
         }
-        
         await broadcast_activity_to_websocket(websocket_payload)
         
         # Increment appropriate dashboard statistic
