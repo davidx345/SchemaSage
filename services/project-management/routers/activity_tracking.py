@@ -263,16 +263,18 @@ async def track_activity(
         
         # Store in database
         try:
-            # Use SQLAlchemy to create the activity
-            from sqlalchemy.orm import Session
-            from core.database_service import get_db
+            from sqlalchemy import insert
             
-            # For now, log the activity (database integration may need session management)
-            logger.info(f"Activity tracked: {request.activity_type} by user {user_id}")
-            logger.info(f"Activity details: {activity_data}")
+            async with db_service.get_session() as session:
+                stmt = insert(ProjectActivity).values(**activity_data)
+                await session.execute(stmt)
+                await session.commit()
+                
+            logger.info(f"✅ Activity persisted to database: {request.activity_type} by user {user_id}")
             
         except Exception as db_error:
-            logger.error(f"Database error (continuing anyway): {db_error}")
+            logger.error(f"❌ Database persistence failed: {db_error}", exc_info=True)
+            # Continue anyway - WebSocket broadcast still works
         
         # Broadcast to WebSocket for real-time updates
         websocket_payload = {
@@ -386,26 +388,79 @@ async def get_activity_stats(
     - total_activities: Total count of all activities
     """
     try:
+        from sqlalchemy import func, select, distinct
+        
         target_user_id = user_id if user_id else current_user
         
-        # TODO: Query database for stats
-        # For now, return zero stats (will be populated when database integration is complete)
-        stats = {
-            "schema_generated": 0,
-            "api_scaffolded": 0,
-            "data_cleaned": 0,
-            "code_generated": 0,
-            "migration_completed": 0,
-            "total_activities": 0
-        }
+        # Query database for real stats
+        try:
+            async with db_service.get_session() as session:
+                # Count activities by type
+                schema_generated = await session.scalar(
+                    select(func.count(ProjectActivity.id))
+                    .where(ProjectActivity.activity_type == 'schema_generated')
+                ) or 0
+                
+                api_scaffolded = await session.scalar(
+                    select(func.count(ProjectActivity.id))
+                    .where(ProjectActivity.activity_type == 'api_scaffolded')
+                ) or 0
+                
+                data_cleaned = await session.scalar(
+                    select(func.count(ProjectActivity.id))
+                    .where(ProjectActivity.activity_type == 'data_cleaned')
+                ) or 0
+                
+                code_generated = await session.scalar(
+                    select(func.count(ProjectActivity.id))
+                    .where(ProjectActivity.activity_type == 'code_generated')
+                ) or 0
+                
+                migration_completed = await session.scalar(
+                    select(func.count(ProjectActivity.id))
+                    .where(ProjectActivity.activity_type == 'migration_completed')
+                ) or 0
+                
+                unique_users = await session.scalar(
+                    select(func.count(distinct(ProjectActivity.user_id)))
+                ) or 0
+                
+                stats = {
+                    "schema_generated": schema_generated,
+                    "api_scaffolded": api_scaffolded,
+                    "data_cleaned": data_cleaned,
+                    "code_generated": code_generated,
+                    "migration_completed": migration_completed,
+                    "unique_users": unique_users,
+                    "total_activities": schema_generated + api_scaffolded + data_cleaned + code_generated + migration_completed
+                }
+                
+                logger.info(f"✅ Activity stats retrieved from database: {stats}")
+                
+                return {
+                    "success": True,
+                    "user_id": target_user_id,
+                    "stats": stats
+                }
         
-        logger.info(f"Fetching activity stats for user: {target_user_id}")
-        
-        return {
-            "success": True,
-            "user_id": target_user_id,
-            "stats": stats
-        }
+        except Exception as db_error:
+            logger.warning(f"Database query failed, returning zeros: {db_error}")
+            # Return zeros as fallback
+            stats = {
+                "schema_generated": 0,
+                "api_scaffolded": 0,
+                "data_cleaned": 0,
+                "code_generated": 0,
+                "migration_completed": 0,
+                "unique_users": 0,
+                "total_activities": 0
+            }
+            
+            return {
+                "success": False,
+                "user_id": target_user_id,
+                "stats": stats
+            }
         
     except Exception as e:
         logger.error(f"Error fetching activity stats: {e}")

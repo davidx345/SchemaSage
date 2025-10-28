@@ -26,6 +26,12 @@ router = APIRouter(prefix="/detect", tags=["detection"])
 # WebSocket service URL for push notifications
 WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
 
+# Project Management Service URL for activity tracking
+PROJECT_MANAGEMENT_URL = os.getenv(
+    "PROJECT_MANAGEMENT_SERVICE_URL",
+    "https://schemasage-project-management.herokuapp.com"
+)
+
 # Service instance
 schema_detector = SchemaDetector()
 
@@ -65,6 +71,29 @@ async def detect_schema(request: DetectionRequest):
             "timestamp": datetime.now().isoformat()
         }
         await send_webhook_notification(webhook_data)
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = getattr(request, 'user_id', 'anonymous')
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "schema_generated",
+                        "metadata": {
+                            "table_name": request.table_name or "detected_table",
+                            "file_format": request.file_format,
+                            "tables_count": len(result.tables) if hasattr(result, 'tables') else 1,
+                            "detection_method": "api_request",
+                            "service": "schema-detection"
+                        }
+                    }
+                )
+                logger.info(f"✅ Schema detection activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track schema detection activity: {e}")
         
         return result
     
@@ -117,6 +146,30 @@ async def detect_schema_from_file(
             "timestamp": datetime.now().isoformat()
         }
         await send_webhook_notification(webhook_data)
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            user_id = "file_upload_user"  # Extract from auth in production
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "schema_generated",
+                        "metadata": {
+                            "file_name": file.filename,
+                            "file_type": file_format or "unknown",
+                            "table_name": table_name or file.filename or "uploaded_file",
+                            "tables_count": len(result.tables) if hasattr(result, 'tables') else 1,
+                            "detection_method": "file_upload",
+                            "service": "schema-detection"
+                        }
+                    }
+                )
+                logger.info(f"✅ File upload schema detection activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track file upload activity: {e}")
         
         return result
     

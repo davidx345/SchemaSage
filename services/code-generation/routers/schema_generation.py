@@ -7,6 +7,8 @@ from typing import Dict, Any, Optional
 import logging
 from datetime import datetime
 from pydantic import BaseModel
+import httpx
+import os
 
 from core.nl_schema_converter import NLSchemaConverter
 from core.code_generator import CodeGenerator
@@ -14,7 +16,13 @@ from config import CodeGenFormat
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/schema", tags=["schema_generation"])
+router = APIRouter(prefix="/api/schema", tags=["Schema Generation"])
+
+# Project Management Service URL for activity tracking
+PROJECT_MANAGEMENT_URL = os.getenv(
+    "PROJECT_MANAGEMENT_SERVICE_URL",
+    "https://schemasage-project-management.herokuapp.com"
+)
 
 # Initialize components
 nl_converter = NLSchemaConverter()
@@ -127,7 +135,7 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
                 }
                 relationships_data.append(rel_dict)
         
-        return MultiFormatResponse(
+        response = MultiFormatResponse(
             sqlalchemy=generated_code.get('sqlalchemy', ''),
             prisma=generated_code.get('prisma', ''),
             typeorm=generated_code.get('typeorm', ''),
@@ -138,6 +146,31 @@ async def generate_schema_multi_format(request: SchemaGenerationRequest):
             tables=tables_data,
             relationships=relationships_data
         )
+        
+        # ✅ Track activity for dashboard metrics
+        try:
+            # Extract user_id from request metadata or use anonymous
+            user_id = request.metadata.get('user_id', 'anonymous') if hasattr(request, 'metadata') and request.metadata else 'anonymous'
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                    json={
+                        "user_id": str(user_id),
+                        "activity_type": "schema_generated",
+                        "metadata": {
+                            "description": request.description[:100] if request.description else "Schema generated",
+                            "tables_count": len(tables_data),
+                            "relationships_count": len(relationships_data),
+                            "service": "code-generation"
+                        }
+                    }
+                )
+                logger.info(f"✅ Schema generation activity tracked for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track schema generation activity: {e}")
+        
+        return response
         
     except HTTPException:
         raise
