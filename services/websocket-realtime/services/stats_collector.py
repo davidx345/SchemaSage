@@ -76,30 +76,39 @@ async def get_current_stats() -> Dict:
         # Fetch recent activities for dashboard
         try:
             recent_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/recent?limit=5")
+            logger.info(f"🔍 Recent activities request: status={recent_response.status_code}")
             if recent_response.status_code == 200:
                 recent_data = recent_response.json()
+                logger.info(f"🔍 Recent activities response type: {type(recent_data)}, keys: {recent_data.keys() if isinstance(recent_data, dict) else 'N/A'}")
+                
                 # Try to extract activities from possible wrappers
                 activities = None
                 if isinstance(recent_data, dict):
                     if "activities" in recent_data:
                         activities = recent_data["activities"]
+                        logger.info(f"✅ Found activities in 'activities' key: {len(activities)} items")
                     elif "data" in recent_data and isinstance(recent_data["data"], list):
                         activities = recent_data["data"]
+                        logger.info(f"✅ Found activities in 'data' key (list): {len(activities)} items")
                     elif isinstance(recent_data.get("data"), dict) and "activities" in recent_data["data"]:
                         activities = recent_data["data"]["activities"]
+                        logger.info(f"✅ Found activities in 'data.activities': {len(activities)} items")
                 if activities is None and isinstance(recent_data, list):
                     activities = recent_data
+                    logger.info(f"✅ Found activities as direct list: {len(activities)} items")
                 if activities is None:
                     activities = []
+                    logger.warning("⚠️ Could not extract activities from response, using empty array")
+                
                 stats["activities"] = activities
                 stats["activityCount"] = len(activities)
                 stats["hasRecentActivities"] = len(activities) > 0
-                logger.info(f"✅ Recent activities attached: count={len(activities)}")
+                logger.info(f"✅ Recent activities attached to stats: count={len(activities)}, hasRecentActivities={len(activities) > 0}")
             else:
                 stats["activities"] = []
                 stats["activityCount"] = 0
                 stats["hasRecentActivities"] = False
-                logger.warning(f"Recent activities endpoint returned status {recent_response.status_code}")
+                logger.warning(f"⚠️ Recent activities endpoint returned status {recent_response.status_code}")
         except Exception as e:
             stats["activities"] = []
             stats["activityCount"] = 0
@@ -161,9 +170,9 @@ async def get_current_stats() -> Dict:
         except Exception as e:
             logger.warning(f"Failed to get database migration stats: {e}")
     
-    # Ensure all numeric values are integers
+    # Ensure all numeric values are integers (but preserve activities array and other special fields)
     for key, value in stats.items():
-        if key not in ["lastUpdated", "systemHealth"]:
+        if key not in ["lastUpdated", "systemHealth", "activities", "hasRecentActivities"]:
             if value is None or value == "undefined":
                 stats[key] = 0
             elif isinstance(value, str) and value.isdigit():
@@ -171,5 +180,6 @@ async def get_current_stats() -> Dict:
             elif not isinstance(value, int):
                 stats[key] = 0
     
-    logger.info(f"Generated comprehensive stats: {stats}")
+    logger.info(f"📊 Generated comprehensive stats with {stats.get('activityCount', 0)} activities")
+    logger.info(f"🔍 Activities field present: {'activities' in stats}, hasRecentActivities: {stats.get('hasRecentActivities', False)}")
     return stats

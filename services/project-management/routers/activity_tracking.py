@@ -369,8 +369,8 @@ async def get_recent_activities(
                 if target_user_id:
                     query = query.where(ProjectActivity.user_id == target_user_id)
                 
-                # Apply pagination
-                query = query.limit(limit).offset(offset)
+                # Apply pagination and disable prepared statement cache for PgBouncer
+                query = query.limit(limit).offset(offset).execution_options(prepared_statement_cache_size=0)
                 
                 result = await session.execute(query)
                 db_activities = result.scalars().all()
@@ -389,7 +389,7 @@ async def get_recent_activities(
                 ]
                 
                 # Get total count
-                count_query = select(func.count(ProjectActivity.id))
+                count_query = select(func.count(ProjectActivity.id)).execution_options(prepared_statement_cache_size=0)
                 if target_user_id:
                     count_query = count_query.where(ProjectActivity.user_id == target_user_id)
                 
@@ -447,34 +447,40 @@ async def get_activity_stats(
         # Query database for real stats
         try:
             async with db_service.get_session() as session:
-                # Count activities by type
+                # Count activities by type (with execution_options to prevent prepared statement caching for PgBouncer)
                 schema_generated = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'schema_generated')
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 api_scaffolded = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'api_scaffolded')
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 data_cleaned = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'data_cleaned')
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 code_generated = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'code_generated')
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 migration_completed = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'migration_completed')
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 unique_users = await session.scalar(
                     select(func.count(distinct(ProjectActivity.user_id)))
+                    .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 stats = {
