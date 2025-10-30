@@ -93,27 +93,98 @@ async def test_database_connection(request: Dict[str, Any]):
     """Test database connection using connection URL"""
     try:
         connection_url = request.get("connection_url")
+        db_type = request.get("type", "").lower()
         
         if not connection_url:
-            raise HTTPException(status_code=400, detail="connection_url is required")
+            return {
+                "success": False,
+                "error": {
+                    "message": "connection_url is required",
+                    "code": "INVALID_REQUEST",
+                    "details": {
+                        "reason": "Missing required field: connection_url"
+                    }
+                }
+            }
         
         logger.info(f"Testing database connection: {ConnectionURLParser.mask_sensitive_data(connection_url)}")
         
         # Validate URL format first
         is_valid, error_message = ConnectionURLParser.validate_connection_url(connection_url)
         if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid connection URL: {error_message}")
+            return {
+                "success": False,
+                "error": {
+                    "message": f"Invalid connection URL: {error_message}",
+                    "code": "INVALID_URL",
+                    "details": {
+                        "reason": error_message,
+                        "database_type": db_type or "unknown"
+                    }
+                }
+            }
         
         # Test connection
         result = await connection_manager.test_connection(connection_url)
         
-        return result
+        # Transform to spec format
+        if result['status'] == 'success':
+            return {
+                "success": True,
+                "message": "Connection successful",
+                "connection_info": {
+                    "database_name": result.get('connection_details', {}).get('database', 'unknown'),
+                    "database_type": result.get('database_type', 'unknown'),
+                    "database_version": result.get('server_info', {}).get('version', 'unknown'),
+                    "server_info": {
+                        "host": result.get('connection_details', {}).get('host', 'unknown'),
+                        "port": result.get('connection_details', {}).get('port', 0)
+                    },
+                    "connection_time_ms": result.get('connection_time_ms', 0),
+                    "tested_at": result.get('tested_at', datetime.now().isoformat())
+                }
+            }
+        else:
+            # Map error types to codes
+            error_str = str(result.get('error', 'Unknown error')).lower()
+            if 'timeout' in error_str:
+                error_code = "TIMEOUT"
+            elif 'auth' in error_str or 'password' in error_str or 'permission' in error_str:
+                error_code = "AUTH_FAILED"
+            elif 'ssl' in error_str or 'tls' in error_str:
+                error_code = "SSL_ERROR"
+            elif 'unsupported' in error_str:
+                error_code = "UNSUPPORTED_DB"
+            else:
+                error_code = "CONNECTION_FAILED"
+            
+            return {
+                "success": False,
+                "error": {
+                    "message": result.get('error', 'Connection failed'),
+                    "code": error_code,
+                    "details": {
+                        "reason": result.get('error', 'Unknown error'),
+                        "database_type": result.get('database_type', 'unknown')
+                    }
+                }
+            }
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error testing database connection: {e}")
-        raise HTTPException(status_code=500, detail=f"Connection test failed: {str(e)}")
+        return {
+            "success": False,
+            "error": {
+                "message": f"Connection test failed: {str(e)}",
+                "code": "CONNECTION_FAILED",
+                "details": {
+                    "reason": str(e),
+                    "database_type": db_type or "unknown"
+                }
+            }
+        }
 
 @router.get("/test/history")
 async def get_connection_test_history(limit: int = 20):
@@ -155,66 +226,125 @@ async def get_connection_test_history(limit: int = 20):
         raise HTTPException(status_code=500, detail="Failed to get connection test history")
 
 @router.post("/import-from-url")
-async def import_database_schema(request: Dict[str, Any], background_tasks: BackgroundTasks):
+async def import_database_schema(request: Dict[str, Any]):
     """Import schema from database using connection URL"""
     try:
         connection_url = request.get("connection_url")
-        import_options = request.get("import_options", {})
+        db_type = request.get("type", "").lower()
+        import_options = request.get("options", {})
         
         if not connection_url:
-            raise HTTPException(status_code=400, detail="connection_url is required")
+            return {
+                "success": False,
+                "error": {
+                    "message": "connection_url is required",
+                    "code": "INVALID_REQUEST",
+                    "details": {
+                        "reason": "Missing required field: connection_url"
+                    }
+                }
+            }
         
         logger.info(f"Starting schema import: {ConnectionURLParser.mask_sensitive_data(connection_url)}")
         
         # Validate connection URL
         is_valid, error_message = ConnectionURLParser.validate_connection_url(connection_url)
         if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid connection URL: {error_message}")
+            return {
+                "success": False,
+                "error": {
+                    "message": f"Invalid connection URL: {error_message}",
+                    "code": "INVALID_URL",
+                    "details": {
+                        "reason": error_message,
+                        "database_type": db_type or "unknown"
+                    }
+                }
+            }
         
         # Test connection first
         connection_test = await connection_manager.test_connection(connection_url)
         if connection_test['status'] != 'success':
-            raise HTTPException(status_code=400, detail=f"Connection failed: {connection_test.get('error')}")
+            error_msg = connection_test.get('error', 'Connection failed')
+            error_str = str(error_msg).lower()
+            
+            # Map error types
+            if 'permission' in error_str or 'denied' in error_str:
+                error_code = "PERMISSION_DENIED"
+            elif 'timeout' in error_str:
+                error_code = "TIMEOUT"
+            else:
+                error_code = "IMPORT_FAILED"
+            
+            return {
+                "success": False,
+                "error": {
+                    "message": f"Connection failed: {error_msg}",
+                    "code": error_code,
+                    "details": {
+                        "reason": error_msg,
+                        "database_type": connection_test.get('database_type', 'unknown'),
+                        "tables_attempted": 0,
+                        "tables_imported": 0
+                    }
+                }
+            }
         
-        # Create import job
-        import_job_id = str(uuid.uuid4())
-        db_params = ConnectionURLParser.parse_connection_url(connection_url)
+        # Extract schema
+        try:
+            schema = await connection_manager.extract_database_schema(connection_url, import_options)
+            
+            return {
+                "success": True,
+                "schema": schema
+            }
+            
+        except Exception as extract_error:
+            error_str = str(extract_error).lower()
+            
+            # Map error types
+            if 'permission' in error_str or 'denied' in error_str:
+                error_code = "PERMISSION_DENIED"
+                error_msg = f"Permission denied: {extract_error}"
+            elif 'timeout' in error_str:
+                error_code = "TIMEOUT"
+                error_msg = f"Import operation timed out: {extract_error}"
+            elif 'no tables' in error_str or 'empty' in error_str:
+                error_code = "NO_TABLES_FOUND"
+                error_msg = f"No tables found in database: {extract_error}"
+            else:
+                error_code = "IMPORT_FAILED"
+                error_msg = f"Schema import failed: {extract_error}"
+            
+            return {
+                "success": False,
+                "error": {
+                    "message": error_msg,
+                    "code": error_code,
+                    "details": {
+                        "reason": str(extract_error),
+                        "database_type": connection_test.get('database_type', 'unknown'),
+                        "tables_attempted": 0,
+                        "tables_imported": 0
+                    }
+                }
+            }
         
-        import_job = {
-            'job_id': import_job_id,
-            'status': 'starting',
-            'database_type': db_params['database_type'],
-            'connection_id': connection_test['connection_id'],
-            'started_at': datetime.now().isoformat(),
-            'import_options': import_options,
-            'progress': {
-                'percentage': 0,
-                'current_step': 'initializing',
-                'tables_processed': 0,
-                'total_tables': 0
+    except Exception as e:
+        logger.error(f"Error importing schema: {e}")
+        return {
+            "success": False,
+            "error": {
+                "message": f"Failed to import schema: {str(e)}",
+                "code": "IMPORT_FAILED",
+                "details": {
+                    "reason": str(e),
+                    "database_type": db_type or "unknown",
+                    "tables_attempted": 0,
+                    "tables_imported": 0
+                }
             }
         }
-        
-        # Start background import process
-        background_tasks.add_task(
-            process_schema_import_task, 
-            import_job_id, 
-            connection_url, 
-            import_options
-        )
-        
-        return {
-            'import_job': import_job,
-            'message': 'Schema import started successfully',
-            'status_endpoint': f'/api/database/import/{import_job_id}/status',
-            'cancel_endpoint': f'/api/database/import/{import_job_id}/cancel'
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error starting schema import: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start schema import: {str(e)}")
 
 # Store for import jobs (in real implementation, use database)
 import_jobs = {}
