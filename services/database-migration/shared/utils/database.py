@@ -24,18 +24,21 @@ class DatabaseUtils:
         self.engine = create_async_engine(
             database_url, 
             echo=echo,
-            pool_size=5,
-            max_overflow=10,
-            pool_timeout=30,
-            pool_recycle=300,
-            pool_pre_ping=True,
+            pool_size=3,  # Small pool for transaction pooler
+            max_overflow=5,  # Limited overflow
+            pool_timeout=10,  # Fail fast if pool exhausted
+            pool_recycle=300,  # Recycle every 5 minutes
+            pool_pre_ping=True,  # Verify connections
             connect_args={
-                "statement_cache_size": 0,  # CRITICAL
+                "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                "command_timeout": 10,  # Fast timeout
                 "server_settings": {
-                    "jit": "off",
-                    "statement_timeout": "30000"
+                    "application_name": "database-migration-service",
+                    "jit": "off",  # Disable JIT
+                    "statement_timeout": "30000"  # 30s timeout
                 }
             },
+            pool_reset_on_return="commit",  # Reset on return
             execution_options={
                 "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
             }

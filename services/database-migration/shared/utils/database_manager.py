@@ -139,8 +139,8 @@ class DatabaseConnectionManager:
             # Build connection string
             conn_str = f"postgresql://{params['username']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}"
             
-            # Test connection
-            conn = await asyncpg.connect(conn_str, timeout=30)
+            # Test connection with statement_cache_size=0 for PgBouncer transaction pooler compatibility
+            conn = await asyncpg.connect(conn_str, timeout=30, statement_cache_size=0)
             
             # Get server info
             server_version = await conn.fetchval('SELECT version()')

@@ -96,19 +96,22 @@ class EnterpriseConnectionStore:
             # Create async engine with transaction pooler settings
             self._engine = create_async_engine(
                 db_url,
-                pool_size=5,  # Small pool for transaction pooler
-                max_overflow=10,  # Limited overflow
-                pool_timeout=30,
+                pool_size=3,  # Small pool for transaction pooler
+                max_overflow=5,  # Limited overflow
+                pool_timeout=10,  # Fail fast if pool exhausted
                 pool_recycle=300,  # Recycle every 5 minutes
                 pool_pre_ping=True,  # Verify connections
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
                     "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                    "command_timeout": 10,  # Fast timeout
                     "server_settings": {
+                        "application_name": "database-migration-service",
                         "jit": "off",  # Disable JIT
                         "statement_timeout": "30000"  # 30s timeout
                     }
                 },
+                pool_reset_on_return="commit",  # Reset on return
                 execution_options={
                     "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
@@ -127,6 +130,7 @@ class EnterpriseConnectionStore:
             
             self._initialized = True
             logger.info("✅ Enterprise connection store initialized with PostgreSQL backend")
+            logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize connection store: {e}")

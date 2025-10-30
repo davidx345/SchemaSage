@@ -286,14 +286,24 @@ class CloudDatabaseManager:
             
             engine = create_async_engine(
                 conn_str,
-                pool_size=pool_config.min_connections,
-                max_overflow=pool_config.max_connections - pool_config.min_connections,
-                pool_timeout=pool_config.connection_timeout,
-                pool_recycle=pool_config.idle_timeout,
+                pool_size=min(pool_config.min_connections, 3),  # Small pool for transaction pooler
+                max_overflow=min(pool_config.max_connections - pool_config.min_connections, 5),  # Limited overflow
+                pool_timeout=10,  # Fail fast if pool exhausted
+                pool_recycle=300,  # Recycle every 5 minutes
+                pool_pre_ping=True,  # Verify connections
                 echo=False,  # Set to True for SQL debugging
                 connect_args={
-                    "statement_cache_size": 0,
-                    "prepared_statement_cache_size": 0
+                    "statement_cache_size": 0,  # CRITICAL: No prepared statements
+                    "command_timeout": 10,  # Fast timeout
+                    "server_settings": {
+                        "application_name": "database-migration-service",
+                        "jit": "off",  # Disable JIT
+                        "statement_timeout": "30000"  # 30s timeout
+                    }
+                },
+                pool_reset_on_return="commit",  # Reset on return
+                execution_options={
+                    "compiled_cache": None  # Disable SQLAlchemy's compiled query cache
                 }
             )
             
