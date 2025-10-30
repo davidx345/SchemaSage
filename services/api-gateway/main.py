@@ -374,6 +374,123 @@ async def migration_proxy(request: Request, path: str):
     """Proxy migration requests."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
+# Direct routes for database connection testing and import (frontend compatibility)
+@app.api_route("/api/test-connection-url", methods=["POST", "OPTIONS"])
+async def test_connection_url_proxy(request: Request):
+    """Proxy database connection test requests (direct route for frontend)."""
+    try:
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
+        
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        # Build target URL - forward to /api/database/test-connection-url
+        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/api/database/test-connection-url"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        # Get request body if present
+        body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        logger.info(f"🔄 Proxying {method} /api/test-connection-url to Database Migration Service at /api/database/test-connection-url")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            content=body,
+            follow_redirects=False
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ Database Migration Service responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to Database Migration Service")
+        raise HTTPException(status_code=504, detail="Database Migration Service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to Database Migration Service")
+        raise HTTPException(status_code=503, detail="Database Migration Service unavailable")
+    except Exception as e:
+        logger.error(f"❌ Test connection proxy error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
+
+@app.api_route("/api/import-from-url", methods=["POST", "OPTIONS"])
+async def import_from_url_proxy(request: Request):
+    """Proxy database import requests (direct route for frontend)."""
+    try:
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
+        
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        # Build target URL - forward to /api/database/import-from-url
+        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/api/database/import-from-url"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        # Get request body if present
+        body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        logger.info(f"🔄 Proxying {method} /api/import-from-url to Database Migration Service at /api/database/import-from-url")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            content=body,
+            follow_redirects=False
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ Database Migration Service responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to Database Migration Service")
+        raise HTTPException(status_code=504, detail="Database Migration Service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to Database Migration Service")
+        raise HTTPException(status_code=503, detail="Database Migration Service unavailable")
+    except Exception as e:
+        logger.error(f"❌ Import from URL proxy error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
+
 # ===== HEALTH AND STATUS =====
 
 @app.get("/health")
@@ -434,7 +551,7 @@ async def root():
             "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/*",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
-            "database_migration": "/api/database/* | /api/migration/*",
+            "database_migration": "/api/database/* | /api/migration/* | /api/test-connection-url | /api/import-from-url",
             "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
@@ -488,7 +605,9 @@ async def catch_all(request: Request, path: str):
                 "/api/schema/* -> Schema Detection Service",
                 "/api/projects/* -> Project Management Service",
                 "/api/chat/* -> AI Chat Service",
-                "/api/database/* -> Database Migration Service"
+                "/api/database/* -> Database Migration Service",
+                "/api/test-connection-url -> Database Migration Service",
+                "/api/import-from-url -> Database Migration Service"
             ]
         }
     )
