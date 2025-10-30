@@ -492,6 +492,58 @@ async def import_from_url_proxy(request: Request):
         logger.error(f"❌ Import from URL proxy error: {str(e)}")
         raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
 
+@app.api_route("/api/import-status/{task_id}", methods=["GET", "OPTIONS"])
+async def import_status_proxy(request: Request, task_id: str):
+    """Proxy database import status requests (direct route for frontend)."""
+    try:
+        method = request.method
+        headers = dict(request.headers)
+        query_params = str(request.query_params)
+        
+        # Remove host-specific headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        # Build target URL - forward to /database/import-status/{task_id} (no /api prefix on migration service)
+        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/database/import-status/{task_id}"
+        if query_params:
+            full_url += f"?{query_params}"
+        
+        logger.info(f"🔄 Proxying {method} /api/import-status/{task_id} to Database Migration Service at /database/import-status/{task_id}")
+        
+        # Make the proxied request
+        response = await http_client.request(
+            method=method,
+            url=full_url,
+            headers=headers,
+            follow_redirects=False
+        )
+        
+        # Create response with original headers
+        response_headers = {
+            key: value for key, value in response.headers.items()
+            if key.lower() not in ["content-encoding", "transfer-encoding", "connection"]
+        }
+        
+        logger.info(f"✅ Database Migration Service responded with {response.status_code}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers,
+            media_type=response.headers.get("content-type")
+        )
+        
+    except httpx.TimeoutException:
+        logger.error(f"⏰ Timeout connecting to Database Migration Service")
+        raise HTTPException(status_code=504, detail="Database Migration Service timeout")
+    except httpx.ConnectError:
+        logger.error(f"🔌 Connection error to Database Migration Service")
+        raise HTTPException(status_code=503, detail="Database Migration Service unavailable")
+    except Exception as e:
+        logger.error(f"❌ Import status proxy error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Gateway error: {str(e)[:100]}")
+
 # ===== HEALTH AND STATUS =====
 
 @app.get("/health")
@@ -552,7 +604,7 @@ async def root():
             "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/*",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
-            "database_migration": "/api/database/* | /api/migration/* | /api/test-connection-url | /api/import-from-url",
+            "database_migration": "/api/database/* | /api/migration/* | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
             "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
@@ -608,7 +660,8 @@ async def catch_all(request: Request, path: str):
                 "/api/chat/* -> AI Chat Service",
                 "/api/database/* -> Database Migration Service",
                 "/api/test-connection-url -> Database Migration Service",
-                "/api/import-from-url -> Database Migration Service"
+                "/api/import-from-url -> Database Migration Service",
+                "/api/import-status/{task_id} -> Database Migration Service"
             ]
         }
     )
