@@ -45,7 +45,8 @@ app.add_middleware(
 )
 
 # HTTP client for proxying requests
-http_client = httpx.AsyncClient(timeout=30.0)
+# Increased timeout for long-running operations like schema extraction
+http_client = httpx.AsyncClient(timeout=60.0)
 
 async def proxy_request(
     request: Request,

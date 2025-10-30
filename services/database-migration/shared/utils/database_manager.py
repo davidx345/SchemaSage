@@ -508,19 +508,27 @@ class DatabaseConnectionManager:
             
             logger.info(f"Extracting schema from {db_type} database")
             
-            # Extract schema based on database type
+            # Set a global timeout to prevent exceeding Heroku's 30s limit
+            # We use 25s to leave buffer for response processing
+            timeout = options.get('timeout', 25.0)
+            
+            # Extract schema based on database type with timeout
+            extraction_task = None
             if db_type == 'postgresql':
-                schema = await self._extract_postgresql_schema(params, options)
+                extraction_task = self._extract_postgresql_schema(params, options)
             elif db_type == 'mysql':
-                schema = await self._extract_mysql_schema(params, options)
+                extraction_task = self._extract_mysql_schema(params, options)
             elif db_type == 'mongodb':
-                schema = await self._extract_mongodb_schema(params, options)
+                extraction_task = self._extract_mongodb_schema(params, options)
             elif db_type == 'sqlite':
-                schema = await self._extract_sqlite_schema(params, options)
+                extraction_task = self._extract_sqlite_schema(params, options)
             elif db_type == 'redis':
-                schema = await self._extract_redis_schema(params, options)
+                extraction_task = self._extract_redis_schema(params, options)
             else:
                 raise ValueError(f"Unsupported database type: {db_type}")
+            
+            # Wait for extraction with timeout
+            schema = await asyncio.wait_for(extraction_task, timeout=timeout)
             
             # Calculate statistics
             import_duration_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -531,6 +539,9 @@ class DatabaseConnectionManager:
             
             return schema
             
+        except asyncio.TimeoutError:
+            logger.error(f"Schema extraction timed out after {timeout}s")
+            raise Exception(f"Schema extraction timed out. Try reducing max_tables or enable partial import.")
         except Exception as e:
             logger.error(f"Schema extraction failed: {str(e)}")
             raise Exception(f"Failed to extract schema: {str(e)}")
@@ -541,20 +552,21 @@ class DatabaseConnectionManager:
             raise ImportError("asyncpg not installed")
         
         conn_str = f"postgresql://{params['username']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}"
-        conn = await asyncpg.connect(conn_str, timeout=30, statement_cache_size=0)
+        conn = await asyncpg.connect(conn_str, timeout=20, statement_cache_size=0)
         
         try:
             database_name = await conn.fetchval('SELECT current_database()')
             
-            # Get tables
+            # Get tables - LIMIT to prevent timeout
             tables_query = """
                 SELECT table_schema, table_name
                 FROM information_schema.tables
                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+                    AND table_type = 'BASE TABLE'
                 ORDER BY table_schema, table_name
                 LIMIT $1
             """
-            max_tables = options.get('max_tables', 100)
+            max_tables = options.get('max_tables', 50)  # Reduced from 100 to 50
             table_rows = await conn.fetch(tables_query, max_tables)
             
             tables = []
@@ -647,34 +659,37 @@ class DatabaseConnectionManager:
                         'on_delete': fk['delete_rule']
                     })
                 
-                # Get indexes (if requested)
+                # Get indexes (if requested) - LIMITED to prevent timeout
                 indexes = []
-                if options.get('include_indexes', True):
-                    idx_query = """
-                        SELECT indexname, indexdef
-                        FROM pg_indexes
-                        WHERE schemaname = $1 AND tablename = $2
-                    """
-                    idx_rows = await conn.fetch(idx_query, schema_name, table_name)
-                    indexes = [{
-                        'name': row['indexname'],
-                        'columns': [],  # Would need to parse from indexdef
-                        'is_unique': 'UNIQUE' in row['indexdef'].upper(),
-                        'index_type': 'btree'  # Default
-                    } for row in idx_rows]
+                if options.get('include_indexes', False):  # Changed default to False
+                    try:
+                        idx_query = """
+                            SELECT indexname, indexdef
+                            FROM pg_indexes
+                            WHERE schemaname = $1 AND tablename = $2
+                            LIMIT 10
+                        """
+                        idx_rows = await asyncio.wait_for(
+                            conn.fetch(idx_query, schema_name, table_name),
+                            timeout=2.0
+                        )
+                        indexes = [{
+                            'name': row['indexname'],
+                            'columns': [],  # Would need to parse from indexdef
+                            'is_unique': 'UNIQUE' in row['indexdef'].upper(),
+                            'index_type': 'btree'  # Default
+                        } for row in idx_rows]
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Timeout getting indexes for {schema_name}.{table_name}")
+                        indexes = []
+                    except Exception as e:
+                        logger.warning(f"Error getting indexes: {e}")
+                        indexes = []
                 
-                # Get row count
-                try:
-                    row_count = await conn.fetchval(f'SELECT COUNT(*) FROM "{schema_name}"."{table_name}"')
-                except:
-                    row_count = 0
-                
-                # Get table size
-                try:
-                    size_query = f"SELECT pg_total_relation_size('\"{schema_name}\".\"{table_name}\"')"
-                    table_size_bytes = await conn.fetchval(size_query)
-                except:
-                    table_size_bytes = 0
+                # SKIP row count and table size to prevent timeout on large tables
+                # These can be retrieved later if needed
+                row_count = 0
+                table_size_bytes = 0
                 
                 tables.append({
                     'name': table_name,
