@@ -14,6 +14,10 @@ from shared.utils.connection_parser import ConnectionURLParser
 from shared.utils.database_manager import connection_manager
 from shared.utils.migration_engine import migration_engine, MigrationType, MigrationStatus
 
+# Import Celery tasks and result tracking
+from celery.result import AsyncResult
+from tasks import extract_schema_task, migrate_data_task
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/database", tags=["Universal Database Operations"])
@@ -227,7 +231,10 @@ async def get_connection_test_history(limit: int = 20):
 
 @router.post("/import-from-url")
 async def import_database_schema(request: Dict[str, Any]):
-    """Import schema from database using connection URL"""
+    """
+    Import schema from database using connection URL (async with Celery)
+    Returns immediately with a task_id for polling progress
+    """
     try:
         connection_url = request.get("connection_url")
         db_type = request.get("type", "").lower()
@@ -245,9 +252,9 @@ async def import_database_schema(request: Dict[str, Any]):
                 }
             }
         
-        logger.info(f"Starting schema import: {ConnectionURLParser.mask_sensitive_data(connection_url)}")
+        logger.info(f"Starting async schema import: {ConnectionURLParser.mask_sensitive_data(connection_url)}")
         
-        # Validate connection URL
+        # Validate connection URL format (quick validation)
         is_valid, error_message = ConnectionURLParser.validate_connection_url(connection_url)
         if not is_valid:
             return {
@@ -262,86 +269,34 @@ async def import_database_schema(request: Dict[str, Any]):
                 }
             }
         
-        # Test connection first
-        connection_test = await connection_manager.test_connection(connection_url)
-        if connection_test['status'] != 'success':
-            error_msg = connection_test.get('error', 'Connection failed')
-            error_str = str(error_msg).lower()
-            
-            # Map error types
-            if 'permission' in error_str or 'denied' in error_str:
-                error_code = "PERMISSION_DENIED"
-            elif 'timeout' in error_str:
-                error_code = "TIMEOUT"
-            else:
-                error_code = "IMPORT_FAILED"
-            
-            return {
-                "success": False,
-                "error": {
-                    "message": f"Connection failed: {error_msg}",
-                    "code": error_code,
-                    "details": {
-                        "reason": error_msg,
-                        "database_type": connection_test.get('database_type', 'unknown'),
-                        "tables_attempted": 0,
-                        "tables_imported": 0
-                    }
-                }
-            }
+        # Enqueue Celery task for background processing
+        task = extract_schema_task.apply_async(
+            args=[connection_url, import_options],
+            queue='schema_extraction'
+        )
         
-        # Extract schema
-        try:
-            schema = await connection_manager.extract_database_schema(connection_url, import_options)
-            
-            return {
-                "success": True,
-                "schema": schema
-            }
-            
-        except Exception as extract_error:
-            error_str = str(extract_error).lower()
-            
-            # Map error types
-            if 'permission' in error_str or 'denied' in error_str:
-                error_code = "PERMISSION_DENIED"
-                error_msg = f"Permission denied: {extract_error}"
-            elif 'timeout' in error_str:
-                error_code = "TIMEOUT"
-                error_msg = f"Import operation timed out: {extract_error}"
-            elif 'no tables' in error_str or 'empty' in error_str:
-                error_code = "NO_TABLES_FOUND"
-                error_msg = f"No tables found in database: {extract_error}"
-            else:
-                error_code = "IMPORT_FAILED"
-                error_msg = f"Schema import failed: {extract_error}"
-            
-            return {
-                "success": False,
-                "error": {
-                    "message": error_msg,
-                    "code": error_code,
-                    "details": {
-                        "reason": str(extract_error),
-                        "database_type": connection_test.get('database_type', 'unknown'),
-                        "tables_attempted": 0,
-                        "tables_imported": 0
-                    }
-                }
-            }
+        logger.info(f"Schema extraction task queued with ID: {task.id}")
+        
+        # Return task ID immediately for polling
+        return {
+            "success": True,
+            "task_id": task.id,
+            "status": "pending",
+            "message": "Schema extraction started in background",
+            "status_url": f"/database/import-status/{task.id}",
+            "polling_interval_ms": 2000  # Suggest polling every 2 seconds
+        }
         
     except Exception as e:
-        logger.error(f"Error importing schema: {e}")
+        logger.error(f"Error queueing schema import: {e}", exc_info=True)
         return {
             "success": False,
             "error": {
-                "message": f"Failed to import schema: {str(e)}",
+                "message": f"Failed to start schema import: {str(e)}",
                 "code": "IMPORT_FAILED",
                 "details": {
                     "reason": str(e),
-                    "database_type": db_type or "unknown",
-                    "tables_attempted": 0,
-                    "tables_imported": 0
+                    "database_type": db_type or "unknown"
                 }
             }
         }
@@ -438,66 +393,184 @@ async def process_schema_import_task(job_id: str, connection_url: str, options: 
         
         logger.error(f"Schema import job {job_id} failed: {e}")
 
-@router.get("/import-status/{job_id}")
-async def get_import_job_status(job_id: str):
-    """Get status of schema import job"""
+@router.get("/import-status/{task_id}")
+async def get_import_task_status(task_id: str):
+    """
+    Get status of schema import Celery task
+    Polls the Celery result backend for task progress
+    """
     try:
-        if job_id not in import_jobs:
-            raise HTTPException(status_code=404, detail="Import job not found")
+        logger.info(f"Checking status for task: {task_id}")
         
-        job = import_jobs[job_id]
+        # Get task result from Celery
+        task_result = AsyncResult(task_id)
         
-        # Add runtime information if job is running
-        if job['status'] == 'running':
-            started_at = datetime.fromisoformat(job['started_at'])
-            elapsed_seconds = (datetime.now() - started_at).total_seconds()
-            job['runtime_info'] = {
-                'elapsed_seconds': round(elapsed_seconds, 1),
-                'estimated_remaining_seconds': max(0, round((100 - job['progress']['percentage']) * 1.5, 1))
+        # Map Celery states to our response format
+        if task_result.state == 'PENDING':
+            return {
+                "task_id": task_id,
+                "status": "pending",
+                "message": "Task is queued and waiting to start",
+                "progress": {
+                    "percentage": 0,
+                    "message": "Waiting in queue"
+                }
             }
         
-        return job
+        elif task_result.state == 'STARTED':
+            return {
+                "task_id": task_id,
+                "status": "running",
+                "message": "Schema extraction is in progress",
+                "progress": {
+                    "percentage": 5,
+                    "message": "Task started"
+                }
+            }
         
-    except HTTPException:
-        raise
+        elif task_result.state == 'PROGRESS':
+            # Custom progress state with detailed info
+            progress_info = task_result.info or {}
+            return {
+                "task_id": task_id,
+                "status": "running",
+                "message": progress_info.get('message', 'Extracting schema'),
+                "progress": {
+                    "percentage": progress_info.get('percentage', 0),
+                    "current": progress_info.get('current', 0),
+                    "total": progress_info.get('total', 100),
+                    "message": progress_info.get('message', ''),
+                    "timestamp": progress_info.get('timestamp')
+                }
+            }
+        
+        elif task_result.state == 'SUCCESS':
+            # Task completed successfully
+            result = task_result.result
+            
+            if result.get('success'):
+                schema = result.get('schema', {})
+                return {
+                    "task_id": task_id,
+                    "status": "completed",
+                    "message": "Schema extraction completed successfully",
+                    "progress": {
+                        "percentage": 100,
+                        "message": "Completed"
+                    },
+                    "result": {
+                        "success": True,
+                        "schema": schema
+                    }
+                }
+            else:
+                # Task completed but with error result
+                error = result.get('error', {})
+                return {
+                    "task_id": task_id,
+                    "status": "failed",
+                    "message": error.get('message', 'Schema extraction failed'),
+                    "error": error
+                }
+        
+        elif task_result.state == 'FAILURE':
+            # Task failed with exception
+            error_info = str(task_result.info) if task_result.info else 'Unknown error'
+            logger.error(f"Task {task_id} failed: {error_info}")
+            
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "message": "Schema extraction failed",
+                "error": {
+                    "message": f"Task execution failed: {error_info}",
+                    "code": "EXTRACTION_FAILED",
+                    "details": {
+                        "reason": error_info
+                    }
+                }
+            }
+        
+        elif task_result.state == 'RETRY':
+            return {
+                "task_id": task_id,
+                "status": "retrying",
+                "message": "Task is being retried after failure",
+                "progress": {
+                    "percentage": 0,
+                    "message": "Retrying..."
+                }
+            }
+        
+        elif task_result.state == 'REVOKED':
+            return {
+                "task_id": task_id,
+                "status": "cancelled",
+                "message": "Task was cancelled"
+            }
+        
+        else:
+            # Unknown state
+            return {
+                "task_id": task_id,
+                "status": "unknown",
+                "message": f"Task in unknown state: {task_result.state}",
+                "celery_state": task_result.state
+            }
+        
     except Exception as e:
-        logger.error(f"Error getting import job status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get import job status")
+        logger.error(f"Error getting task status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task status: {str(e)}"
+        )
 
-@router.post("/import/{job_id}/cancel")
-async def cancel_import_job(job_id: str):
-    """Cancel schema import job"""
+@router.post("/import/{task_id}/cancel")
+async def cancel_import_task(task_id: str):
+    """Cancel schema import Celery task"""
     try:
-        if job_id not in import_jobs:
-            raise HTTPException(status_code=404, detail="Import job not found")
+        logger.info(f"Cancelling task: {task_id}")
         
-        job = import_jobs[job_id]
+        # Get task result
+        task_result = AsyncResult(task_id)
         
-        if job['status'] not in ['running', 'starting']:
-            raise HTTPException(status_code=400, detail="Cannot cancel job that is not running")
+        # Check if task exists and is cancellable
+        if task_result.state in ['PENDING', 'STARTED', 'PROGRESS', 'RETRY']:
+            # Revoke the task
+            task_result.revoke(terminate=True, signal='SIGTERM')
+            
+            logger.info(f"Task {task_id} cancelled successfully")
+            
+            return {
+                'task_id': task_id,
+                'status': 'cancelled',
+                'message': 'Schema extraction task cancelled successfully'
+            }
         
-        # Update job status
-        job.update({
-            'status': 'cancelled',
-            'cancelled_at': datetime.now().isoformat()
-        })
+        elif task_result.state in ['SUCCESS', 'FAILURE']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot cancel task that has already completed (state: {task_result.state})"
+            )
         
-        await notify_websocket_clients('import_cancelled', {
-            'job_id': job_id,
-            'status': 'cancelled'
-        })
+        elif task_result.state == 'REVOKED':
+            return {
+                'task_id': task_id,
+                'status': 'cancelled',
+                'message': 'Task was already cancelled'
+            }
         
-        return {
-            'job_id': job_id,
-            'status': 'cancelled',
-            'message': 'Import job cancelled successfully'
-        }
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot cancel task in state: {task_result.state}"
+            )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error cancelling import job: {e}")
-        raise HTTPException(status_code=500, detail="Failed to cancel import job")
+        logger.error(f"Error cancelling task: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to cancel task: {str(e)}")
 
 # Migration API endpoints
 @router.post("/create-migration-plan")
