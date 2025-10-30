@@ -620,11 +620,10 @@ class DatabaseConnectionManager:
                 """
                 
                 # Execute all queries in parallel for this table
-                column_rows, pk_rows, fk_rows = await asyncio.gather(
-                    conn.fetch(columns_query, schema_name, table_name),
-                    conn.fetch(pk_query, schema_name, table_name),
-                    conn.fetch(fk_query, schema_name, table_name)
-                )
+                # asyncpg connections do NOT support concurrent operations; run sequentially
+                column_rows = await conn.fetch(columns_query, schema_name, table_name)
+                pk_rows = await conn.fetch(pk_query, schema_name, table_name)
+                fk_rows = await conn.fetch(fk_query, schema_name, table_name)
                 
                 columns = [{
                     'name': col['column_name'],
