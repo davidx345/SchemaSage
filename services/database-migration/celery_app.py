@@ -41,9 +41,9 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,  # One task at a time for long-running tasks
     worker_max_tasks_per_child=50,  # Restart worker after 50 tasks to prevent memory leaks
     
-    # Task time limits (in seconds)
-    task_time_limit=600,  # Hard limit: 10 minutes (must complete before this)
-    task_soft_time_limit=540,  # Soft limit: 9 minutes (raises exception, can be caught)
+    # Task time limits (in seconds) - optimized for large schema extractions
+    task_time_limit=900,  # Hard limit: 15 minutes (must complete before this)
+    task_soft_time_limit=840,  # Soft limit: 14 minutes (raises exception, can be caught)
     
     # Retry settings
     task_acks_late=True,  # Acknowledge task after completion (ensures retry on failure)

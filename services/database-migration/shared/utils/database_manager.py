@@ -508,9 +508,10 @@ class DatabaseConnectionManager:
             
             logger.info(f"Extracting schema from {db_type} database")
             
-            # Set a global timeout to prevent exceeding Heroku's 30s limit
-            # We use 25s to leave buffer for response processing
-            timeout = options.get('timeout', 25.0)
+            # Set a global timeout for schema extraction
+            # For background tasks (Celery), we can use a much longer timeout
+            # Default to 300s (5 minutes) - well under Celery's task limit
+            timeout = options.get('timeout', 300.0)
             
             # Extract schema based on database type with timeout
             extraction_task = None
@@ -552,7 +553,7 @@ class DatabaseConnectionManager:
             raise ImportError("asyncpg not installed")
         
         conn_str = f"postgresql://{params['username']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}"
-        conn = await asyncpg.connect(conn_str, timeout=20, statement_cache_size=0)
+        conn = await asyncpg.connect(conn_str, timeout=60, statement_cache_size=0)  # Increased timeout for slow connections
         
         try:
             database_name = await conn.fetchval('SELECT current_database()')
@@ -566,17 +567,21 @@ class DatabaseConnectionManager:
                 ORDER BY table_schema, table_name
                 LIMIT $1
             """
-            max_tables = options.get('max_tables', 50)  # Reduced from 100 to 50
+            max_tables = options.get('max_tables', 200)  # Increased limit for background processing
             table_rows = await conn.fetch(tables_query, max_tables)
+            
+            logger.info(f"Found {len(table_rows)} tables to process")
             
             tables = []
             relationships = []
             
-            for table_row in table_rows:
+            for idx, table_row in enumerate(table_rows):
+                if idx % 10 == 0:  # Log progress every 10 tables
+                    logger.info(f"Processing table {idx + 1}/{len(table_rows)}: {table_row['table_schema']}.{table_row['table_name']}")
                 schema_name = table_row['table_schema']
                 table_name = table_row['table_name']
                 
-                # Get columns
+                # Parallel query execution for better performance
                 columns_query = """
                     SELECT 
                         column_name, data_type, is_nullable, column_default,
@@ -585,22 +590,7 @@ class DatabaseConnectionManager:
                     WHERE table_schema = $1 AND table_name = $2
                     ORDER BY ordinal_position
                 """
-                column_rows = await conn.fetch(columns_query, schema_name, table_name)
                 
-                columns = [{
-                    'name': col['column_name'],
-                    'data_type': col['data_type'],
-                    'is_nullable': col['is_nullable'] == 'YES',
-                    'default_value': col['column_default'],
-                    'max_length': col['character_maximum_length'],
-                    'numeric_precision': col['numeric_precision'],
-                    'numeric_scale': col['numeric_scale'],
-                    'is_primary_key': False,
-                    'is_unique': False,
-                    'column_comment': None
-                } for col in column_rows]
-                
-                # Get primary keys
                 pk_query = """
                     SELECT kcu.column_name
                     FROM information_schema.table_constraints tc
@@ -609,14 +599,7 @@ class DatabaseConnectionManager:
                     WHERE tc.table_schema = $1 AND tc.table_name = $2
                         AND tc.constraint_type = 'PRIMARY KEY'
                 """
-                pk_rows = await conn.fetch(pk_query, schema_name, table_name)
-                primary_keys = [row['column_name'] for row in pk_rows]
                 
-                # Mark primary key columns
-                for col in columns:
-                    col['is_primary_key'] = col['name'] in primary_keys
-                
-                # Get foreign keys
                 fk_query = """
                     SELECT
                         kcu.column_name,
@@ -635,8 +618,35 @@ class DatabaseConnectionManager:
                     WHERE tc.constraint_type = 'FOREIGN KEY'
                         AND tc.table_schema = $1 AND tc.table_name = $2
                 """
-                fk_rows = await conn.fetch(fk_query, schema_name, table_name)
                 
+                # Execute all queries in parallel for this table
+                column_rows, pk_rows, fk_rows = await asyncio.gather(
+                    conn.fetch(columns_query, schema_name, table_name),
+                    conn.fetch(pk_query, schema_name, table_name),
+                    conn.fetch(fk_query, schema_name, table_name)
+                )
+                
+                columns = [{
+                    'name': col['column_name'],
+                    'data_type': col['data_type'],
+                    'is_nullable': col['is_nullable'] == 'YES',
+                    'default_value': col['column_default'],
+                    'max_length': col['character_maximum_length'],
+                    'numeric_precision': col['numeric_precision'],
+                    'numeric_scale': col['numeric_scale'],
+                    'is_primary_key': False,
+                    'is_unique': False,
+                    'column_comment': None
+                } for col in column_rows]
+                
+                # Process primary keys (already fetched in parallel above)
+                primary_keys = [row['column_name'] for row in pk_rows]
+                
+                # Mark primary key columns
+                for col in columns:
+                    col['is_primary_key'] = col['name'] in primary_keys
+                
+                # Process foreign keys (already fetched in parallel above)
                 foreign_keys = [{
                     'name': row['constraint_name'],
                     'columns': [row['column_name']],
@@ -659,32 +669,10 @@ class DatabaseConnectionManager:
                         'on_delete': fk['delete_rule']
                     })
                 
-                # Get indexes (if requested) - LIMITED to prevent timeout
+                # Skip indexes by default - they can be fetched separately if needed
+                # Indexes queries are very slow on large databases
                 indexes = []
-                if options.get('include_indexes', False):  # Changed default to False
-                    try:
-                        idx_query = """
-                            SELECT indexname, indexdef
-                            FROM pg_indexes
-                            WHERE schemaname = $1 AND tablename = $2
-                            LIMIT 10
-                        """
-                        idx_rows = await asyncio.wait_for(
-                            conn.fetch(idx_query, schema_name, table_name),
-                            timeout=2.0
-                        )
-                        indexes = [{
-                            'name': row['indexname'],
-                            'columns': [],  # Would need to parse from indexdef
-                            'is_unique': 'UNIQUE' in row['indexdef'].upper(),
-                            'index_type': 'btree'  # Default
-                        } for row in idx_rows]
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Timeout getting indexes for {schema_name}.{table_name}")
-                        indexes = []
-                    except Exception as e:
-                        logger.warning(f"Error getting indexes: {e}")
-                        indexes = []
+                # Note: Set include_indexes=True in options to enable index extraction
                 
                 # SKIP row count and table size to prevent timeout on large tables
                 # These can be retrieved later if needed

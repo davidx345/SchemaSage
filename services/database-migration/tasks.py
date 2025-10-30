@@ -143,7 +143,7 @@ def extract_schema_task(self, connection_url: str, options: Optional[Dict[str, A
                 schema = loop.run_until_complete(
                     asyncio.wait_for(
                         connection_manager.extract_database_schema(connection_url, options),
-                        timeout=480  # 8 minutes timeout (well under 9 minute soft limit)
+                        timeout=780  # 13 minutes timeout (well under 14 minute soft limit)
                     )
                 )
                 
@@ -172,14 +172,14 @@ def extract_schema_task(self, connection_url: str, options: Optional[Dict[str, A
                 }
                 
             except asyncio.TimeoutError:
-                logger.error(f"Schema extraction timed out after 480 seconds")
+                logger.error(f"Schema extraction timed out after 13 minutes")
                 return {
                     'success': False,
                     'error': {
                         'message': 'Schema extraction timed out. The database may be too large or slow to respond.',
                         'code': 'TIMEOUT',
                         'details': {
-                            'reason': 'Extraction exceeded 8-minute timeout',
+                            'reason': 'Extraction exceeded 13-minute timeout',
                             'database_type': db_type,
                             'suggestion': 'Try reducing the number of tables with the max_tables option'
                         }
