@@ -100,17 +100,19 @@ async def get_current_stats() -> Dict:
                     activities = []
                     logger.warning("⚠️ Could not extract activities from response, using empty array")
                 
-                stats["activities"] = activities
+                # Frontend expects "recentActivities" (plural with "recent")
+                stats["recentActivities"] = activities
                 stats["activityCount"] = len(activities)
                 stats["hasRecentActivities"] = len(activities) > 0
                 logger.info(f"✅ Recent activities attached to stats: count={len(activities)}, hasRecentActivities={len(activities) > 0}")
+                logger.info(f"🔍 First activity preview: {activities[0] if activities else 'N/A'}")
             else:
-                stats["activities"] = []
+                stats["recentActivities"] = []
                 stats["activityCount"] = 0
                 stats["hasRecentActivities"] = False
                 logger.warning(f"⚠️ Recent activities endpoint returned status {recent_response.status_code}")
         except Exception as e:
-            stats["activities"] = []
+            stats["recentActivities"] = []
             stats["activityCount"] = 0
             stats["hasRecentActivities"] = False
             logger.error(f"❌ Failed to get recent activities: {e}", exc_info=True)
@@ -170,9 +172,9 @@ async def get_current_stats() -> Dict:
         except Exception as e:
             logger.warning(f"Failed to get database migration stats: {e}")
     
-    # Ensure all numeric values are integers (but preserve activities array and other special fields)
+    # Ensure all numeric values are integers (but preserve recentActivities array and other special fields)
     for key, value in stats.items():
-        if key not in ["lastUpdated", "systemHealth", "activities", "hasRecentActivities"]:
+        if key not in ["lastUpdated", "systemHealth", "recentActivities", "hasRecentActivities"]:
             if value is None or value == "undefined":
                 stats[key] = 0
             elif isinstance(value, str) and value.isdigit():
@@ -181,5 +183,5 @@ async def get_current_stats() -> Dict:
                 stats[key] = 0
     
     logger.info(f"📊 Generated comprehensive stats with {stats.get('activityCount', 0)} activities")
-    logger.info(f"🔍 Activities field present: {'activities' in stats}, hasRecentActivities: {stats.get('hasRecentActivities', False)}")
+    logger.info(f"🔍 recentActivities field present: {'recentActivities' in stats}, hasRecentActivities: {stats.get('hasRecentActivities', False)}")
     return stats
