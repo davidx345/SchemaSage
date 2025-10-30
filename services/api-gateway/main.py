@@ -387,8 +387,8 @@ async def test_connection_url_proxy(request: Request):
         headers.pop("host", None)
         headers.pop("content-length", None)
         
-        # Build target URL - forward to /api/database/test-connection-url
-        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/api/database/test-connection-url"
+        # Build target URL - forward to /database/test-connection-url (no /api prefix on migration service)
+        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/database/test-connection-url"
         if query_params:
             full_url += f"?{query_params}"
         
@@ -397,7 +397,7 @@ async def test_connection_url_proxy(request: Request):
         if method in ["POST", "PUT", "PATCH"]:
             body = await request.body()
         
-        logger.info(f"🔄 Proxying {method} /api/test-connection-url to Database Migration Service at /api/database/test-connection-url")
+        logger.info(f"🔄 Proxying {method} /api/test-connection-url to Database Migration Service at /database/test-connection-url")
         
         # Make the proxied request
         response = await http_client.request(
@@ -445,8 +445,8 @@ async def import_from_url_proxy(request: Request):
         headers.pop("host", None)
         headers.pop("content-length", None)
         
-        # Build target URL - forward to /api/database/import-from-url
-        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/api/database/import-from-url"
+        # Build target URL - forward to /database/import-from-url (no /api prefix on migration service)
+        full_url = f"{DATABASE_MIGRATION_SERVICE_URL}/database/import-from-url"
         if query_params:
             full_url += f"?{query_params}"
         
@@ -455,7 +455,7 @@ async def import_from_url_proxy(request: Request):
         if method in ["POST", "PUT", "PATCH"]:
             body = await request.body()
         
-        logger.info(f"🔄 Proxying {method} /api/import-from-url to Database Migration Service at /api/database/import-from-url")
+        logger.info(f"🔄 Proxying {method} /api/import-from-url to Database Migration Service at /database/import-from-url")
         
         # Make the proxied request
         response = await http_client.request(
