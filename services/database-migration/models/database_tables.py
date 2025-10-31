@@ -24,7 +24,7 @@ class DatabaseConnection(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(String(255), nullable=False, index=True)  # From JWT token
+    user_id = Column(Integer, nullable=False, index=True)  # From JWT token
     
     # Connection metadata
     name = Column(String(255), nullable=False)
@@ -102,7 +102,7 @@ class ConnectionAuditLog(Base):
     
     # References
     connection_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
     
     # Audit details
     action = Column(String(100), nullable=False, index=True)  # created, tested, updated, deleted, etc.
@@ -169,7 +169,7 @@ class UserConnectionQuota(Base):
     __tablename__ = "user_connection_quotas"
     
     # Primary key
-    user_id = Column(String(255), primary_key=True)
+    user_id = Column(Integer, primary_key=True)
     
     # Quota limits
     max_connections = Column(Integer, default=10, nullable=False)
@@ -205,7 +205,7 @@ class SchemaSnapshot(Base):
     
     # References
     connection_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
     
     # Snapshot metadata
     snapshot_name = Column(String(255), nullable=True)
