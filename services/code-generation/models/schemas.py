@@ -1,8 +1,8 @@
 """
 Data models for Code Generation Service
 """
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 class CodeGenFormat(str, Enum):
@@ -47,9 +47,43 @@ class TableInfo(BaseModel):
     name: str = Field(..., description="Table name")
     columns: List[ColumnInfo] = Field(..., description="List of columns")
     primary_keys: List[str] = Field(default_factory=list, description="List of primary key column names")
-    foreign_keys: List[str] = Field(default_factory=list, description="List of foreign key references")
-    indexes: List[str] = Field(default_factory=list, description="List of index names")
+    foreign_keys: Union[List[str], List[Dict[str, Any]]] = Field(default_factory=list, description="List of foreign key references (string names or objects)")
+    indexes: Union[List[str], List[Dict[str, Any]]] = Field(default_factory=list, description="List of index names (string names or objects)")
     description: Optional[str] = Field(None, description="Table description")
+    
+    @field_validator('foreign_keys', mode='before')
+    @classmethod
+    def normalize_foreign_keys(cls, v):
+        """Normalize foreign keys to list of strings"""
+        if not v:
+            return []
+        
+        # If already a list of strings, return as-is
+        if isinstance(v, list) and all(isinstance(item, str) for item in v):
+            return v
+        
+        # If list of dicts, extract the 'name' field
+        if isinstance(v, list) and all(isinstance(item, dict) for item in v):
+            return [item.get('name', '') for item in v if item.get('name')]
+        
+        return v
+    
+    @field_validator('indexes', mode='before')
+    @classmethod
+    def normalize_indexes(cls, v):
+        """Normalize indexes to list of strings"""
+        if not v:
+            return []
+        
+        # If already a list of strings, return as-is
+        if isinstance(v, list) and all(isinstance(item, str) for item in v):
+            return v
+        
+        # If list of dicts, extract the 'name' field
+        if isinstance(v, list) and all(isinstance(item, dict) for item in v):
+            return [item.get('name', '') for item in v if item.get('name')]
+        
+        return v
 
 class Relationship(BaseModel):
     """Database relationship information"""
@@ -57,7 +91,25 @@ class Relationship(BaseModel):
     source_column: str = Field(..., description="Source column name")
     target_table: str = Field(..., description="Target table name")
     target_column: str = Field(..., description="Target column name")
-    type: str = Field(..., description="Relationship type (one-to-one, one-to-many, etc.)")
+    type: str = Field(..., description="Relationship type (one-to-one, one-to-many, etc.)", alias="relationship_type")
+    
+    @field_validator('type', mode='before')
+    @classmethod
+    def normalize_relationship_type(cls, v, info):
+        """Accept both 'type' and 'relationship_type' fields"""
+        # If the value is provided, return it
+        if v:
+            return v
+        
+        # Check if 'relationship_type' exists in the raw data
+        if hasattr(info, 'data') and 'relationship_type' in info.data:
+            return info.data['relationship_type']
+        
+        # Default to 'many-to-one' if not provided
+        return 'many-to-one'
+    
+    class Config:
+        populate_by_name = True
 
 class SchemaMetadata(BaseModel):
     """Metadata about the schema"""

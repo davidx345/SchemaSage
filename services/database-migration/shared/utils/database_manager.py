@@ -664,6 +664,7 @@ class DatabaseConnectionManager:
                         'target_table': fk['foreign_table_name'],
                         'target_column': fk['foreign_column_name'],
                         'relationship_type': 'many-to-one',
+                        'type': 'many-to-one',  # Add 'type' field for compatibility
                         'on_update': fk['update_rule'],
                         'on_delete': fk['delete_rule']
                     })
