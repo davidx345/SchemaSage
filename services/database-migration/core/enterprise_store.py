@@ -81,8 +81,7 @@ class EnterpriseConnectionStore:
             
         try:
             # ✅ TRANSACTION POOLER CONFIGURATION
-            # Use DATABASE_URL for API (transaction pooler)
-            # Scripts should use DATABASE_URL_SESSION (session pooler)
+            # Optimized for PgBouncer transaction mode
             db_url = self.config.DATABASE_URL
             
             # CRITICAL: Add prepared_statement_cache_size=0 to URL for asyncpg
@@ -96,11 +95,11 @@ class EnterpriseConnectionStore:
             # Create async engine with transaction pooler settings
             self._engine = create_async_engine(
                 db_url,
-                pool_size=3,  # Small pool for transaction pooler
-                max_overflow=5,  # Limited overflow
-                pool_timeout=10,  # Fail fast if pool exhausted
-                pool_recycle=300,  # Recycle every 5 minutes
-                pool_pre_ping=True,  # Verify connections
+                pool_size=3,           # Small pool for transaction pooler
+                max_overflow=5,        # Limited overflow
+                pool_timeout=10,       # Fail fast if pool exhausted
+                pool_recycle=300,      # Recycle every 5 minutes
+                pool_pre_ping=True,    # Verify connections
                 echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
                 connect_args={
                     "statement_cache_size": 0,  # CRITICAL: No prepared statements
@@ -124,13 +123,13 @@ class EnterpriseConnectionStore:
                 expire_on_commit=False
             )
             
-            # Create tables if they don't exist
-            async with self._engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+            # Skip table creation - tables should already exist and be managed externally
+            # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
+            logger.info("✅ Database connection established (tables managed externally)")
+            logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
             
             self._initialized = True
             logger.info("✅ Enterprise connection store initialized with PostgreSQL backend")
-            logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize connection store: {e}")
