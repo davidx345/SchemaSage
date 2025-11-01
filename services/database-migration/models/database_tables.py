@@ -101,7 +101,7 @@ class ConnectionAuditLog(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # References
-    connection_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    connection_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Nullable for failed operations
     user_id = Column(Integer, nullable=False, index=True)
     
     # Audit details

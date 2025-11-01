@@ -195,7 +195,7 @@ class EnterpriseConnectionStore:
                     ssl_enabled=connection_data.get('ssl_enabled', False),
                     ssl_mode=connection_data.get('ssl_mode', 'prefer'),
                     status='created',
-                    created_by=user.user_id,
+                    created_by=str(user.user_id),  # Convert to string for VARCHAR column
                     environment=connection_data.get('environment', 'development'),
                     tags=connection_data.get('tags', {}),
                     team_id=connection_data.get('team_id')
@@ -437,7 +437,7 @@ class EnterpriseConnectionStore:
                 ).values(
                     is_active=False,
                     archived_at=datetime.utcnow(),
-                    archived_by=user.user_id
+                    archived_by=str(user.user_id)  # Convert to string for VARCHAR column
                 )
                 
                 result = await session.execute(query)
@@ -589,7 +589,7 @@ class EnterpriseConnectionStore:
             user_agent=request_context.get('user_agent') if request_context else None,
             request_id=request_context.get('request_id') if request_context else None,
             error_message=error_message,
-            metadata=metadata or {}
+            action_metadata=metadata or {}  # Use correct column name
         )
         
         session.add(audit_log)
