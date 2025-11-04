@@ -277,9 +277,16 @@ async def detect_proxy(request: Request, path: str):
 
 # ===== PROJECT MANAGEMENT SERVICE ROUTES =====
 
+# Route for /api/projects (no subpath) - for listing and creating projects
+@app.api_route("/api/projects", methods=["GET", "POST", "OPTIONS"])
+async def projects_root_proxy(request: Request):
+    """Proxy project management requests to /api/projects (root)."""
+    return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
+
+# Route for /api/projects/{path:path} - for specific project operations
 @app.api_route("/api/projects/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def projects_proxy(request: Request, path: str):
-    """Proxy project management requests."""
+    """Proxy project management requests with subpaths."""
     return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
 
 # ===== AI CHAT SERVICE ROUTES =====
