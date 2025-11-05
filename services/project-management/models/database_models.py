@@ -71,8 +71,8 @@ class Project(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     
-    # Search optimization
-    search_vector = Column(TSVECTOR, nullable=True)  # Full-text search (PostgreSQL tsvector type)
+    # Search optimization (GENERATED column - do not insert)
+    search_vector = Column(TSVECTOR, nullable=True, server_default=func.text("''"), insert_default=func.text("DEFAULT"))
     
     # Relationships
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
