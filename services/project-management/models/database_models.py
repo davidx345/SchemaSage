@@ -4,7 +4,7 @@ Stores projects, files, collaboration data, and project settings
 """
 from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, JSON, ForeignKey, Float, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY, TSVECTOR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import uuid
@@ -72,7 +72,7 @@ class Project(Base):
     last_accessed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     
     # Search optimization
-    search_vector = Column(Text, nullable=True)  # Full-text search
+    search_vector = Column(TSVECTOR, nullable=True)  # Full-text search (PostgreSQL tsvector type)
     
     # Relationships
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
