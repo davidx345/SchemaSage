@@ -200,23 +200,31 @@ async def create_project_db(
 ):
     """Create a new project in database"""
     try:
-        project_data = {
-            "project_id": str(uuid4()),
-            "user_id": user_id,
-            "name": request.get("name"),
-            "description": request.get("description", ""),
-            "project_type": request.get("project_type", "schema_design"),
-            "status": "active",
-            "metadata": request.get("metadata", {}),
-            "tags": request.get("tags", [])
-        }
+        # Extract data from request
+        name = request.get("name")
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Project name is required"
+            )
         
-        project = await db_service.create_project(project_data)
+        # Create project with named arguments
+        project_id = await db_service.create_project(
+            user_id=user_id,
+            name=name,
+            description=request.get("description", ""),
+            project_type=request.get("project_type", "database_migration"),
+            settings=request.get("metadata", {}),
+            tags=request.get("tags", [])
+        )
+        
         return {
             "status": "success",
-            "project_id": project.project_id,
+            "project_id": project_id,
             "message": "Project created successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating project: {e}")
         raise HTTPException(
@@ -235,21 +243,11 @@ async def get_user_projects_db(
     """Get user's projects from database"""
     try:
         projects = await db_service.get_user_projects(user_id, limit, offset, status_filter)
+        
+        # The service already returns a list of dictionaries
         return {
             "status": "success",
-            "projects": [
-                {
-                    "project_id": project.project_id,
-                    "name": project.name,
-                    "description": project.description,
-                    "project_type": project.project_type,
-                    "status": project.status,
-                    "created_at": project.created_at.isoformat(),
-                    "updated_at": project.updated_at.isoformat(),
-                    "tags": project.tags
-                }
-                for project in projects
-            ]
+            "projects": projects
         }
     except Exception as e:
         logger.error(f"Error fetching projects: {e}")
@@ -266,7 +264,7 @@ async def get_project_db(
 ):
     """Get specific project from database"""
     try:
-        project = await db_service.get_project(project_id, user_id)
+        project = await db_service.get_project_details(project_id, user_id)
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -275,17 +273,7 @@ async def get_project_db(
         
         return {
             "status": "success",
-            "project": {
-                "project_id": project.project_id,
-                "name": project.name,
-                "description": project.description,
-                "project_type": project.project_type,
-                "status": project.status,
-                "metadata": project.metadata,
-                "created_at": project.created_at.isoformat(),
-                "updated_at": project.updated_at.isoformat(),
-                "tags": project.tags
-            }
+            "project": project
         }
     except HTTPException:
         raise

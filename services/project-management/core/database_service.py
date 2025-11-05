@@ -302,6 +302,64 @@ class ProjectManagementDatabaseService:
             logger.error(f"Failed to get project details: {e}")
             return None
     
+    async def update_project(
+        self,
+        project_id: str,
+        user_id: str,
+        update_data: Dict[str, Any]
+    ) -> bool:
+        """Update project details"""
+        try:
+            async with self.get_session() as session:
+                # Check if user owns the project
+                query = select(Project).where(
+                    and_(
+                        Project.id == project_id,
+                        Project.user_id == user_id
+                    )
+                )
+                result = await session.execute(query)
+                project = result.scalar_one_or_none()
+                
+                if not project:
+                    return False
+                
+                # Update fields
+                if "name" in update_data:
+                    project.name = update_data["name"]
+                if "description" in update_data:
+                    project.description = update_data["description"]
+                if "status" in update_data:
+                    project.status = update_data["status"]
+                if "priority" in update_data:
+                    project.priority = update_data["priority"]
+                if "tags" in update_data:
+                    project.tags = update_data["tags"]
+                if "settings" in update_data:
+                    project.settings = update_data["settings"]
+                if "progress_percentage" in update_data:
+                    project.progress_percentage = update_data["progress_percentage"]
+                
+                project.updated_at = datetime.utcnow()
+                
+                # Log activity
+                await self._log_activity(
+                    session,
+                    project_id=project_id,
+                    user_id=user_id,
+                    activity_type="project_updated",
+                    activity_category="project",
+                    action="updated",
+                    description=f"Project '{project.name}' updated"
+                )
+                
+                logger.info(f"Updated project {project_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to update project: {e}")
+            return False
+    
     async def upload_project_file(
         self,
         project_id: str,
