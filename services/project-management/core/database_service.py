@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, update, delete, and_, func, desc
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from contextlib import asynccontextmanager
+import asyncio
 
 from models.database_models import (
     Project,
@@ -53,90 +54,106 @@ def convert_user_id_to_uuid(user_id: Union[str, int, uuid_module.UUID]) -> uuid_
             raise ValueError(f"Invalid user_id format: {user_id}")
 
 class ProjectManagementDatabaseService:
-    """Database service for project management functionality"""
+    """Database service for project management functionality with thread-safe initialization"""
     
     def __init__(self):
         self._engine = None
         self._session_factory = None
         self._initialized = False
+        self._init_lock = asyncio.Lock()  # Prevent concurrent initialization
         
     async def initialize(self):
-        """Initialize database connection"""
+        """Initialize database connection with thread-safe double-check locking"""
         if self._initialized:
             return
+
+        async with self._init_lock:
+            # Double-check after acquiring lock
+            if self._initialized:
+                return
             
-        try:
-            # Get database URL
-            database_url = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
+            try:
+                # Get database URL
+                database_url = os.getenv("DATABASE_URL", "postgresql://localhost:5432/schemasage")
+                
+                # Convert to asyncpg driver if needed
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
+                    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-            # Convert to asyncpg driver if needed
-            if database_url.startswith("postgres://"):
-                database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-            elif database_url.startswith("postgresql://") and "+asyncpg" not in database_url:
-                database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            
-            # ✅ TRANSACTION POOLER CONFIGURATION - CRITICAL FOR PGBOUNCER
-            # PgBouncer in transaction mode REQUIRES statement_cache_size=0
-            # We set it in THREE places to ensure it works:
-            # 1. URL parameter (for asyncpg)
-            # 2. connect_args (for connection creation)
-            # 3. execution_options (for SQLAlchemy)
-            
-            if "?" in database_url:
-                database_url += "&prepared_statement_cache_size=0"
-            else:
-                database_url += "?prepared_statement_cache_size=0"
-            
-            logger.info(f"🔧 PgBouncer: prepared_statement_cache_size=0 in URL")
-            
-            # Create engine with AGGRESSIVE PgBouncer settings
-            self._engine = create_async_engine(
-                database_url,
-                pool_size=2,           # Minimal pool for PgBouncer
-                max_overflow=3,        # Very limited overflow
-                pool_timeout=5,        # Fast fail
-                pool_recycle=180,      # Recycle every 3 minutes
-                pool_pre_ping=False,   # Disabled - PgBouncer handles this
-                echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
-                connect_args={
-                    "statement_cache_size": 0,  # ✅ CRITICAL: Disable prepared statements
-                    "prepared_statement_cache_size": 0,  # ✅ CRITICAL: Alternative parameter name
-                    "command_timeout": 5,
-                    "timeout": 5,
-                    "server_settings": {
-                        "application_name": "project-management-service",
-                        "jit": "off"
+                # ✅ TRANSACTION POOLER CONFIGURATION - CRITICAL FOR PGBOUNCER
+                # PgBouncer in transaction mode REQUIRES statement_cache_size=0
+                # We set it in THREE places to ensure it works:
+                # 1. URL parameter (for asyncpg)
+                # 2. connect_args (for connection creation)
+                # 3. execution_options (for SQLAlchemy)
+                
+                if "?" in database_url:
+                    database_url += "&prepared_statement_cache_size=0"
+                else:
+                    database_url += "?prepared_statement_cache_size=0"
+                
+                logger.info(f"🔧 PgBouncer: prepared_statement_cache_size=0 in URL")
+                
+                # Create engine with AGGRESSIVE PgBouncer settings
+                self._engine = create_async_engine(
+                    database_url,
+                    pool_size=2,           # Minimal pool for PgBouncer
+                    max_overflow=3,        # Very limited overflow
+                    pool_timeout=5,        # Fast fail
+                    pool_recycle=180,      # Recycle every 3 minutes
+                    pool_pre_ping=False,   # Disabled - PgBouncer handles this
+                    echo=os.getenv("DEBUG_SQL", "false").lower() == "true",
+                    connect_args={
+                        "statement_cache_size": 0,  # ✅ CRITICAL: Disable prepared statements
+                        "prepared_statement_cache_size": 0,  # ✅ CRITICAL: Alternative parameter name
+                        "command_timeout": 5,
+                        "timeout": 5,
+                        "server_settings": {
+                            "application_name": "project-management-service",
+                            "jit": "off"
+                        }
+                    },
+                    pool_reset_on_return=None,  # Let PgBouncer handle connection state
+                    execution_options={
+                        "compiled_cache": None,  # ✅ Disable query cache
+                        "schema_translate_map": None
                     }
-                },
-                pool_reset_on_return=None,  # Let PgBouncer handle connection state
-                execution_options={
-                    "compiled_cache": None,  # ✅ Disable query cache
-                    "schema_translate_map": None
-                }
-            )
-            
-            # Create session factory
-            self._session_factory = sessionmaker(
-                self._engine, 
-                class_=AsyncSession, 
-                expire_on_commit=False
-            )
-            
-            # Skip table creation - tables should already exist and be managed externally
-            # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
-            logger.info("✅ Database connection established (tables managed externally)")
-            logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
-            
-            self._initialized = True
-            logger.info("✅ Project Management database service initialized")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize project management database: {e}")
-            raise
+                )
+                
+                # Create session factory
+                self._session_factory = sessionmaker(
+                    self._engine, 
+                    class_=AsyncSession, 
+                    expire_on_commit=False
+                )
+                
+                # Skip table creation - tables should already exist and be managed externally
+                # Tables are managed via SQL migrations, not SQLAlchemy auto-creation
+                logger.info("✅ Database connection established (tables managed externally)")
+                logger.info("✅ PgBouncer transaction pooler config: statement_cache_size=0")
+                
+                self._initialized = True
+                logger.info("✅ Project Management database service initialized")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize project management database: {e}")
+                raise
+    
+    async def close(self):
+        """Close database connections gracefully"""
+        if self._engine:
+            await self._engine.dispose()
+            logger.info("✅ Database connections closed")
     
     @asynccontextmanager
     async def get_session(self):
-        """Get database session with automatic rollback on error"""
+        """Get database session with automatic rollback on error
+        
+        Note: Session cleanup is handled by the context manager,
+        no need to manually close the session
+        """
         if not self._initialized:
             await self.initialize()
             
@@ -147,8 +164,7 @@ class ProjectManagementDatabaseService:
             except Exception:
                 await session.rollback()
                 raise
-            finally:
-                await session.close()
+            # Session is automatically closed by the context manager
     
     async def create_project(
         self,
