@@ -5,7 +5,8 @@ Handles all database operations for projects, files, collaboration, and template
 import os
 import logging
 import hashlib
-from typing import Dict, Any, Optional, List
+import uuid as uuid_module
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -24,6 +25,32 @@ from models.database_models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def convert_user_id_to_uuid(user_id: Union[str, int, uuid_module.UUID]) -> uuid_module.UUID:
+    """
+    Convert user_id (string/int) to UUID for database queries.
+    
+    If user_id is:
+    - Already a UUID: return as-is
+    - A valid UUID string: parse and return
+    - An integer or integer string (e.g., '1', '2'): convert to UUID format
+      00000000-0000-0000-0000-000000000001
+    """
+    if isinstance(user_id, uuid_module.UUID):
+        return user_id
+    
+    try:
+        # Try to parse as UUID first
+        return uuid_module.UUID(str(user_id))
+    except ValueError:
+        # If user_id is an integer string like '1', create a UUID from it
+        # Format: 00000000-0000-0000-0000-000000000001
+        try:
+            return uuid_module.UUID(f'00000000-0000-0000-0000-{int(user_id):012d}')
+        except (ValueError, TypeError) as e:
+            logger.error(f"Failed to convert user_id '{user_id}' to UUID: {e}")
+            raise ValueError(f"Invalid user_id format: {user_id}")
 
 class ProjectManagementDatabaseService:
     """Database service for project management functionality"""
@@ -129,8 +156,11 @@ class ProjectManagementDatabaseService:
         """Create a new project"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 project = Project(
-                    user_id=user_id,
+                    user_id=user_uuid,
                     name=name,
                     description=description,
                     project_type=project_type,
@@ -171,7 +201,10 @@ class ProjectManagementDatabaseService:
         """Get user's projects"""
         try:
             async with self.get_session() as session:
-                query = select(Project).where(Project.user_id == user_id)
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
+                query = select(Project).where(Project.user_id == user_uuid)
                 
                 if status_filter:
                     query = query.where(Project.status == status_filter)
@@ -216,11 +249,14 @@ class ProjectManagementDatabaseService:
         """Get detailed project information"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 # Check if user has access (owner or collaborator)
                 access_query = select(Project).where(
                     and_(
                         Project.id == project_id,
-                        Project.user_id == user_id
+                        Project.user_id == user_uuid
                     )
                 )
                 
@@ -311,11 +347,14 @@ class ProjectManagementDatabaseService:
         """Update project details"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 # Check if user owns the project
                 query = select(Project).where(
                     and_(
                         Project.id == project_id,
-                        Project.user_id == user_id
+                        Project.user_id == user_uuid
                     )
                 )
                 result = await session.execute(query)
@@ -371,11 +410,14 @@ class ProjectManagementDatabaseService:
         """Upload a file to a project"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 # Verify project access
                 project_query = select(Project).where(
                     and_(
                         Project.id == project_id,
-                        Project.user_id == user_id
+                        Project.user_id == user_uuid
                     )
                 )
                 
@@ -394,7 +436,7 @@ class ProjectManagementDatabaseService:
                 # Create project file
                 project_file = ProjectFile(
                     project_id=project_id,
-                    user_id=user_id,
+                    user_id=user_uuid,
                     filename=filename,
                     original_filename=filename,
                     file_extension=file_extension,
@@ -451,11 +493,14 @@ class ProjectManagementDatabaseService:
         """Save a schema to a project"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 # Verify project access
                 project_query = select(Project).where(
                     and_(
                         Project.id == project_id,
-                        Project.user_id == user_id
+                        Project.user_id == user_uuid
                     )
                 )
                 
@@ -473,7 +518,7 @@ class ProjectManagementDatabaseService:
                 # Create project schema
                 project_schema = ProjectSchema(
                     project_id=project_id,
-                    user_id=user_id,
+                    user_id=user_uuid,
                     schema_name=schema_name,
                     source_file_id=source_file_id,
                     external_schema_id=external_schema_id,
@@ -549,11 +594,14 @@ class ProjectManagementDatabaseService:
         """Get project activity log"""
         try:
             async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
                 # Verify project access
                 access_query = select(Project).where(
                     and_(
                         Project.id == project_id,
-                        Project.user_id == user_id
+                        Project.user_id == user_uuid
                     )
                 )
                 

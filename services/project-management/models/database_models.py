@@ -21,7 +21,7 @@ class Project(Base):
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(String(255), nullable=False, index=True)  # Project owner
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # Project owner
     
     # Project metadata
     name = Column(String(500), nullable=False, index=True)
@@ -93,7 +93,7 @@ class ProjectFile(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=False, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     
     # File metadata
     filename = Column(String(500), nullable=False)
@@ -155,7 +155,7 @@ class ProjectSchema(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=False, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     
     # Schema identification
     schema_name = Column(String(500), nullable=False, index=True)
@@ -210,7 +210,7 @@ class ProjectActivity(Base):
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=True, index=True)  # Made nullable for global activities
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     
     # Activity details
     activity_type = Column(String(100), nullable=False, index=True)  # file_upload, schema_detected, code_generated, etc.
