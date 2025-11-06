@@ -589,9 +589,12 @@ class ProjectManagementDatabaseService:
     ):
         """Log project activity"""
         try:
+            # Convert user_id to UUID
+            user_uuid = convert_user_id_to_uuid(user_id)
+            
             activity = ProjectActivity(
                 project_id=project_id,
-                user_id=user_id,
+                user_id=user_uuid,
                 activity_type=activity_type,
                 activity_category=activity_category,
                 action=action,
