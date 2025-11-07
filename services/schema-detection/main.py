@@ -23,6 +23,7 @@ from routers import detection_router, lineage_router, history_router, compliance
 from routers import search, query, data_cleaning, data_dictionary, frontend_api
 from routers.security_audit import router as security_audit_router
 from routers.schema_analysis import router as schema_analysis_router
+from routers.cloud_provision import router as cloud_provision_router
 from config import get_settings
 
 # Setup logging
@@ -135,6 +136,7 @@ app.include_router(data_dictionary.router)
 app.include_router(frontend_api.router)
 app.include_router(security_audit_router)
 app.include_router(schema_analysis_router)
+app.include_router(cloud_provision_router)
 
 # Add the documentation router to match frontend calls
 from routers.documentation import router as documentation_router

@@ -259,3 +259,132 @@ class SchemaFeedback(Base):
     
     def __repr__(self):
         return f"<SchemaFeedback(id='{self.id}', rating={self.rating})>"
+
+
+class CloudDeployment(Base):
+    """
+    Cloud deployment tracking table
+    Stores information about cloud infrastructure deployments
+    """
+    __tablename__ = "cloud_deployments"
+    
+    # Primary identifiers
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Link to project if exists
+    
+    # Input description
+    description = Column(Text, nullable=False)
+    provider = Column(String(20), nullable=False, index=True)  # aws, gcp, azure
+    
+    # Configuration
+    database_type = Column(String(50), nullable=False)  # postgresql, mysql, mongodb
+    database_version = Column(String(20), nullable=True)
+    instance_type = Column(String(50), nullable=False)
+    region = Column(String(50), nullable=False)
+    storage_gb = Column(Integer, nullable=False)
+    
+    # Generated schema (stored as JSONB for querying)
+    schema_json = Column(JSONB, nullable=False)
+    
+    # Cloud resources
+    cloud_instance_id = Column(String(200), nullable=True, index=True)
+    connection_string = Column(Text, nullable=True)  # Encrypted
+    endpoint = Column(String(500), nullable=True)
+    port = Column(Integer, nullable=True)
+    
+    # Status tracking
+    status = Column(
+        String(20), 
+        nullable=False, 
+        default='pending', 
+        index=True
+    )  # pending, analyzing, provisioning, configuring, generating, ready, failed
+    progress_percentage = Column(Integer, default=0)
+    current_step = Column(String(200), nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Cost tracking
+    estimated_monthly_cost = Column(Float, nullable=True)
+    actual_monthly_cost = Column(Float, nullable=True)
+    cost_breakdown = Column(JSONB, nullable=True)
+    
+    # Generated assets metadata
+    generated_code = Column(Boolean, default=False)
+    generated_migrations = Column(Boolean, default=False)
+    generated_api = Column(Boolean, default=False)
+    generated_assets = Column(JSONB, nullable=True)  # Store file paths/content
+    
+    # Deployment options
+    auto_scaling = Column(Boolean, default=False)
+    backup_enabled = Column(Boolean, default=True)
+    multi_az = Column(Boolean, default=False)
+    public_access = Column(Boolean, default=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    last_updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    logs = relationship("DeploymentLog", back_populates="deployment", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<CloudDeployment(id='{self.id}', provider='{self.provider}', status='{self.status}')>"
+
+
+class DeploymentLog(Base):
+    """
+    Deployment logs table
+    Stores detailed logs for each deployment step
+    """
+    __tablename__ = "deployment_logs"
+    
+    # Primary identifiers
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    deployment_id = Column(UUID(as_uuid=True), ForeignKey('cloud_deployments.id'), nullable=False, index=True)
+    
+    # Log details
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    level = Column(String(20), nullable=False, index=True)  # info, warning, error, success
+    message = Column(Text, nullable=False)
+    step = Column(String(200), nullable=True)  # Which deployment step
+    metadata = Column(JSONB, nullable=True)  # Additional context
+    
+    # Relationships
+    deployment = relationship("CloudDeployment", back_populates="logs")
+    
+    def __repr__(self):
+        return f"<DeploymentLog(deployment_id='{self.deployment_id}', level='{self.level}')>"
+
+
+class CloudCredentials(Base):
+    """
+    Cloud credentials table (encrypted)
+    Stores encrypted cloud provider credentials
+    """
+    __tablename__ = "cloud_credentials"
+    
+    # Primary identifiers
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    provider = Column(String(20), nullable=False, index=True)  # aws, gcp, azure
+    
+    # Encrypted credentials (use pgcrypto or application-level encryption)
+    credentials_encrypted = Column(Text, nullable=False)
+    
+    # Metadata
+    region = Column(String(50), nullable=True)
+    account_id = Column(String(100), nullable=True)
+    account_name = Column(String(200), nullable=True)
+    is_valid = Column(Boolean, default=True)
+    last_validated_at = Column(DateTime(timezone=True), nullable=True)
+    validation_error = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    def __repr__(self):
+        return f"<CloudCredentials(user_id='{self.user_id}', provider='{self.provider}')>"

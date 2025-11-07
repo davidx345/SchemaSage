@@ -439,15 +439,248 @@ class SchemaDetectionDatabaseService:
                     else:
                         stats.average_confidence_score = confidence_score
                 
+                stats.average_confidence_score = confidence_score
+                
                 logger.info(f"Updated usage stats for user {user_id}")
                 
         except Exception as e:
             logger.error(f"Failed to update usage statistics: {e}")
     
+    # ============================================================================
+    # Cloud Deployment Methods
+    # ============================================================================
+    
+    async def create_cloud_deployment(self, deployment_data: Dict[str, Any]) -> Any:
+        """Create a new cloud deployment record"""
+        try:
+            from models.database_models import CloudDeployment
+            
+            async with self.get_session() as session:
+                deployment = CloudDeployment(**deployment_data)
+                session.add(deployment)
+                await session.commit()
+                await session.refresh(deployment)
+                
+                logger.info(f"Created cloud deployment: {deployment.id}")
+                return deployment
+                
+        except Exception as e:
+            logger.error(f"Failed to create cloud deployment: {e}")
+            raise
+    
+    async def get_cloud_deployment(self, deployment_id: str, user_id: str) -> Optional[Any]:
+        """Get a cloud deployment by ID"""
+        try:
+            from models.database_models import CloudDeployment
+            from uuid import UUID
+            
+            async with self.get_session() as session:
+                result = await session.execute(
+                    select(CloudDeployment).where(
+                        and_(
+                            CloudDeployment.id == UUID(deployment_id),
+                            CloudDeployment.user_id == user_id
+                        )
+                    )
+                )
+                return result.scalar_one_or_none()
+                
+        except Exception as e:
+            logger.error(f"Failed to get cloud deployment: {e}")
+            return None
+    
+    async def update_deployment_status(
+        self,
+        deployment_id: str,
+        status: str,
+        progress: int = None,
+        error_message: str = None
+    ):
+        """Update deployment status"""
+        try:
+            from models.database_models import CloudDeployment
+            from uuid import UUID
+            
+            async with self.get_session() as session:
+                stmt = (
+                    update(CloudDeployment)
+                    .where(CloudDeployment.id == UUID(deployment_id))
+                    .values(status=status)
+                )
+                
+                if progress is not None:
+                    stmt = stmt.values(progress_percentage=progress)
+                
+                if error_message:
+                    stmt = stmt.values(error_message=error_message)
+                
+                if status == "ready":
+                    stmt = stmt.values(completed_at=datetime.now())
+                elif status == "provisioning" and progress == 20:
+                    stmt = stmt.values(started_at=datetime.now())
+                
+                await session.execute(stmt)
+                await session.commit()
+                
+                logger.info(f"Updated deployment {deployment_id} status to {status}")
+                
+        except Exception as e:
+            logger.error(f"Failed to update deployment status: {e}")
+    
+    async def update_deployment_instance(
+        self,
+        deployment_id: str,
+        cloud_instance_id: str = None,
+        connection_string: str = None,
+        endpoint: str = None,
+        port: int = None
+    ):
+        """Update deployment instance details"""
+        try:
+            from models.database_models import CloudDeployment
+            from uuid import UUID
+            
+            async with self.get_session() as session:
+                values = {}
+                if cloud_instance_id:
+                    values['cloud_instance_id'] = cloud_instance_id
+                if connection_string:
+                    values['connection_string'] = connection_string
+                if endpoint:
+                    values['endpoint'] = endpoint
+                if port:
+                    values['port'] = port
+                
+                if values:
+                    stmt = (
+                        update(CloudDeployment)
+                        .where(CloudDeployment.id == UUID(deployment_id))
+                        .values(**values)
+                    )
+                    await session.execute(stmt)
+                    await session.commit()
+                    
+                    logger.info(f"Updated deployment {deployment_id} instance details")
+                    
+        except Exception as e:
+            logger.error(f"Failed to update deployment instance: {e}")
+    
+    async def list_cloud_deployments(
+        self,
+        user_id: str,
+        status: str = None,
+        provider: str = None,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[Any]:
+        """List cloud deployments for a user"""
+        try:
+            from models.database_models import CloudDeployment
+            
+            async with self.get_session() as session:
+                query = select(CloudDeployment).where(
+                    CloudDeployment.user_id == user_id
+                )
+                
+                if status:
+                    query = query.where(CloudDeployment.status == status)
+                
+                if provider:
+                    query = query.where(CloudDeployment.provider == provider)
+                
+                query = query.order_by(desc(CloudDeployment.created_at))
+                query = query.limit(limit).offset(offset)
+                
+                result = await session.execute(query)
+                return result.scalars().all()
+                
+        except Exception as e:
+            logger.error(f"Failed to list cloud deployments: {e}")
+            return []
+    
+    async def count_cloud_deployments(
+        self,
+        user_id: str,
+        status: str = None,
+        provider: str = None
+    ) -> int:
+        """Count cloud deployments for a user"""
+        try:
+            from models.database_models import CloudDeployment
+            
+            async with self.get_session() as session:
+                query = select(func.count(CloudDeployment.id)).where(
+                    CloudDeployment.user_id == user_id
+                )
+                
+                if status:
+                    query = query.where(CloudDeployment.status == status)
+                
+                if provider:
+                    query = query.where(CloudDeployment.provider == provider)
+                
+                result = await session.execute(query)
+                return result.scalar()
+                
+        except Exception as e:
+            logger.error(f"Failed to count cloud deployments: {e}")
+            return 0
+    
+    async def delete_cloud_deployment(self, deployment_id: str, user_id: str) -> bool:
+        """Delete a cloud deployment"""
+        try:
+            from models.database_models import CloudDeployment
+            from uuid import UUID
+            
+            async with self.get_session() as session:
+                stmt = delete(CloudDeployment).where(
+                    and_(
+                        CloudDeployment.id == UUID(deployment_id),
+                        CloudDeployment.user_id == user_id
+                    )
+                )
+                await session.execute(stmt)
+                await session.commit()
+                
+                logger.info(f"Deleted cloud deployment: {deployment_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to delete cloud deployment: {e}")
+            return False
+    
+    async def create_deployment_log(
+        self,
+        deployment_id: str,
+        level: str,
+        message: str,
+        step: str = None,
+        metadata: Dict[str, Any] = None
+    ):
+        """Create a deployment log entry"""
+        try:
+            from models.database_models import DeploymentLog
+            from uuid import UUID
+            
+            async with self.get_session() as session:
+                log = DeploymentLog(
+                    deployment_id=UUID(deployment_id),
+                    level=level,
+                    message=message,
+                    step=step,
+                    metadata=metadata
+                )
+                session.add(log)
+                await session.commit()
+                
+        except Exception as e:
+            logger.error(f"Failed to create deployment log: {e}")
+    
     async def close(self):
         """Close database connection"""
         if self._engine:
             await self._engine.dispose()
+
 
 # Global database service instance
 schema_detection_db = SchemaDetectionDatabaseService()

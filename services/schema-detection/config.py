@@ -35,6 +35,21 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(default="")
     GEMINI_API_KEY: str = Field(default="")
     
+    # Cloud Provisioning
+    CREDENTIAL_ENCRYPTION_KEY: str = Field(default="", env="CREDENTIAL_ENCRYPTION_KEY")
+    AWS_ACCESS_KEY: str = Field(default="", env="AWS_ACCESS_KEY")
+    AWS_SECRET_KEY: str = Field(default="", env="AWS_SECRET_KEY")
+    GCP_PROJECT_ID: str = Field(default="", env="GCP_PROJECT_ID")
+    AZURE_SUBSCRIPTION_ID: str = Field(default="", env="AZURE_SUBSCRIPTION_ID")
+    
+    # Service URLs
+    SERVICE_URL: str = Field(default="http://localhost:8001", env="SERVICE_URL")
+    WEBSOCKET_URL: str = Field(default="ws://localhost:8001", env="WEBSOCKET_URL")
+    
+    # Background tasks
+    REDIS_URL: str = Field(default="redis://localhost:6379", env="REDIS_URL")
+    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0", env="CELERY_BROKER_URL")
+    
     # Database
     DATABASE_URL: str = Field(default="postgresql://schema_user:password@postgres-schema:5432/schema_detection")
     
