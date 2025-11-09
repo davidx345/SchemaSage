@@ -9,19 +9,26 @@ import logging
 import json
 import httpx
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import func, select
 
 from models.schemas import (
     DetectionRequest, DetectionResponse, SchemaResponse, 
     SchemaSettings, RelationshipSuggestionRequest, RelationshipSuggestionResponse,
     CrossDatasetRelationshipRequest, CrossDatasetRelationshipResponse
 )
+from models.database_models import DetectedSchema, SchemaAnalysis
 from core.schema_detector import SchemaDetector, SchemaValidationError
+from core.auth import get_optional_user
+from core.database_service import SchemaDetectionDatabaseService
 
 logger = logging.getLogger(__name__)
 
 # Router for schema detection endpoints
 router = APIRouter(prefix="/detect", tags=["detection"])
+
+# Database service
+db_service = SchemaDetectionDatabaseService()
 
 # WebSocket service URL for push notifications
 WEBSOCKET_SERVICE_URL = os.getenv("WEBSOCKET_SERVICE_URL", "https://schemasage-websocket-realtime.herokuapp.com")
@@ -237,25 +244,69 @@ async def update_detection_settings(settings: SchemaSettings):
 
 
 @router.get("/stats")
-async def get_detection_stats():
-    """Get schema detection statistics for WebSocket consumption"""
+async def get_detection_stats(
+    current_user: Optional[str] = Depends(get_optional_user)
+):
+    """
+    Get schema detection statistics for authenticated user
+    
+    ✅ FIXED: Now filters by user_id to ensure data isolation
+    """
     try:
-        # In production, these would come from actual database queries
-        # For now, providing realistic mock data that matches WebSocket expectations
-        stats = {
-            "total_schemas": 156,  # Total schemas detected/analyzed
-            "schemas_generated": 89,  # Schemas successfully generated
-            "schemas_today": 23,
-            "most_common_format": "JSON",
-            "ai_enhanced_schemas": 89,
-            "detection_accuracy": 94.5,
-            "files_processed": 203,
-            "relationships_detected": 67,
-            "service_status": "healthy",
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        return stats
+        # Query actual database for user-specific stats
+        async with db_service.get_session() as session:
+            # Total schemas for this user
+            total_schemas = await session.scalar(
+                select(func.count(DetectedSchema.id))
+                .where(DetectedSchema.user_id == current_user)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Schemas generated (with status 'completed')
+            schemas_generated = await session.scalar(
+                select(func.count(DetectedSchema.id))
+                .where(DetectedSchema.user_id == current_user)
+                .where(DetectedSchema.status == 'completed')
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Schemas created today
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            schemas_today = await session.scalar(
+                select(func.count(DetectedSchema.id))
+                .where(DetectedSchema.user_id == current_user)
+                .where(DetectedSchema.created_at >= today_start)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # AI-enhanced schemas (schemas with analysis)
+            ai_enhanced_schemas = await session.scalar(
+                select(func.count(SchemaAnalysis.id))
+                .where(SchemaAnalysis.user_id == current_user)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Calculate detection accuracy (percentage of completed schemas)
+            detection_accuracy = (schemas_generated / total_schemas * 100) if total_schemas > 0 else 0
+            
+            # Get most common format (simplified - can be enhanced with actual query)
+            most_common_format = "JSON"  # Default, can query schema_type column
+            
+            stats = {
+                "total_schemas": total_schemas,
+                "schemas_generated": schemas_generated,
+                "schemas_today": schemas_today,
+                "most_common_format": most_common_format,
+                "ai_enhanced_schemas": ai_enhanced_schemas,
+                "detection_accuracy": round(detection_accuracy, 1),
+                "files_processed": total_schemas,  # Same as total schemas
+                "relationships_detected": 0,  # Can be enhanced with actual relationship count
+                "service_status": "healthy",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ Schema detection stats for user {current_user}: {stats}")
+            return stats
         
     except Exception as e:
         logger.error(f"Error getting detection stats: {e}")

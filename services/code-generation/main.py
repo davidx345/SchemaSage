@@ -618,27 +618,65 @@ async def root():
 
 
 @app.get("/stats")
-async def get_generation_stats():
-    """Get code generation statistics for WebSocket consumption"""
+async def get_generation_stats(
+    current_user: str = Depends(get_optional_user)
+):
+    """
+    Get code generation statistics for authenticated user
+    
+    ✅ FIXED: Now filters by user_id to ensure data isolation
+    """
     try:
-        # Get real stats from database
-        total_jobs = await db_service.get_total_generation_jobs()
-        successful_jobs = await db_service.get_successful_generation_jobs()
+        # Get real stats from database filtered by user
+        from sqlalchemy import func, select
         
-        stats = {
-            "total_apis": total_jobs,
-            "apis_scaffolded": successful_jobs,
-            "apis_today": await db_service.get_jobs_today_count(),
-            "templates_generated": await db_service.get_total_generated_files(),
-            "most_popular_framework": "FastAPI",  # Could be calculated from jobs
-            "total_frameworks": 5,
-            "generation_success_rate": (successful_jobs / total_jobs * 100) if total_jobs > 0 else 0,
-            "service_status": "healthy",
-            "database_enabled": True,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        return stats
+        async with db_service.get_session() as session:
+            # Total generation jobs for this user
+            total_jobs = await session.scalar(
+                select(func.count(CodeGenerationJob.id))
+                .where(CodeGenerationJob.user_id == current_user)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Successful jobs for this user
+            successful_jobs = await session.scalar(
+                select(func.count(CodeGenerationJob.id))
+                .where(CodeGenerationJob.user_id == current_user)
+                .where(CodeGenerationJob.status == "completed")
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Jobs created today for this user
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            apis_today = await session.scalar(
+                select(func.count(CodeGenerationJob.id))
+                .where(CodeGenerationJob.user_id == current_user)
+                .where(CodeGenerationJob.created_at >= today_start)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Total generated files for this user
+            templates_generated = await session.scalar(
+                select(func.count(GeneratedCodeFile.id))
+                .where(GeneratedCodeFile.user_id == current_user)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            stats = {
+                "total_apis": total_jobs,
+                "apis_scaffolded": successful_jobs,
+                "apis_today": apis_today,
+                "templates_generated": templates_generated,
+                "most_popular_framework": "FastAPI",  # Could be calculated from jobs
+                "total_frameworks": 5,
+                "generation_success_rate": round((successful_jobs / total_jobs * 100), 1) if total_jobs > 0 else 0,
+                "service_status": "healthy",
+                "database_enabled": True,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ Code generation stats for user {current_user}: {stats}")
+            return stats
         
     except Exception as e:
         logger.error(f"Error getting generation stats: {e}")

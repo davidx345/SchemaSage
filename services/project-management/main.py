@@ -151,28 +151,60 @@ async def health_check():
 
 
 @app.get("/stats")
-async def get_service_stats():
-    """Get project management service statistics for WebSocket consumption"""
+async def get_service_stats(
+    current_user: str = Depends(get_optional_user)
+):
+    """
+    Get project management service statistics for authenticated user
+    
+    ✅ FIXED: Now filters by user_id to ensure data isolation
+    """
     try:
-        # Get real stats from database
-        total_projects = await db_service.get_project_count()
-        active_projects = await db_service.get_active_project_count()
+        # Get real stats from database filtered by user
+        from sqlalchemy import func, select
+        from datetime import timedelta
         
-        stats = {
-            "total_projects": total_projects,
-            "active_projects": active_projects,
-            "projects_today": 5,  # Would need a specific query for this
-            "total_collaborations": 67,  # Would need collaboration count
-            "active_collaborations": 23,
-            "marketplace_transactions": 45,
-            "compliance_checks": 156,
-            "team_members": 23,
-            "service_status": "healthy",
-            "database_enabled": True,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        return stats
+        async with db_service.get_session() as session:
+            # Total projects for this user
+            total_projects = await session.scalar(
+                select(func.count(Project.id))
+                .where(Project.user_id == current_user)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Active projects (status = 'active')
+            active_projects = await session.scalar(
+                select(func.count(Project.id))
+                .where(Project.user_id == current_user)
+                .where(Project.status == 'active')
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            # Projects created today
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            projects_today = await session.scalar(
+                select(func.count(Project.id))
+                .where(Project.user_id == current_user)
+                .where(Project.created_at >= today_start)
+                .execution_options(prepared_statement_cache_size=0)
+            ) or 0
+            
+            stats = {
+                "total_projects": total_projects,
+                "active_projects": active_projects,
+                "projects_today": projects_today,
+                "total_collaborations": 0,  # Can be enhanced with actual collaboration count
+                "active_collaborations": 0,
+                "marketplace_transactions": 0,  # Can be enhanced with actual transaction count
+                "compliance_checks": 0,  # Can be enhanced with actual compliance count
+                "team_members": 1,  # Current user
+                "service_status": "healthy",
+                "database_enabled": True,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ Project management stats for user {current_user}: {stats}")
+            return stats
         
     except Exception as e:
         logger.error(f"Error getting project management stats: {e}")
