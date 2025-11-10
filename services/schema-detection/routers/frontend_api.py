@@ -13,6 +13,7 @@ import os
 
 from models.schemas import DetectionResponse, SchemaHistoryResponse
 from core.schema_detector import SchemaDetector
+from core.auth import get_optional_user
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +38,8 @@ PROJECT_MANAGEMENT_URL = os.getenv(
 async def detect_schema_from_file(
     file: UploadFile = File(...),
     table_name: Optional[str] = None,
-    enable_ai_enhancement: bool = True
+    enable_ai_enhancement: bool = True,
+    current_user: Optional[str] = Depends(get_optional_user)
 ):
     """
     Detect schema from uploaded file - Frontend compatible endpoint
@@ -104,28 +106,33 @@ async def detect_schema_from_file(
             }
         }
         
-        # ✅ Track activity for dashboard metrics
+        # ✅ Track activity for dashboard metrics (with real user_id)
         try:
-            user_id = "file_upload_user"  # Extract from auth in production
+            # Use authenticated user or fallback to anonymous
+            user_id = current_user if current_user else "anonymous"
             tables_count = len(result.tables) if hasattr(result, 'tables') else 0
             
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                await client.post(
-                    f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
-                    json={
-                        "user_id": str(user_id),
-                        "activity_type": "schema_generated",
-                        "metadata": {
-                            "file_name": file.filename,
-                            "file_type": file_format or "unknown",
-                            "table_name": table_name or file.filename or "uploaded_file",
-                            "tables_count": tables_count,
-                            "detection_method": "file_upload_frontend_api",
-                            "service": "schema-detection-frontend-api"
+            # Only track if user is authenticated
+            if current_user:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    await client.post(
+                        f"{PROJECT_MANAGEMENT_URL}/api/activity/track",
+                        json={
+                            "user_id": str(user_id),
+                            "activity_type": "schema_generated",
+                            "metadata": {
+                                "file_name": file.filename,
+                                "file_type": file_format or "unknown",
+                                "table_name": table_name or file.filename or "uploaded_file",
+                                "tables_count": tables_count,
+                                "detection_method": "file_upload_frontend_api",
+                                "service": "schema-detection-frontend-api"
+                            }
                         }
-                    }
-                )
-                logger.info(f"✅ File upload schema detection activity tracked for user {user_id}, tables: {tables_count}")
+                    )
+                    logger.info(f"✅ File upload schema detection activity tracked for user {user_id}, tables: {tables_count}")
+            else:
+                logger.info(f"⚠️ Schema detection by unauthenticated user - activity not tracked")
         except Exception as e:
             logger.warning(f"Failed to track file upload activity: {e}")
         

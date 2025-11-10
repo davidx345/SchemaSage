@@ -167,8 +167,26 @@ async def get_service_stats(
     Get project management service statistics for authenticated user
     
     ✅ FIXED: Now filters by user_id to ensure data isolation
+    Returns zeros if no user context (not authenticated)
     """
     try:
+        # If no user authentication, return empty stats
+        if not current_user:
+            logger.warning("⚠️ Stats requested without authentication - returning zeros")
+            return {
+                "total_projects": 0,
+                "active_projects": 0,
+                "projects_today": 0,
+                "total_collaborations": 0,
+                "active_collaborations": 0,
+                "marketplace_transactions": 0,
+                "compliance_checks": 0,
+                "team_members": 0,
+                "service_status": "healthy",
+                "database_enabled": True,
+                "timestamp": datetime.now().isoformat()
+            }
+        
         # Get real stats from database filtered by user
         from sqlalchemy import func, select
         from datetime import timedelta
@@ -258,6 +276,24 @@ async def create_project_db(
             settings=request.get("metadata", {}),
             tags=request.get("tags", [])
         )
+        
+        # ✅ AUTO-LOG ACTIVITY: Track project creation
+        try:
+            activity_data = {
+                "activity_id": str(uuid4()),
+                "project_id": project_id,
+                "user_id": user_id,
+                "activity_type": "project_created",
+                "description": f"Project '{name}' created",
+                "metadata": {
+                    "project_name": name,
+                    "project_type": request.get("project_type", "database_migration")
+                }
+            }
+            await db_service.log_project_activity(activity_data)
+            logger.info(f"✅ Auto-logged project creation activity for user {user_id}")
+        except Exception as activity_error:
+            logger.warning(f"Failed to log project creation activity: {activity_error}")
         
         return {
             "status": "success",

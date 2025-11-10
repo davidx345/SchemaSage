@@ -349,12 +349,26 @@ async def get_recent_activities(
     **Returns:**
     - activities: List of recent activities with metadata
     - total: Total count of activities
+    
+    ✅ FIXED: If no user_id provided and no authentication, return empty list
     """
     try:
         from sqlalchemy import select, desc, func
         
         # Use provided user_id or fall back to authenticated user
         target_user_id = user_id if user_id else current_user
+        
+        # If no user context at all, log and return empty (don't query all users)
+        if not target_user_id:
+            logger.warning("⚠️ Recent activities requested without user context - returning empty")
+            return {
+                "success": True,
+                "activities": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "message": "No user context provided"
+            }
         
         # Validate limit
         if limit > 100:
@@ -365,9 +379,8 @@ async def get_recent_activities(
             async with db_service.get_session() as session:
                 query = select(ProjectActivity).order_by(desc(ProjectActivity.created_at))
                 
-                # Filter by user if specified
-                if target_user_id:
-                    query = query.where(ProjectActivity.user_id == target_user_id)
+                # ALWAYS filter by user - never return all users' data
+                query = query.where(ProjectActivity.user_id == target_user_id)
                 
                 # Apply pagination and disable prepared statement cache for PgBouncer
                 query = query.limit(limit).offset(offset).execution_options(prepared_statement_cache_size=0)
@@ -438,11 +451,30 @@ async def get_activity_stats(
     **Returns:**
     - stats: Activity breakdown by type
     - total_activities: Total count of all activities
+    
+    ✅ FIXED: Returns empty stats if no user context
     """
     try:
         from sqlalchemy import func, select, distinct
         
         target_user_id = user_id if user_id else current_user
+        
+        # If no user context, return empty stats
+        if not target_user_id:
+            logger.warning("⚠️ Activity stats requested without user context - returning zeros")
+            return {
+                "success": True,
+                "stats": {
+                    "schema_generated": 0,
+                    "api_scaffolded": 0,
+                    "data_cleaned": 0,
+                    "code_generated": 0,
+                    "migration_completed": 0,
+                    "project_created": 0,
+                    "unique_users": 0,
+                    "total_activities": 0
+                }
+            }
         
         # Query database for real stats
         try:
