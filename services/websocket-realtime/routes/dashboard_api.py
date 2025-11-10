@@ -28,17 +28,21 @@ def create_dashboard_router(manager):
     async def broadcast_activity_update(activity: ActivityUpdate):
         """Broadcast activity update to dashboard clients"""
         try:
-            await manager.broadcast_to_all({
-                "type": "activity_update",
-                "data": activity.dict()
-            })
-            
-            # Also trigger stats update
-            stats = await get_current_stats()
-            await manager.broadcast_to_all({
-                "type": "stats_update",
-                "data": stats
-            })
+            # Send personalized stats to each user
+            for user_id in manager.active_connections.keys():
+                # Get user-specific stats
+                user_stats = await get_current_stats(user_id=user_id)
+                
+                # Send to this specific user
+                await manager.send_to_user(user_id, {
+                    "type": "activity_update",
+                    "data": activity.dict()
+                })
+                
+                await manager.send_to_user(user_id, {
+                    "type": "stats_update",
+                    "data": user_stats
+                })
             
             logger.info(f"Broadcasted activity update: {activity.type} - {activity.description}")
             return {"status": "success", "message": "Activity broadcasted"}
@@ -50,12 +54,13 @@ def create_dashboard_router(manager):
     async def increment_dashboard_stat(stat: StatIncrement):
         """Increment dashboard statistics"""
         try:
-            # Trigger a stats refresh since we're fetching live stats from services
-            stats = await get_current_stats()
-            await manager.broadcast_to_all({
-                "type": "stats_update",
-                "data": stats
-            })
+            # Send personalized stats to each user
+            for user_id in manager.active_connections.keys():
+                user_stats = await get_current_stats(user_id=user_id)
+                await manager.send_to_user(user_id, {
+                    "type": "stats_update",
+                    "data": user_stats
+                })
             
             logger.info(f"Incremented stat {stat.metric} by {stat.value}")
             return {"status": "success", "message": f"Stat {stat.metric} incremented"}
@@ -74,25 +79,29 @@ def create_dashboard_router(manager):
         
         This bypasses the periodic timer to provide instant real-time updates
         for activeDevelopers and other metrics.
+        
+        ✅ FIXED: Now sends personalized stats to each user (user isolation)
         """
         try:
-            # Fetch the latest stats from all services
-            stats = await get_current_stats()
+            # Send personalized stats to each connected user
+            for user_id in manager.active_connections.keys():
+                # Fetch user-specific stats
+                user_stats = await get_current_stats(user_id=user_id)
+                
+                # Update connection-based stats (these are global)
+                user_stats["totalConnections"] = manager.get_total_connection_count()
+                user_stats["activeUsers"] = manager.get_active_user_count()
+                
+                # Send to this specific user
+                await manager.send_to_user(user_id, {
+                    "type": "stats_update",
+                    "data": user_stats
+                })
             
-            # Update connection-based stats
-            stats["totalConnections"] = manager.get_total_connection_count()
-            stats["activeUsers"] = manager.get_active_user_count()
-            
-            # Broadcast to all connected clients
-            await manager.broadcast_to_all({
-                "type": "stats_update",
-                "data": stats
-            })
-            
-            logger.info(f"⚡ Instant stats broadcast to {manager.get_total_connection_count()} clients")
+            logger.info(f"⚡ Instant personalized stats broadcast to {manager.get_total_connection_count()} clients")
             return {
                 "status": "success", 
-                "message": "Stats broadcasted instantly",
+                "message": "Stats broadcasted instantly with user isolation",
                 "clients_notified": manager.get_total_connection_count()
             }
         except Exception as e:
@@ -100,10 +109,14 @@ def create_dashboard_router(manager):
             raise HTTPException(status_code=500, detail="Instant broadcast failed")
 
     @router.get("/stats")
-    async def get_dashboard_stats():
-        """Get current dashboard statistics"""
+    async def get_dashboard_stats(user_id: str = None):
+        """
+        Get current dashboard statistics
+        
+        ✅ FIXED: Accepts optional user_id for user-specific stats
+        """
         try:
-            stats = await get_current_stats()
+            stats = await get_current_stats(user_id=user_id)
             return {"status": "success", "data": stats}
         except Exception as e:
             logger.error(f"Failed to get dashboard stats: {e}")

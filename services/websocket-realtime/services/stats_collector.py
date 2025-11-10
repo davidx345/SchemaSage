@@ -14,8 +14,13 @@ from config.settings import (
 
 logger = logging.getLogger(__name__)
 
-async def get_current_stats() -> Dict:
-    """Get current statistics from all services with all required properties"""
+async def get_current_stats(user_id: str = None) -> Dict:
+    """
+    Get current statistics from all services with all required properties
+    
+    Args:
+        user_id: Optional user ID to filter activities and stats for specific user
+    """
     # Initialize with default values to prevent undefined errors
     stats = {
         # Core connection stats
@@ -73,10 +78,15 @@ async def get_current_stats() -> Dict:
         except Exception as e:
             logger.error(f"❌ Failed to get activity tracking stats: {e}", exc_info=True)
 
-        # Fetch recent activities for dashboard
+        # Fetch recent activities for dashboard (filtered by user_id)
         try:
-            recent_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/recent?limit=5")
-            logger.info(f"🔍 Recent activities request: status={recent_response.status_code}")
+            # Build URL with user_id parameter if provided
+            activities_url = f"{PROJECT_SERVICE_URL}/api/activity/recent?limit=5"
+            if user_id:
+                activities_url += f"&user_id={user_id}"
+            
+            recent_response = await client.get(activities_url)
+            logger.info(f"🔍 Recent activities request for user {user_id}: status={recent_response.status_code}")
             if recent_response.status_code == 200:
                 recent_data = recent_response.json()
                 logger.info(f"🔍 Recent activities response type: {type(recent_data)}, keys: {recent_data.keys() if isinstance(recent_data, dict) else 'N/A'}")

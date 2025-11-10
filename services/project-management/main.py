@@ -105,6 +105,15 @@ app.include_router(multi_tenant_router)
 app.include_router(payment_analytics_router)
 app.include_router(activity_tracking_router)
 
+# Premium Features
+from routers.experiments import router as experiments_router
+from routers.data_valuation import router as data_valuation_router
+from routers.data_marketplace import router as data_marketplace_router
+
+app.include_router(experiments_router)
+app.include_router(data_valuation_router)
+app.include_router(data_marketplace_router)
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)

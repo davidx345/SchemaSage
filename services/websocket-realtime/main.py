@@ -26,23 +26,33 @@ logger = logging.getLogger(__name__)
 manager = ConnectionManager()
 
 async def periodic_stats_broadcast():
-    """Periodically broadcast stats updates"""
+    """
+    Periodically broadcast stats updates
+    
+    ✅ FIXED: Now sends personalized stats to each user (user isolation)
+    """
     while True:
         try:
             await asyncio.sleep(STATS_UPDATE_INTERVAL)
             
             if manager.get_total_connection_count() > 0:
-                stats = await get_current_stats()
-                # Update stats with current connection info
-                stats["totalConnections"] = manager.get_total_connection_count()
-                stats["activeUsers"] = manager.get_active_user_count()
-                stats["activeDevelopers"] = manager.get_active_user_count()
+                # Send personalized stats to each connected user
+                for user_id in manager.active_connections.keys():
+                    # Get user-specific stats
+                    user_stats = await get_current_stats(user_id=user_id)
+                    
+                    # Update stats with current connection info (global metrics)
+                    user_stats["totalConnections"] = manager.get_total_connection_count()
+                    user_stats["activeUsers"] = manager.get_active_user_count()
+                    user_stats["activeDevelopers"] = manager.get_active_user_count()
+                    
+                    # Send to specific user
+                    await manager.send_to_user(user_id, {
+                        "type": "stats_update",
+                        "data": user_stats
+                    })
                 
-                await manager.broadcast_to_all({
-                    "type": "stats_update",
-                    "data": stats
-                })
-                logger.info(f"Broadcasted stats update to {manager.get_total_connection_count()} connections")
+                logger.info(f"✅ Broadcasted personalized stats to {manager.get_total_connection_count()} connections with user isolation")
         
         except Exception as e:
             logger.error(f"Error in periodic stats broadcast: {e}")
@@ -136,9 +146,13 @@ async def root():
     }
 
 @app.get("/stats")
-async def get_stats():
-    """Get current service statistics"""
-    stats = await get_current_stats()
+async def get_stats(user_id: str = None):
+    """
+    Get current service statistics
+    
+    ✅ FIXED: Accepts optional user_id parameter for user-specific stats
+    """
+    stats = await get_current_stats(user_id=user_id)
     # Include WebSocket connection stats
     stats["totalConnections"] = manager.get_total_connection_count()
     stats["activeUsers"] = manager.get_active_user_count()

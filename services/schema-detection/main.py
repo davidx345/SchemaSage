@@ -24,6 +24,8 @@ from routers import search, query, data_cleaning, data_dictionary, frontend_api
 from routers.security_audit import router as security_audit_router
 from routers.schema_analysis import router as schema_analysis_router
 from routers.cloud_provision import router as cloud_provision_router
+from routers.health_score import router as health_score_router
+from routers.ai_insights import router as ai_insights_router
 from config import get_settings
 
 # Setup logging
@@ -137,6 +139,10 @@ app.include_router(frontend_api.router)
 app.include_router(security_audit_router)
 app.include_router(schema_analysis_router)
 app.include_router(cloud_provision_router)
+
+# Premium Features
+app.include_router(health_score_router)
+app.include_router(ai_insights_router)
 
 # Add the documentation router to match frontend calls
 from routers.documentation import router as documentation_router
