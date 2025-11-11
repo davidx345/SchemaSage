@@ -208,6 +208,18 @@ async def track_activity(
                 detail="User ID required (either in request or via authentication)"
             )
         
+        # Convert user_id to UUID format for database storage
+        from core.database_service import convert_user_id_to_uuid
+        try:
+            user_uuid = convert_user_id_to_uuid(user_id)
+            logger.info(f"🔍 Tracking activity for user_id={user_id} (UUID: {user_uuid})")
+        except ValueError as e:
+            logger.error(f"Invalid user_id format: {user_id} - {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid user_id format: {e}"
+            )
+        
         # Generate activity ID
         activity_id = str(uuid4())
         
@@ -254,7 +266,7 @@ async def track_activity(
         activity_data = {
             "id": activity_id,
             "project_id": request.metadata.get("project_id"),  # Can be None
-            "user_id": user_id,
+            "user_id": user_uuid,  # ✅ FIXED: Use UUID instead of string
             "activity_type": request.activity_type,
             "activity_category": activity_category,
             "action": "performed",
@@ -269,7 +281,7 @@ async def track_activity(
         }
         
         # Log incoming activity request
-        logger.info(f"[ACTIVITY-TRACK] Incoming request: user_id={user_id}, activity_type={request.activity_type}, metadata={request.metadata}")
+        logger.info(f"[ACTIVITY-TRACK] Incoming request: user_id={user_id} (UUID: {user_uuid}), activity_type={request.activity_type}, metadata={request.metadata}")
         logger.info(f"[ACTIVITY-TRACK] Full request body: {request.dict()}")
         
         # Store in database
@@ -351,6 +363,7 @@ async def get_recent_activities(
     - total: Total count of activities
     
     ✅ FIXED: If no user_id provided and no authentication, return empty list
+    ✅ FIXED: Converts user_id to UUID format for database queries
     """
     try:
         from sqlalchemy import select, desc, func
@@ -370,6 +383,22 @@ async def get_recent_activities(
                 "message": "No user context provided"
             }
         
+        # Convert user_id to UUID format for database queries
+        from core.database_service import convert_user_id_to_uuid
+        try:
+            target_user_uuid = convert_user_id_to_uuid(target_user_id)
+            logger.info(f"🔍 Querying recent activities for user_id={target_user_id} (UUID: {target_user_uuid})")
+        except ValueError as e:
+            logger.error(f"Invalid user_id format: {target_user_id} - {e}")
+            return {
+                "success": False,
+                "activities": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "message": f"Invalid user_id format: {e}"
+            }
+        
         # Validate limit
         if limit > 100:
             limit = 100
@@ -380,7 +409,7 @@ async def get_recent_activities(
                 query = select(ProjectActivity).order_by(desc(ProjectActivity.created_at))
                 
                 # ALWAYS filter by user - never return all users' data
-                query = query.where(ProjectActivity.user_id == target_user_id)
+                query = query.where(ProjectActivity.user_id == target_user_uuid)
                 
                 # Apply pagination and disable prepared statement cache for PgBouncer
                 query = query.limit(limit).offset(offset).execution_options(prepared_statement_cache_size=0)
@@ -391,10 +420,10 @@ async def get_recent_activities(
                 # Convert to dict
                 activities = [
                     {
-                        "id": act.id,
+                        "id": str(act.id),
                         "activity_type": act.activity_type,
                         "description": act.description,
-                        "user_id": act.user_id,
+                        "user_id": str(act.user_id),
                         "timestamp": act.created_at.isoformat() if act.created_at else None,
                         "metadata": act.details if hasattr(act, 'details') else {}
                     }
@@ -403,15 +432,16 @@ async def get_recent_activities(
                 
                 # Get total count
                 count_query = select(func.count(ProjectActivity.id)).execution_options(prepared_statement_cache_size=0)
-                if target_user_id:
-                    count_query = count_query.where(ProjectActivity.user_id == target_user_id)
+                count_query = count_query.where(ProjectActivity.user_id == target_user_uuid)
                 
                 total = await session.scalar(count_query) or 0
                 
-                logger.info(f"✅ Fetched {len(activities)} recent activities (total: {total})")
+                logger.info(f"✅ Fetched {len(activities)} recent activities for user {target_user_id} (total: {total})")
                 
                 return {
                     "success": True,
+                    "user_id": target_user_id,
+                    "user_uuid": str(target_user_uuid),
                     "activities": activities,
                     "total": total,
                     "limit": limit,
@@ -453,6 +483,7 @@ async def get_activity_stats(
     - total_activities: Total count of all activities
     
     ✅ FIXED: Returns empty stats if no user context
+    ✅ FIXED: Converts user_id to UUID format for database queries
     """
     try:
         from sqlalchemy import func, select, distinct
@@ -476,6 +507,27 @@ async def get_activity_stats(
                 }
             }
         
+        # Convert user_id to UUID format for database queries
+        from core.database_service import convert_user_id_to_uuid
+        try:
+            target_user_uuid = convert_user_id_to_uuid(target_user_id)
+            logger.info(f"🔍 Querying stats for user_id={target_user_id} (UUID: {target_user_uuid})")
+        except ValueError as e:
+            logger.error(f"Invalid user_id format: {target_user_id} - {e}")
+            return {
+                "success": False,
+                "stats": {
+                    "schema_generated": 0,
+                    "api_scaffolded": 0,
+                    "data_cleaned": 0,
+                    "code_generated": 0,
+                    "migration_completed": 0,
+                    "project_created": 0,
+                    "unique_users": 0,
+                    "total_activities": 0
+                }
+            }
+        
         # Query database for real stats
         try:
             async with db_service.get_session() as session:
@@ -483,40 +535,40 @@ async def get_activity_stats(
                 schema_generated = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'schema_generated')
-                    .where(ProjectActivity.user_id == target_user_id)  # ✅ FIXED: Filter by user
+                    .where(ProjectActivity.user_id == target_user_uuid)  # ✅ FIXED: Use UUID
                     .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 api_scaffolded = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'api_scaffolded')
-                    .where(ProjectActivity.user_id == target_user_id)  # ✅ FIXED: Filter by user
+                    .where(ProjectActivity.user_id == target_user_uuid)  # ✅ FIXED: Use UUID
                     .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 data_cleaned = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'data_cleaned')
-                    .where(ProjectActivity.user_id == target_user_id)  # ✅ FIXED: Filter by user
+                    .where(ProjectActivity.user_id == target_user_uuid)  # ✅ FIXED: Use UUID
                     .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 code_generated = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'code_generated')
-                    .where(ProjectActivity.user_id == target_user_id)  # ✅ FIXED: Filter by user
+                    .where(ProjectActivity.user_id == target_user_uuid)  # ✅ FIXED: Use UUID
                     .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 migration_completed = await session.scalar(
                     select(func.count(ProjectActivity.id))
                     .where(ProjectActivity.activity_type == 'migration_completed')
-                    .where(ProjectActivity.user_id == target_user_id)  # ✅ FIXED: Filter by user
+                    .where(ProjectActivity.user_id == target_user_uuid)  # ✅ FIXED: Use UUID
                     .execution_options(prepared_statement_cache_size=0)
                 ) or 0
                 
                 # For unique_users, show 1 if current user is active, or show team count if applicable
-                unique_users = 1 if target_user_id else 0  # ✅ FIXED: Show current user only
+                unique_users = 1 if target_user_uuid else 0  # ✅ FIXED: Show current user only
                 
                 stats = {
                     "schema_generated": schema_generated,
@@ -528,11 +580,12 @@ async def get_activity_stats(
                     "total_activities": schema_generated + api_scaffolded + data_cleaned + code_generated + migration_completed
                 }
                 
-                logger.info(f"✅ Activity stats retrieved from database: {stats}")
+                logger.info(f"✅ Activity stats retrieved from database for user {target_user_id}: {stats}")
                 
                 return {
                     "success": True,
                     "user_id": target_user_id,
+                    "user_uuid": str(target_user_uuid),
                     "stats": stats
                 }
         

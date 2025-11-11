@@ -667,6 +667,57 @@ class ProjectManagementDatabaseService:
             logger.error(f"Failed to get project activities: {e}")
             return []
     
+    async def log_project_activity(self, activity_data: Dict[str, Any]) -> ProjectActivity:
+        """
+        Public method to log a project activity
+        
+        Args:
+            activity_data: Dictionary containing:
+                - activity_id: Optional UUID string
+                - project_id: Optional project UUID
+                - user_id: User ID (will be converted to UUID)
+                - activity_type: Type of activity
+                - description: Activity description
+                - metadata: Optional additional data
+        
+        Returns:
+            ProjectActivity: The created activity record
+        """
+        try:
+            async with self.get_session() as session:
+                # Convert user_id to UUID
+                user_id = activity_data.get("user_id")
+                if not user_id:
+                    raise ValueError("user_id is required")
+                
+                user_uuid = convert_user_id_to_uuid(user_id)
+                
+                # Create activity record
+                activity = ProjectActivity(
+                    id=activity_data.get("activity_id") or str(uuid_module.uuid4()),
+                    project_id=activity_data.get("project_id"),
+                    user_id=user_uuid,
+                    activity_type=activity_data.get("activity_type", "general"),
+                    activity_category=activity_data.get("activity_category", "general"),
+                    action=activity_data.get("action", "performed"),
+                    description=activity_data.get("description", "Activity performed"),
+                    details=activity_data.get("metadata", {}),
+                    target_object_type=activity_data.get("target_object_type"),
+                    target_object_id=activity_data.get("target_object_id"),
+                    impact_level=activity_data.get("impact_level", "medium"),
+                    is_automated=activity_data.get("is_automated", False)
+                )
+                
+                session.add(activity)
+                await session.flush()
+                
+                logger.info(f"✅ Logged activity: {activity.activity_type} for user {user_id} (UUID: {user_uuid})")
+                return activity
+                
+        except Exception as e:
+            logger.error(f"Failed to log project activity: {e}")
+            raise
+    
     async def close(self):
         """Close database connection"""
         if self._engine:

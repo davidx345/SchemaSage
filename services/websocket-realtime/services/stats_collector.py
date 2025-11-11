@@ -57,7 +57,12 @@ async def get_current_stats(user_id: str = None) -> Dict:
         # Get activity tracking stats from project management service
         # This endpoint provides real-time dashboard stats
         try:
-            activity_response = await client.get(f"{PROJECT_SERVICE_URL}/api/activity/stats")
+            # Build URL with user_id parameter if provided
+            stats_url = f"{PROJECT_SERVICE_URL}/api/activity/stats"
+            if user_id:
+                stats_url += f"?user_id={user_id}"
+            
+            activity_response = await client.get(stats_url)
             if activity_response.status_code == 200:
                 activity_data = activity_response.json()
                 # Check if we got the stats object or the wrapper

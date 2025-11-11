@@ -168,6 +168,7 @@ async def get_service_stats(
     
     ✅ FIXED: Now filters by user_id to ensure data isolation
     Returns zeros if no user context (not authenticated)
+    ✅ FIXED: Converts user_id to UUID format for database queries
     """
     try:
         # If no user authentication, return empty stats
@@ -187,6 +188,27 @@ async def get_service_stats(
                 "timestamp": datetime.now().isoformat()
             }
         
+        # Convert user_id to UUID format
+        from core.database_service import convert_user_id_to_uuid
+        try:
+            user_uuid = convert_user_id_to_uuid(current_user)
+            logger.info(f"🔍 Querying project stats for user_id={current_user} (UUID: {user_uuid})")
+        except ValueError as e:
+            logger.error(f"Invalid user_id format: {current_user} - {e}")
+            return {
+                "total_projects": 0,
+                "active_projects": 0,
+                "projects_today": 0,
+                "total_collaborations": 0,
+                "active_collaborations": 0,
+                "marketplace_transactions": 0,
+                "compliance_checks": 0,
+                "team_members": 0,
+                "service_status": "error",
+                "database_enabled": True,
+                "timestamp": datetime.now().isoformat()
+            }
+        
         # Get real stats from database filtered by user
         from sqlalchemy import func, select
         from datetime import timedelta
@@ -195,14 +217,14 @@ async def get_service_stats(
             # Total projects for this user
             total_projects = await session.scalar(
                 select(func.count(Project.id))
-                .where(Project.user_id == current_user)
+                .where(Project.user_id == user_uuid)
                 .execution_options(prepared_statement_cache_size=0)
             ) or 0
             
             # Active projects (status = 'active')
             active_projects = await session.scalar(
                 select(func.count(Project.id))
-                .where(Project.user_id == current_user)
+                .where(Project.user_id == user_uuid)
                 .where(Project.status == 'active')
                 .execution_options(prepared_statement_cache_size=0)
             ) or 0
@@ -211,7 +233,7 @@ async def get_service_stats(
             today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             projects_today = await session.scalar(
                 select(func.count(Project.id))
-                .where(Project.user_id == current_user)
+                .where(Project.user_id == user_uuid)
                 .where(Project.created_at >= today_start)
                 .execution_options(prepared_statement_cache_size=0)
             ) or 0
@@ -230,7 +252,7 @@ async def get_service_stats(
                 "timestamp": datetime.now().isoformat()
             }
             
-            logger.info(f"✅ Project management stats for user {current_user}: {stats}")
+            logger.info(f"✅ Project management stats for user {current_user} (UUID: {user_uuid}): {stats}")
             return stats
         
     except Exception as e:
