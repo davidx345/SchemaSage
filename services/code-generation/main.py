@@ -173,6 +173,8 @@ from routers.additional_generation import router as additional_router
 app.include_router(additional_router)
 from routers.schema_generation import router as schema_generation_router
 app.include_router(schema_generation_router)
+from routers.query_cost_analyzer import router as query_cost_router
+app.include_router(query_cost_router)
 
 
 async def send_webhook_notification(webhook_data: dict):

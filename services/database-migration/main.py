@@ -151,6 +151,10 @@ app.include_router(environment_management_router)
 app.include_router(multi_cloud_comparison_router)
 app.include_router(cost_tracking_router)
 
+# Include Phase 1 Week 1 routers
+from routers.cost_comparison import router as cost_comparison_router
+app.include_router(cost_comparison_router)
+
 # Add a router for the direct path that frontend is calling
 from fastapi import APIRouter
 database_router = APIRouter(prefix="/database", tags=["Database Direct"])

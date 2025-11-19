@@ -26,6 +26,7 @@ from routers.schema_analysis import router as schema_analysis_router
 from routers.cloud_provision import router as cloud_provision_router
 from routers.health_score import router as health_score_router
 from routers.ai_insights import router as ai_insights_router
+from routers.pii_detection import router as pii_detection_router
 from config import get_settings
 
 # Setup logging
@@ -139,6 +140,7 @@ app.include_router(frontend_api.router)
 app.include_router(security_audit_router)
 app.include_router(schema_analysis_router)
 app.include_router(cloud_provision_router)
+app.include_router(pii_detection_router)
 
 # Premium Features
 app.include_router(health_score_router)
