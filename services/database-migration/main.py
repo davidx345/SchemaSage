@@ -24,6 +24,7 @@ from routers.simple_cloud_migration import router as simple_cloud_migration_rout
 from routers.performance_cost_calculator import router as performance_cost_calculator_router
 from routers.smart_rollback import router as smart_rollback_router
 from routers.health_benchmark import router as health_benchmark_router
+from routers.cost_anomaly import router as cost_anomaly_router
 
 # New enterprise feature routers
 from routers.infrastructure_optimization import router as infrastructure_optimization_router
@@ -143,6 +144,7 @@ app.include_router(migration_management_router)
 app.include_router(simple_cloud_migration_router)
 app.include_router(performance_cost_calculator_router)
 app.include_router(smart_rollback_router)
+app.include_router(cost_anomaly_router)
 
 # Include new enterprise feature routers
 app.include_router(infrastructure_optimization_router)

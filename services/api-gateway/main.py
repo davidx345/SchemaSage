@@ -460,6 +460,12 @@ async def debt_proxy(request: Request, path: str):
     """Proxy schema debt tracker requests to Schema Detection Service."""
     return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
+# Phase 2.4: Cost Anomaly Detector
+@app.api_route("/api/anomaly/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def anomaly_proxy(request: Request, path: str):
+    """Proxy cost anomaly detector requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
 # Phase 1 Week 4: Query Performance Predictor
 @app.api_route("/api/query/predict-performance", methods=["POST", "OPTIONS"])
 async def query_predictor_proxy(request: Request):
