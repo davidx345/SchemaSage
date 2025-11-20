@@ -204,6 +204,12 @@ async def sql_translator_proxy(request: Request):
     """Proxy SQL translation requests to Code Generation Service."""
     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
 
+# Phase 1 Week 3: Performance Benchmark Tool
+@app.api_route("/api/performance/benchmark", methods=["POST", "OPTIONS"])
+async def performance_benchmark_proxy(request: Request):
+    """Proxy performance benchmark requests to Code Generation Service."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
 # Specific route for API scaffolding (goes to Code Generation Service)
 @app.api_route("/api/schema/scaffold", methods=["POST", "OPTIONS"])
 async def schema_scaffold_proxy(request: Request):
@@ -297,6 +303,12 @@ async def pii_detection_proxy(request: Request):
 @app.api_route("/api/schema/compatibility", methods=["POST", "OPTIONS"])
 async def schema_compatibility_proxy(request: Request):
     """Proxy schema compatibility requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 1 Week 3: Schema Diff Visualizer
+@app.api_route("/api/schema/diff", methods=["POST", "OPTIONS"])
+async def schema_diff_proxy(request: Request):
+    """Proxy schema diff requests to Schema Detection Service."""
     return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
 # ===== PROJECT MANAGEMENT SERVICE ROUTES ====="
@@ -422,6 +434,18 @@ async def migration_timeline_proxy(request: Request):
 @app.api_route("/api/migration/map-types", methods=["POST", "OPTIONS"])
 async def type_mapper_proxy(request: Request):
     """Proxy data type mapping requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 1 Week 3: Migration Monitor
+@app.api_route("/api/migration/monitor", methods=["POST", "OPTIONS"])
+async def migration_monitor_proxy(request: Request):
+    """Proxy migration monitoring requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 1 Week 3: Rollback Planner
+@app.api_route("/api/migration/rollback-plan", methods=["POST", "OPTIONS"])
+async def migration_rollback_proxy(request: Request):
+    """Proxy rollback planning requests to Database Migration Service."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
 # Direct routes for database connection testing and import (frontend compatibility)

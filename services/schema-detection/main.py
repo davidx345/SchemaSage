@@ -143,6 +143,7 @@ app.include_router(schema_analysis_router)
 app.include_router(cloud_provision_router)
 app.include_router(pii_detection_router)
 app.include_router(schema_compatibility_router)
+app.include_router(schema_diff_router)
 
 # Premium Features
 app.include_router(health_score_router)

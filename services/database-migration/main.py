@@ -161,6 +161,12 @@ app.include_router(migration_timeline_router)
 from routers.type_mapper import router as type_mapper_router
 app.include_router(type_mapper_router)
 
+# Include Phase 1 Week 3 routers
+from routers.migration_monitor import router as migration_monitor_router
+app.include_router(migration_monitor_router)
+from routers.migration_rollback import router as migration_rollback_router
+app.include_router(migration_rollback_router)
+
 # Add a router for the direct path that frontend is calling
 from fastapi import APIRouter
 database_router = APIRouter(prefix="/database", tags=["Database Direct"])
