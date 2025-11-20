@@ -153,6 +153,12 @@ app.include_router(ai_insights_router)
 from routers.documentation import router as documentation_router
 app.include_router(documentation_router)
 
+# Include Phase 1 Week 4 routers
+from routers.index_recommendation import router as index_recommendation_router
+app.include_router(index_recommendation_router)
+from routers.data_validation import router as data_validation_router
+app.include_router(data_validation_router)
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)

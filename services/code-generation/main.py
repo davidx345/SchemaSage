@@ -182,6 +182,10 @@ app.include_router(sql_translator_router)
 from routers.performance_benchmark import router as performance_benchmark_router
 app.include_router(performance_benchmark_router)
 
+# Include Phase 1 Week 4 routers
+from routers.query_predictor import router as query_predictor_router
+app.include_router(query_predictor_router)
+
 
 async def send_webhook_notification(webhook_data: dict):
     """Send webhook notification to WebSocket service"""

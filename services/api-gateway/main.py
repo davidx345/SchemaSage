@@ -448,6 +448,30 @@ async def migration_rollback_proxy(request: Request):
     """Proxy rollback planning requests to Database Migration Service."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
+# Phase 1 Week 4: Query Performance Predictor
+@app.api_route("/api/query/predict-performance", methods=["POST", "OPTIONS"])
+async def query_predictor_proxy(request: Request):
+    """Proxy query performance prediction requests to Code Generation Service."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+# Phase 1 Week 4: Index Recommendation Engine
+@app.api_route("/api/schema/recommend-indexes", methods=["POST", "OPTIONS"])
+async def index_recommendation_proxy(request: Request):
+    """Proxy index recommendation requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 1 Week 4: Data Validation Suite
+@app.api_route("/api/validation/validate-data", methods=["POST", "OPTIONS"])
+async def data_validation_proxy(request: Request):
+    """Proxy data validation requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 1 Week 4: Enhanced Migration Cost Calculator
+@app.api_route("/api/cost/calculate-migration", methods=["POST", "OPTIONS"])
+async def enhanced_cost_calculator_proxy(request: Request):
+    """Proxy enhanced cost calculation requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
 # Direct routes for database connection testing and import (frontend compatibility)
 @app.api_route("/api/test-connection-url", methods=["POST", "OPTIONS"])
 async def test_connection_url_proxy(request: Request):
