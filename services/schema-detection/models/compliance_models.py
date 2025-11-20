@@ -1,165 +1,195 @@
 """
-Compliance Models - Week 1 Priority 1
-Pydantic models for PII detection and compliance endpoints
+Compliance models for Phase 2.1 features.
+Includes models for encryption detection, access control auditing, and compliance reporting.
 """
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional, Literal
+from typing import List, Optional, Dict, Any, Union
 from enum import Enum
+from datetime import datetime
+from pydantic import BaseModel, Field
 
-
-class DatabaseType(str, Enum):
-    """Supported database types"""
-    POSTGRESQL = "postgresql"
-    MYSQL = "mysql"
-    MONGODB = "mongodb"
-    SQLSERVER = "sqlserver"
-
-
-class PIIType(str, Enum):
-    """Types of PII data"""
-    EMAIL_ADDRESS = "email_address"
-    PHONE_NUMBER = "phone_number"
-    SOCIAL_SECURITY_NUMBER = "social_security_number"
-    CREDIT_CARD = "credit_card_number"
-    IP_ADDRESS = "ip_address"
-    PHYSICAL_ADDRESS = "physical_address"
-    FIRST_NAME = "first_name"
-    LAST_NAME = "last_name"
-    FULL_NAME = "full_name"
-    DATE_OF_BIRTH = "date_of_birth"
-    DRIVERS_LICENSE = "drivers_license"
-
+# --- Enums ---
 
 class ComplianceFramework(str, Enum):
-    """Compliance frameworks"""
     GDPR = "GDPR"
     CCPA = "CCPA"
     HIPAA = "HIPAA"
     PCI_DSS = "PCI-DSS"
     SOC2 = "SOC2"
 
-
 class Severity(str, Enum):
-    """Issue severity levels"""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
     CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
 
+class DatabaseType(str, Enum):
+    POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
+    SQLSERVER = "sqlserver"
+    ORACLE = "oracle"
 
-class ColumnInfo(BaseModel):
-    """Column information for PII detection"""
-    name: str = Field(..., description="Column name")
-    type: str = Field(..., description="Column data type")
+# --- Shared Models ---
 
+class TableSchema(BaseModel):
+    name: str
+    columns: List[Dict[str, Any]]
+    # Add other fields as necessary from the schema object
 
-class TableInfo(BaseModel):
-    """Table information for PII detection"""
-    name: str = Field(..., description="Table name")
-    columns: List[ColumnInfo] = Field(..., description="List of columns")
-
-
-class SchemaInfo(BaseModel):
-    """Schema information for PII detection"""
+class DatabaseSchema(BaseModel):
     database_type: DatabaseType
-    tables: List[TableInfo] = Field(..., description="List of tables to scan")
-    
-    @validator('tables')
-    def validate_tables(cls, v):
-        """Ensure at least one table provided"""
-        if not v:
-            raise ValueError("At least one table must be provided")
-        return v
+    tables: List[TableSchema]
 
+# --- Encryption Detection Models ---
 
-class PIIDetectionRequest(BaseModel):
-    """Request for PII detection"""
-    schema: SchemaInfo = Field(..., description="Database schema to scan")
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "schema": {
-                    "database_type": "postgresql",
-                    "tables": [
-                        {
-                            "name": "users",
-                            "columns": [
-                                {"name": "id", "type": "integer"},
-                                {"name": "email", "type": "varchar"},
-                                {"name": "phone", "type": "varchar"},
-                                {"name": "ssn", "type": "varchar"}
-                            ]
-                        }
-                    ]
-                }
-            }
-        }
+class EncryptionDetectionRequest(BaseModel):
+    schema_data: DatabaseSchema = Field(..., alias="schema")
+    connection_string: str
 
+class EncryptionIssue(BaseModel):
+    table: str
+    column: str
+    data_type: str
+    detected_pii_type: str
+    sample_data: Optional[str] = None
+    risk_level: Severity
+    compliance_impact: List[ComplianceFramework]
+    recommendation: str
 
-class PIIField(BaseModel):
-    """Detected PII field"""
-    table: str = Field(..., description="Table name")
-    column: str = Field(..., description="Column name")
-    pii_type: PIIType = Field(..., description="Type of PII detected")
-    confidence: float = Field(..., description="Confidence score (0.0-1.0)", ge=0.0, le=1.0)
-    severity: Severity = Field(..., description="Severity level")
-    affected_records: int = Field(default=0, description="Estimated affected records")
-    compliance_frameworks: List[ComplianceFramework] = Field(
-        ..., description="Relevant compliance frameworks"
-    )
-    recommendations: List[str] = Field(..., description="Compliance recommendations")
+class CostEstimate(BaseModel):
+    min: float
+    max: float
+    recommended: float
 
+class EncryptionSummary(BaseModel):
+    total_issues: int
+    critical_issues: int
+    high_issues: int
+    total_affected_records: int
+    compliance_frameworks_at_risk: List[ComplianceFramework]
+    estimated_fix_time_hours: float
+    estimated_monthly_cost_increase: CostEstimate
 
-class PIISummary(BaseModel):
-    """Summary of PII detection results"""
-    total_pii_fields: int = Field(..., description="Total PII fields found")
-    total_affected_records: int = Field(..., description="Total records with PII")
-    compliance_risk: Literal["low", "medium", "high", "critical"] = Field(
-        ..., description="Overall compliance risk level"
-    )
-    frameworks_affected: List[ComplianceFramework] = Field(
-        ..., description="Compliance frameworks that apply"
-    )
+class EncryptionDetectionData(BaseModel):
+    issues: List[EncryptionIssue]
+    summary: EncryptionSummary
+    auto_fix_available: bool
+    auto_fix_sql: List[str]
 
+class EncryptionDetectionResponse(BaseModel):
+    success: bool
+    data: EncryptionDetectionData
 
-class PIIDetectionResponse(BaseModel):
-    """Response with PII detection results"""
-    success: bool = True
-    data: Dict = Field(..., description="PII detection data")
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "success": True,
-                "data": {
-                    "pii_fields": [
-                        {
-                            "table": "users",
-                            "column": "email",
-                            "pii_type": "email_address",
-                            "confidence": 0.99,
-                            "severity": "high",
-                            "affected_records": 125847,
-                            "compliance_frameworks": ["GDPR", "CCPA"],
-                            "recommendations": [
-                                "Enable encryption at rest",
-                                "Add data retention policy"
-                            ]
-                        }
-                    ],
-                    "summary": {
-                        "total_pii_fields": 3,
-                        "total_affected_records": 125847,
-                        "compliance_risk": "high",
-                        "frameworks_affected": ["GDPR", "CCPA", "HIPAA"]
-                    }
-                }
-            }
-        }
+# --- Access Control Auditor Models ---
 
+class AccessControlRequest(BaseModel):
+    database_type: DatabaseType
+    connection_string: str
+    compliance_framework: ComplianceFramework
 
-class ErrorResponse(BaseModel):
-    """Standard error response"""
-    success: bool = False
-    error: Dict = Field(..., description="Error details")
+class UserAudit(BaseModel):
+    username: str
+    roles: List[str]
+    last_login: Optional[datetime]
+    password_last_changed: Optional[datetime]
+    is_superuser: bool
+    failed_login_attempts: int
+
+class RoleAudit(BaseModel):
+    role: str
+    permissions: List[str]
+    assigned_users: int
+    risk_level: Severity
+    recommendation: str
+
+class AccessRecommendation(BaseModel):
+    priority: Severity
+    issue: str
+    remediation: str
+    compliance_impact: str
+
+class AccessSummary(BaseModel):
+    total_users: int
+    critical_risk_users: int
+    high_risk_users: int
+    medium_risk_users: int
+    low_risk_users: int
+    total_issues: int
+    compliance_score: int
+    auto_fix_available: bool
+
+class AccessControlData(BaseModel):
+    users: List[UserAudit]
+    role_matrix: List[RoleAudit]
+    recommendations: List[AccessRecommendation]
+    summary: AccessSummary
+    auto_fix_sql: List[str]
+
+class AccessControlResponse(BaseModel):
+    success: bool
+    data: AccessControlData
+
+# --- Compliance Report Models ---
+
+class ComplianceReportRequest(BaseModel):
+    database_type: DatabaseType
+    connection_string: str
+    frameworks: List[ComplianceFramework]
+    report_type: str = "executive_summary"
+    include_recommendations: bool = True
+
+class ExecutiveSummary(BaseModel):
+    status: str
+    critical_findings: int
+    high_findings: int
+    medium_findings: int
+    low_findings: int
+    compliant_controls: int
+    total_controls_assessed: int
+    estimated_remediation_time_hours: float
+    estimated_cost: float
+
+class FrameworkScore(BaseModel):
+    score: int
+    compliant_controls: int
+    total_controls: int
+    critical_gaps: int
+
+class Finding(BaseModel):
+    severity: Severity
+    description: str
+    affected_assets: List[str]
+    remediation: str
+
+class ComplianceControl(BaseModel):
+    control_id: str
+    status: str
+    description: str
+    remediation: str
+
+class RemediationPhase(BaseModel):
+    duration_days: int
+    tasks: List[str]
+    estimated_cost: float
+
+class RemediationRoadmap(BaseModel):
+    phase_1_critical: RemediationPhase
+    phase_2_high: RemediationPhase
+
+class ComplianceReportData(BaseModel):
+    report_id: str
+    generated_at: datetime
+    database_name: str
+    frameworks_assessed: List[ComplianceFramework]
+    overall_compliance_score: int
+    executive_summary: ExecutiveSummary
+    framework_scores: Dict[str, FrameworkScore]
+    findings_by_severity: List[Dict[str, Any]] # Simplified for flexibility
+    compliance_controls: List[ComplianceControl]
+    remediation_roadmap: RemediationRoadmap
+    auto_fix_sql: List[str]
+    report_download_url: str
+    report_expires_at: datetime
+
+class ComplianceReportResponse(BaseModel):
+    success: bool
+    data: ComplianceReportData

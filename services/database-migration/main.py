@@ -23,6 +23,7 @@ from routers.migration_management import router as migration_management_router
 from routers.simple_cloud_migration import router as simple_cloud_migration_router
 from routers.performance_cost_calculator import router as performance_cost_calculator_router
 from routers.smart_rollback import router as smart_rollback_router
+from routers.health_benchmark import router as health_benchmark_router
 
 # New enterprise feature routers
 from routers.infrastructure_optimization import router as infrastructure_optimization_router

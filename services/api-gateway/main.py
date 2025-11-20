@@ -448,6 +448,18 @@ async def migration_rollback_proxy(request: Request):
     """Proxy rollback planning requests to Database Migration Service."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
+# Phase 2.2: Health Benchmark System
+@app.api_route("/api/health/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def health_proxy(request: Request, path: str):
+    """Proxy health benchmark requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 2.3: Schema Debt Tracker
+@app.api_route("/api/debt/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def debt_proxy(request: Request, path: str):
+    """Proxy schema debt tracker requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
 # Phase 1 Week 4: Query Performance Predictor
 @app.api_route("/api/query/predict-performance", methods=["POST", "OPTIONS"])
 async def query_predictor_proxy(request: Request):
@@ -698,10 +710,10 @@ async def root():
         "routes": {
             "authentication": "/api/auth/*",
             "code_generation": "/api/code-generation/* | /api/generate/* | /api/schema/generate | /api/query/analyze-cost | /api/code/translate-sql",
-            "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/* | /api/compliance/detect-pii | /api/schema/compatibility",
+            "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/* | /api/compliance/* | /api/schema/compatibility",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
-            "database_migration": "/api/database/* | /api/migration/* | /api/cost/compare | /api/migration/timeline | /api/migration/map-types | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
+            "database_migration": "/api/database/* | /api/migration/* | /api/health/* | /api/cost/compare | /api/migration/timeline | /api/migration/map-types | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
             "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
@@ -769,6 +781,11 @@ async def catch_all(request: Request, path: str):
             ]
         }
     )
+
+@app.api_route("/api/compliance/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def compliance_proxy(path: str, request: Request):
+    """Proxy compliance requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
 if __name__ == "__main__":
     import uvicorn
