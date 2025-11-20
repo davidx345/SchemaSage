@@ -192,6 +192,18 @@ async def generate_proxy(request: Request, path: str):
     """Proxy generation requests."""
     return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
 
+# Phase 1: Query Cost Explainer
+@app.api_route("/api/query/analyze-cost", methods=["POST", "GET", "OPTIONS"])
+async def query_cost_analyzer_proxy(request: Request):
+    """Proxy query cost analysis requests to Code Generation Service."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
+# Phase 1 Week 2: SQL Dialect Translator
+@app.api_route("/api/code/translate-sql", methods=["POST", "OPTIONS"])
+async def sql_translator_proxy(request: Request):
+    """Proxy SQL translation requests to Code Generation Service."""
+    return await proxy_request(request, CODE_GENERATION_SERVICE_URL, "Code Generation Service")
+
 # Specific route for API scaffolding (goes to Code Generation Service)
 @app.api_route("/api/schema/scaffold", methods=["POST", "OPTIONS"])
 async def schema_scaffold_proxy(request: Request):
@@ -275,7 +287,19 @@ async def detect_proxy(request: Request, path: str):
     """Proxy detection requests."""
     return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
-# ===== PROJECT MANAGEMENT SERVICE ROUTES =====
+# Phase 1: PII Detection Scanner
+@app.api_route("/api/compliance/detect-pii", methods=["POST", "OPTIONS"])
+async def pii_detection_proxy(request: Request):
+    """Proxy PII detection requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 1 Week 2: Schema Compatibility Checker
+@app.api_route("/api/schema/compatibility", methods=["POST", "OPTIONS"])
+async def schema_compatibility_proxy(request: Request):
+    """Proxy schema compatibility requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# ===== PROJECT MANAGEMENT SERVICE ROUTES ====="
 
 # Route for /api/projects (no subpath) - for listing and creating projects
 @app.api_route("/api/projects", methods=["GET", "POST", "OPTIONS"])
@@ -380,6 +404,24 @@ async def database_proxy(request: Request, path: str):
 @app.api_route("/api/migration/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def migration_proxy(request: Request, path: str):
     """Proxy migration requests."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 1: Cost Comparison Widget
+@app.api_route("/api/cost/compare", methods=["POST", "OPTIONS"])
+async def cost_comparison_proxy(request: Request):
+    """Proxy cost comparison requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 1 Week 2: Migration Timeline Generator
+@app.api_route("/api/migration/timeline", methods=["POST", "OPTIONS"])
+async def migration_timeline_proxy(request: Request):
+    """Proxy migration timeline requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Phase 1 Week 2: Data Type Mapper
+@app.api_route("/api/migration/map-types", methods=["POST", "OPTIONS"])
+async def type_mapper_proxy(request: Request):
+    """Proxy data type mapping requests to Database Migration Service."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
 # Direct routes for database connection testing and import (frontend compatibility)
@@ -607,11 +649,11 @@ async def root():
         "description": "Routes requests to appropriate microservices",
         "routes": {
             "authentication": "/api/auth/*",
-            "code_generation": "/api/code-generation/* | /api/generate/* | /api/schema/generate",
-            "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/*",
+            "code_generation": "/api/code-generation/* | /api/generate/* | /api/schema/generate | /api/query/analyze-cost | /api/code/translate-sql",
+            "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/* | /api/compliance/detect-pii | /api/schema/compatibility",
             "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
-            "database_migration": "/api/database/* | /api/migration/* | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
+            "database_migration": "/api/database/* | /api/migration/* | /api/cost/compare | /api/migration/timeline | /api/migration/map-types | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
             "websocket_realtime": "/ws/* (WebSocket connections)"
         },
         "services": {
@@ -662,10 +704,17 @@ async def catch_all(request: Request, path: str):
                 "/api/auth/* -> Authentication Service",
                 "/api/code-generation/* -> Code Generation Service",
                 "/api/schema/generate -> Code Generation Service",
+                "/api/query/analyze-cost -> Code Generation Service (Phase 1 Week 1)",
+                "/api/code/translate-sql -> Code Generation Service (Phase 1 Week 2)",
                 "/api/schema/* -> Schema Detection Service",
+                "/api/compliance/detect-pii -> Schema Detection Service (Phase 1 Week 1)",
+                "/api/schema/compatibility -> Schema Detection Service (Phase 1 Week 2)",
                 "/api/projects/* -> Project Management Service",
                 "/api/chat/* -> AI Chat Service",
                 "/api/database/* -> Database Migration Service",
+                "/api/cost/compare -> Database Migration Service (Phase 1 Week 1)",
+                "/api/migration/timeline -> Database Migration Service (Phase 1 Week 2)",
+                "/api/migration/map-types -> Database Migration Service (Phase 1 Week 2)",
                 "/api/test-connection-url -> Database Migration Service",
                 "/api/import-from-url -> Database Migration Service",
                 "/api/import-status/{task_id} -> Database Migration Service"
