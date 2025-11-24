@@ -29,6 +29,7 @@ from routers.ai_insights import router as ai_insights_router
 from routers.pii_detection import router as pii_detection_router
 from routers.schema_compatibility import router as schema_compatibility_router
 from routers import compliance_fixer, debt_tracker
+from routers.roi_router import router as roi_router
 from config import get_settings
 
 # Setup logging
@@ -160,6 +161,13 @@ from routers.index_recommendation import router as index_recommendation_router
 app.include_router(index_recommendation_router)
 from routers.data_validation import router as data_validation_router
 app.include_router(data_validation_router)
+
+# Include Phase 3.3, 3.5, and 3.6 routers
+from routers.anonymization_router import router as anonymization_router
+app.include_router(anonymization_router)
+from routers.incident_router import router as incident_router
+app.include_router(incident_router)
+app.include_router(roi_router)  # Phase 3.6 ROI Dashboard
 
 
 # Error handlers

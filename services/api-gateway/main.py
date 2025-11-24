@@ -466,6 +466,24 @@ async def anomaly_proxy(request: Request, path: str):
     """Proxy cost anomaly detector requests to Database Migration Service."""
     return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
 
+# Phase 3.3: Production Data Anonymizer
+@app.api_route("/api/anonymization/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def anonymization_proxy(request: Request, path: str):
+    """Proxy production data anonymization requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 3.5: Database Incident Timeline
+@app.api_route("/api/incidents/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def incidents_proxy(request: Request, path: str):
+    """Proxy database incident timeline requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Phase 3.6: ROI Dashboard
+@app.api_route("/api/roi/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def roi_proxy(request: Request, path: str):
+    """Proxy ROI dashboard requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
 # Phase 1 Week 4: Query Performance Predictor
 @app.api_route("/api/query/predict-performance", methods=["POST", "OPTIONS"])
 async def query_predictor_proxy(request: Request):
