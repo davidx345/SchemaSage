@@ -18,8 +18,8 @@ from core.database_service import ProjectManagementDatabaseService
 from core.auth import get_current_user, get_optional_user
 from core.project_manager import ProjectError
 from routers import (
-    projects_router, stats_router, integrations_router, 
-    glossary_router, team_router, websocket_router, upload_router,
+    integrations_router, 
+    glossary_router, websocket_router, upload_router,
     compliance_router
 )
 
@@ -75,18 +75,14 @@ app.add_middleware(
 )
 
 # Include all routers
-app.include_router(projects_router)
-app.include_router(stats_router)
 app.include_router(integrations_router)
 app.include_router(glossary_router)
-app.include_router(team_router)
 app.include_router(websocket_router)
 app.include_router(upload_router)
 app.include_router(compliance_router)
 
 # Import and include new routers
 from routers.comments import router as comments_router
-from routers.collaboration import router as collaboration_router
 from routers.data_dictionary_integration import router as data_dict_router
 from routers.marketplace import router as marketplace_router
 from routers.compliance_alerts import router as compliance_alerts_router
@@ -96,7 +92,6 @@ from routers.payment_analytics import router as payment_analytics_router
 from routers.activity_tracking import router as activity_tracking_router
 
 app.include_router(comments_router)
-app.include_router(collaboration_router)
 app.include_router(data_dict_router)
 app.include_router(marketplace_router)
 app.include_router(compliance_alerts_router)

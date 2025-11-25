@@ -16,7 +16,6 @@ router = APIRouter(tags=["glossary", "schema"])
 
 # Simple in-memory storage for demonstration
 glossary_terms = {}
-teams_store = {}
 
 
 @router.get("/glossary", response_model=GlossaryResponse)
@@ -128,58 +127,3 @@ async def check_schema_consistency(request: SchemaConsistencyCheckRequest):
             "warnings": len(warnings)
         }
     )
-
-
-# Team Management Routes
-team_router = APIRouter(prefix="/teams", tags=["teams"])
-
-
-@team_router.post("")
-async def create_team(team_data: Dict[str, Any]):
-    """Create a new team"""
-    team_id = f"team_{len(teams_store) + 1}"
-    team = {
-        "id": team_id,
-        "name": team_data.get("name", ""),
-        "description": team_data.get("description", ""),
-        "members": [],
-        "created_at": team_data.get("created_at"),
-        "settings": team_data.get("settings", {})
-    }
-    teams_store[team_id] = team
-    return {"success": True, "team": team}
-
-
-@team_router.get("/{team_id}")
-async def get_team(team_id: str):
-    """Get team details"""
-    team = teams_store.get(team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    return {"team": team}
-
-
-@team_router.post("/{team_id}/invite")
-async def invite_to_team(team_id: str, user: Dict[str, Any]):
-    """Invite a user to a team"""
-    team = teams_store.get(team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    
-    team.setdefault("members", []).append(user)
-    return {"success": True, "team": team}
-
-
-@team_router.post("/{team_id}/role")
-async def set_team_role(team_id: str, user_id: str = Body(...), role: str = Body(...)):
-    """Set a team member's role"""
-    team = teams_store.get(team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    
-    for member in team.get("members", []):
-        if member.get("id") == user_id:
-            member["role"] = role
-            return {"success": True, "team": team}
-    
-    raise HTTPException(status_code=404, detail="User not found in team")

@@ -311,20 +311,6 @@ async def schema_diff_proxy(request: Request):
     """Proxy schema diff requests to Schema Detection Service."""
     return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
-# ===== PROJECT MANAGEMENT SERVICE ROUTES ====="
-
-# Route for /api/projects (no subpath) - for listing and creating projects
-@app.api_route("/api/projects", methods=["GET", "POST", "OPTIONS"])
-async def projects_root_proxy(request: Request):
-    """Proxy project management requests to /api/projects (root)."""
-    return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
-
-# Route for /api/projects/{path:path} - for specific project operations
-@app.api_route("/api/projects/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-async def projects_proxy(request: Request, path: str):
-    """Proxy project management requests with subpaths."""
-    return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
-
 # ===== AI CHAT SERVICE ROUTES =====
 
 @app.api_route("/api/chat", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
@@ -735,7 +721,6 @@ async def root():
             "authentication": "/api/auth/*",
             "code_generation": "/api/code-generation/* | /api/generate/* | /api/schema/generate | /api/query/analyze-cost | /api/code/translate-sql",
             "schema_detection": "/api/schema/* (except /api/schema/generate) | /api/detect/* | /api/compliance/* | /api/schema/compatibility",
-            "project_management": "/api/projects/*",
             "ai_chat": "/api/chat/* | /api/ai/*",
             "database_migration": "/api/database/* | /api/migration/* | /api/health/* | /api/cost/compare | /api/migration/timeline | /api/migration/map-types | /api/test-connection-url | /api/import-from-url | /api/import-status/{task_id}",
             "websocket_realtime": "/ws/* (WebSocket connections)"
@@ -793,7 +778,6 @@ async def catch_all(request: Request, path: str):
                 "/api/schema/* -> Schema Detection Service",
                 "/api/compliance/detect-pii -> Schema Detection Service (Phase 1 Week 1)",
                 "/api/schema/compatibility -> Schema Detection Service (Phase 1 Week 2)",
-                "/api/projects/* -> Project Management Service",
                 "/api/chat/* -> AI Chat Service",
                 "/api/database/* -> Database Migration Service",
                 "/api/cost/compare -> Database Migration Service (Phase 1 Week 1)",
