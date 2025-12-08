@@ -90,6 +90,7 @@ from routers.regulatory_notifications import router as regulatory_notifications_
 from routers.multi_tenant import router as multi_tenant_router
 from routers.payment_analytics import router as payment_analytics_router
 from routers.activity_tracking import router as activity_tracking_router
+from routers.dashboard_router import router as dashboard_router
 
 app.include_router(comments_router)
 app.include_router(data_dict_router)
@@ -98,6 +99,7 @@ app.include_router(compliance_alerts_router)
 app.include_router(regulatory_notifications_router)
 app.include_router(multi_tenant_router)
 app.include_router(payment_analytics_router)
+app.include_router(dashboard_router)
 app.include_router(activity_tracking_router)
 
 # Premium Features

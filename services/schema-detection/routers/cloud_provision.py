@@ -28,7 +28,7 @@ from core.database_service import SchemaDetectionDatabaseService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/cloud-provision", tags=["Cloud Provisioning"])
+router = APIRouter(prefix="/api/cloud", tags=["Cloud Provisioning"])
 
 # Initialize services
 db_service = SchemaDetectionDatabaseService()
