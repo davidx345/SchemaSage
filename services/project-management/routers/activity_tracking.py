@@ -14,6 +14,7 @@ from uuid import uuid4
 import httpx
 import logging
 import os
+import os
 
 from core.auth import get_current_user, get_optional_user
 from core.database_service import ProjectManagementDatabaseService
@@ -86,9 +87,14 @@ async def broadcast_activity_to_websocket(activity_data: Dict[str, Any]):
     """
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", os.getenv("JWT_SECRET_KEY", ""))
+            headers = {"Authorization": f"Bearer {service_token}"} if service_token else {}
+            
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/activity",
-                json=activity_data
+                json=activity_data,
+                headers=headers
             )
             if response.status_code == 200:
                 logger.info(f"✅ Activity broadcast to WebSocket service: {activity_data.get('type', 'unknown')}")
@@ -109,9 +115,14 @@ async def increment_dashboard_stat(stat_name: str):
     """
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", os.getenv("JWT_SECRET_KEY", ""))
+            headers = {"Authorization": f"Bearer {service_token}"} if service_token else {}
+            
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/increment-stat",
-                json={"metric": stat_name, "value": 1}
+                json={"metric": stat_name, "value": 1},
+                headers=headers
             )
             if response.status_code == 200:
                 logger.info(f"✅ Incremented dashboard stat: {stat_name}")
@@ -137,10 +148,15 @@ async def broadcast_realtime_stats_update():
     """
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", os.getenv("JWT_SECRET_KEY", ""))
+            headers = {"Authorization": f"Bearer {service_token}"} if service_token else {}
+            
             # Trigger the WebSocket service to broadcast latest stats NOW
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/broadcast-stats",
-                json={"trigger": "user_activity"}
+                json={"trigger": "user_activity"},
+                headers=headers
             )
             if response.status_code == 200:
                 logger.info("⚡ Instant dashboard stats broadcast triggered")
@@ -156,7 +172,7 @@ async def broadcast_realtime_stats_update():
 async def track_activity(
     request: ActivityTrackRequest,
     req: Request,
-    current_user: Optional[str] = Depends(get_optional_user)
+    current_user: str = Depends(get_current_user)  # ✅ SECURITY FIX: Require authentication
 ):
     """
     Track a user activity for dashboard statistics
@@ -182,7 +198,6 @@ async def track_activity(
     **Example Request:**
     ```json
     {
-      "user_id": "user123",
       "activity_type": "schema_generated",
       "metadata": {
         "schema_id": "schema-abc-123",
@@ -193,20 +208,16 @@ async def track_activity(
     }
     ```
     
+    **Note:** user_id is automatically extracted from authentication token.
+    
     **Returns:**
     - success: Whether the activity was tracked successfully
     - message: Confirmation message
     - activity_id: UUID of the created activity record
     """
     try:
-        # Use provided user_id or fall back to authenticated user
-        user_id = request.user_id if request.user_id else current_user
-        
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User ID required (either in request or via authentication)"
-            )
+        # ✅ SECURITY FIX: Always use authenticated user, ignore request.user_id
+        user_id = current_user
         
         # Convert user_id to UUID format for database storage
         from core.database_service import convert_user_id_to_uuid

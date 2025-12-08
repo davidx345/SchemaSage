@@ -258,7 +258,10 @@ async def send_webhook_notification(webhook_data: dict):
     """Send webhook notification to WebSocket service"""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/user-joined", json=webhook_data)
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", JWT_SECRET_KEY)
+            headers = {"Authorization": f"Bearer {service_token}"}
+            await client.post(f"{WEBSOCKET_SERVICE_URL}/webhooks/user-joined", json=webhook_data, headers=headers)
             logger.info("User joined webhook sent successfully")
     except Exception as e:
         # Don't fail the main request if webhook fails
@@ -275,9 +278,13 @@ async def trigger_instant_stats_broadcast():
     """
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", JWT_SECRET_KEY)
+            headers = {"Authorization": f"Bearer {service_token}"}
             response = await client.post(
                 f"{WEBSOCKET_SERVICE_URL}/api/dashboard/broadcast-stats",
-                json={"trigger": "user_login"}
+                json={"trigger": "user_login"},
+                headers=headers
             )
             if response.status_code == 200:
                 logger.info("⚡ Instant dashboard stats broadcast triggered")

@@ -3,6 +3,7 @@ Statistics collection from all microservices
 """
 import httpx
 import logging
+import os
 from datetime import datetime
 from typing import Dict
 from config.settings import (
@@ -62,7 +63,11 @@ async def get_current_stats(user_id: str = None) -> Dict:
             if user_id:
                 stats_url += f"?user_id={user_id}"
             
-            activity_response = await client.get(stats_url)
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", os.getenv("JWT_SECRET_KEY", ""))
+            headers = {"Authorization": f"Bearer {service_token}"} if service_token else {}
+            
+            activity_response = await client.get(stats_url, headers=headers)
             if activity_response.status_code == 200:
                 activity_data = activity_response.json()
                 # Check if we got the stats object or the wrapper
@@ -90,7 +95,11 @@ async def get_current_stats(user_id: str = None) -> Dict:
             if user_id:
                 activities_url += f"&user_id={user_id}"
             
-            recent_response = await client.get(activities_url)
+            # ✅ SECURITY FIX: Add service-to-service authentication
+            service_token = os.getenv("INTERNAL_SERVICE_TOKEN", os.getenv("JWT_SECRET_KEY", ""))
+            headers = {"Authorization": f"Bearer {service_token}"} if service_token else {}
+            
+            recent_response = await client.get(activities_url, headers=headers)
             logger.info(f"🔍 Recent activities request for user {user_id}: status={recent_response.status_code}")
             if recent_response.status_code == 200:
                 recent_data = recent_response.json()
