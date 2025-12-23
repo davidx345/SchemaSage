@@ -176,6 +176,10 @@ app.include_router(migration_rollback_router)
 from routers.enhanced_cost_calculator import router as enhanced_cost_calculator_router
 app.include_router(enhanced_cost_calculator_router)
 
+# Include Deployment Analysis router (new feature)
+from routers.deployment_analysis import router as deployment_analysis_router
+app.include_router(deployment_analysis_router)
+
 # Add a router for the direct path that frontend is calling
 from fastapi import APIRouter
 database_router = APIRouter(prefix="/database", tags=["Database Direct"])

@@ -311,6 +311,32 @@ async def schema_diff_proxy(request: Request):
     """Proxy schema diff requests to Schema Detection Service."""
     return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
 
+# ===== NEW FEATURE ROUTES =====
+
+# Deployment Analysis (Database Migration Service)
+@app.api_route("/api/deployment/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def deployment_proxy(request: Request, path: str):
+    """Proxy deployment analysis requests to Database Migration Service."""
+    return await proxy_request(request, DATABASE_MIGRATION_SERVICE_URL, "Database Migration Service")
+
+# Data Lineage Tracking (Schema Detection Service)
+@app.api_route("/api/lineage/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def lineage_proxy(request: Request, path: str):
+    """Proxy data lineage requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Incident Management (Schema Detection Service)
+@app.api_route("/api/incidents/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def incidents_proxy(request: Request, path: str):
+    """Proxy incident management requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
+# Anonymization Tools (Schema Detection Service)
+@app.api_route("/api/anonymization/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def anonymization_proxy(request: Request, path: str):
+    """Proxy anonymization requests to Schema Detection Service."""
+    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
+
 # ===== AI CHAT SERVICE ROUTES =====
 
 @app.api_route("/api/chat", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])

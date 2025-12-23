@@ -169,6 +169,10 @@ from routers.incident_router import router as incident_router
 app.include_router(incident_router)
 app.include_router(roi_router)  # Phase 3.6 ROI Dashboard
 
+# Include new lineage tracking router (comprehensive data lineage)
+from routers.lineage_router import router as lineage_tracking_router
+app.include_router(lineage_tracking_router)
+
 
 # Error handlers
 @app.exception_handler(RequestValidationError)
