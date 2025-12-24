@@ -1,129 +1,65 @@
-name: Deploy to Heroku
+name: Deploy SchemaSage Microservices
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+    # Only trigger if something in the services folder changes
     paths:
       - 'services/**'
-  workflow_dispatch:
 
 jobs:
-  detect-changes:
+  deploy:
     runs-on: ubuntu-latest
-    outputs:
-      api-gateway: ${{ steps.changes.outputs.api-gateway }}
-      authentication: ${{ steps.changes.outputs.authentication }}
-      code-generation: ${{ steps.changes.outputs.code-generation }}
-      schema-detection: ${{ steps.changes.outputs.schema-detection }}
-      project-management: ${{ steps.changes.outputs.project-management }}
-      ai-chat: ${{ steps.changes.outputs.ai-chat }}
+    strategy:
+      fail-fast: false # If one deployment fails, let the others continue!
+      matrix:
+        include:
+          # MAPPING: Folder Name  -->  Heroku App Name
+          - service: ai-chat
+            app_name: schemasage-ai-chat
+          - service: api-gateway
+            app_name: schemasage-api-gateway
+          - service: authentication
+            app_name: schemasage-auth
+          - service: code-generation
+            app_name: schemasage-code-generation
+          - service: database-migration
+            app_name: schemasage-database-migration
+          - service: project-management
+            app_name: schemasage-project-management
+          - service: schema-detection
+            app_name: schemasage-schema-detection
+          - service: websocket-realtime
+            app_name: schemasage-websocket-realtime
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-      - uses: dorny/paths-filter@v2
-        id: changes
+          fetch-depth: 0 # CRITICAL: Loads full history for git subtree to work
+
+      # This smart step checks WHICH folder actually changed
+      - name: Check for changes in ${{ matrix.service }}
+        id: check_changes
+        uses: dorny/paths-filter@v2
         with:
           filters: |
-            api-gateway:
-              - 'services/api-gateway/**'
-            authentication:
-              - 'services/authentication/**'
-            code-generation:
-              - 'services/code-generation/**'
-            schema-detection:
-              - 'services/schema-detection/**'
-            project-management:
-              - 'services/project-management/**'
-            ai-chat:
-              - 'services/ai-chat/**'
+            src:
+              - 'services/${{ matrix.service }}/**'
 
-  deploy-api-gateway:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.api-gateway == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-api-gateway"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/api-gateway"
-
-  deploy-authentication:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.authentication == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-auth"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/authentication"
-
-  deploy-code-generation:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.code-generation == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-code-generation"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/code-generation"
-
-  deploy-schema-detection:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.schema-detection == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-schema-detection"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/schema-detection"
-
-  deploy-project-management:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.project-management == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-project-management"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/project-management"
-
-  deploy-ai-chat:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.ai-chat == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "schemasage-ai-chat"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          appdir: "services/ai-chat"
+      # Only run this step if the folder changed
+      - name: Deploy ${{ matrix.service }} to Heroku
+        if: steps.check_changes.outputs.src == 'true'
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }} 
+          HEROKU_EMAIL: ${{ secrets.HEROKU_EMAIL }} 
+        run: |
+          echo "🚀 Detecting changes in 'services/${{ matrix.service }}'..."
+          echo "📲 Deploying to Heroku App: ${{ matrix.app_name }}..."
+          
+          # Setup Heroku Remote with API Key
+          git remote add heroku-target https://heroku:$HEROKU_API_KEY@git.heroku.com/${{ matrix.app_name }}.git
+          
+          # Push only that folder
+          git subtree push --prefix services/${{ matrix.service }} heroku-target main
