@@ -490,36 +490,6 @@ async def dashboard_proxy(request: Request, path: str):
     """Proxy dashboard requests to Project Management Service."""
     return await proxy_request(request, PROJECT_MANAGEMENT_SERVICE_URL, "Project Management Service")
 
-# Phase 3.3: Data Anonymization
-@app.api_route("/api/anonymization/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def anonymization_proxy(request: Request, path: str):
-    """Proxy anonymization requests to Schema Detection Service."""
-    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
-
-# Phase 3.5: Incident Management
-@app.api_route("/api/incidents/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def incidents_proxy(request: Request, path: str):
-    """Proxy incident management requests to Schema Detection Service."""
-    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
-
-# Phase 3.6: ROI Dashboard
-@app.api_route("/api/roi/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def roi_proxy(request: Request, path: str):
-    """Proxy ROI dashboard requests to Schema Detection Service."""
-    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
-
-# Phase 3.3: Production Data Anonymizer
-@app.api_route("/api/anonymization/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def anonymization_proxy(request: Request, path: str):
-    """Proxy production data anonymization requests to Schema Detection Service."""
-    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
-
-# Phase 3.5: Database Incident Timeline
-@app.api_route("/api/incidents/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def incidents_proxy(request: Request, path: str):
-    """Proxy database incident timeline requests to Schema Detection Service."""
-    return await proxy_request(request, SCHEMA_DETECTION_SERVICE_URL, "Schema Detection Service")
-
 # Phase 3.6: ROI Dashboard
 @app.api_route("/api/roi/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 async def roi_proxy(request: Request, path: str):

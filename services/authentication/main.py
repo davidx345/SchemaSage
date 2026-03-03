@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthoriz
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field, validator
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
@@ -100,12 +100,23 @@ class UserCreate(BaseModel):
         return v
 
 class UserLogin(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    email: Optional[str] = Field(None)
     password: str = Field(..., min_length=1, max_length=128)
+
+    def get_identifier(self) -> str:
+        """Return the login identifier (email or username)."""
+        return self.email or self.username or ""
+    
+    def validate_login_fields(self):
+        if not self.username and not self.email:
+            raise ValueError('Either username or email is required')
 
 class UserResponse(BaseModel):
     id: int
     username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
     is_admin: bool
     created_at: datetime
     last_login: Optional[datetime]
@@ -377,7 +388,19 @@ async def login(user_data: UserLogin, request: Request = None, db: Session = Dep
         )
     
     try:
-        user = authenticate_user(db, user_data.username, user_data.password, client_ip)
+        # Support login by email OR username
+        identifier = user_data.email or user_data.username
+        if not identifier:
+            raise HTTPException(status_code=400, detail="Username or email is required")
+        
+        # Look up by email if it looks like an email address
+        db_user = None
+        if "@" in identifier:
+            db_user = db.query(User).filter(User.email == identifier).first()
+            if db_user:
+                identifier = db_user.username  # Use username for authenticate_user
+        
+        user = authenticate_user(db, identifier, user_data.password, client_ip)
         if not user:
             logger.warning(f"Failed login attempt for {user_data.username} from {client_ip}")
             raise HTTPException(
@@ -401,6 +424,8 @@ async def login(user_data: UserLogin, request: Request = None, db: Session = Dep
         user_response = UserResponse(
             id=user.id,
             username=user.username,
+            email=user.email,
+            full_name=user.full_name,
             is_admin=user.is_admin,
             created_at=user.created_at,
             last_login=user.last_login
@@ -415,14 +440,14 @@ async def login(user_data: UserLogin, request: Request = None, db: Session = Dep
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error for {user_data.username}: {str(e)}")
+        logger.error(f"Login error for {user_data.email or user_data.username}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # OAuth2 compatibility endpoint
 @app.post("/token", response_model=TokenResponse)
-def oauth_login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
+async def oauth_login(form_data: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
     user_data = UserLogin(username=form_data.username, password=form_data.password)
-    return login(user_data, request, db)
+    return await login(user_data, request, db)
 
 security = HTTPBearer()
 
@@ -458,10 +483,105 @@ def get_current_admin_user(current_user: User = Depends(get_current_user)):
 def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(
         id=current_user.id,
-        username=current_user.username, 
+        username=current_user.username,
+        email=current_user.email,
+        full_name=current_user.full_name,
         is_admin=current_user.is_admin,
         created_at=current_user.created_at,
         last_login=current_user.last_login
+    )
+
+
+@app.post("/register", response_model=TokenResponse)
+async def register(request: Request, db: Session = Depends(get_db)):
+    """Email-based registration endpoint (alias for /signup).
+    Accepts: { email, password, name? } or { username, password }
+    """
+    client_ip = request.client.host
+    
+    if is_rate_limited(f"signup:{client_ip}"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many signup attempts. Please try again later."
+        )
+    
+    body = await request.json()
+    email = body.get("email") or body.get("username")
+    password = body.get("password", "")
+    name = body.get("name") or body.get("full_name")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    
+    # Derive username from email if email-based
+    if "@" in email:
+        base_username = email.split("@")[0].lower()
+        # Sanitize: keep only alphanumeric and underscores
+        base_username = re.sub(r'[^a-zA-Z0-9_]', '_', base_username)
+        username = base_username
+        counter = 1
+        while db.query(User).filter(User.username == username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+    else:
+        username = email
+    
+    # Check email uniqueness
+    if "@" in email and db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    # Validate password strength (matching UserCreate: length/upper/lower/digit)
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
+    if not re.search(r'\d', password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one digit")
+    
+    hashed_password = pwd_context.hash(password)
+    
+    db_user = User(
+        username=username,
+        email=email if "@" in email else None,
+        full_name=name,
+        hashed_password=hashed_password,
+        is_admin=False,
+        created_at=datetime.utcnow()
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    access_token = create_access_token(
+        {"sub": db_user.username, "is_admin": db_user.is_admin},
+        user_id=db_user.id
+    )
+    
+    await pre_authenticate_ai_chat(access_token, db_user.id, db_user.username)
+    await send_webhook_notification({"user": db_user.username, "timestamp": datetime.utcnow().isoformat()})
+    
+    logger.info(f"New user registered (email flow): {username} from {client_ip}")
+    
+    user_response = UserResponse(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        full_name=db_user.full_name,
+        is_admin=db_user.is_admin,
+        created_at=db_user.created_at,
+        last_login=db_user.last_login
+    )
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRATION_HOURS * 3600,
+        user=user_response
     )
 
 @app.post("/refresh-token", response_model=TokenResponse)
@@ -475,6 +595,8 @@ def refresh_token(current_user: User = Depends(get_current_user)):
     user_response = UserResponse(
         id=current_user.id,
         username=current_user.username,
+        email=current_user.email,
+        full_name=current_user.full_name,
         is_admin=current_user.is_admin,
         created_at=current_user.created_at,
         last_login=current_user.last_login
@@ -500,6 +622,8 @@ def list_users(current_user: User = Depends(get_current_admin_user), db: Session
     return [UserResponse(
         id=user.id,
         username=user.username,
+        email=user.email,
+        full_name=user.full_name,
         is_admin=user.is_admin,
         created_at=user.created_at,
         last_login=user.last_login
@@ -729,7 +853,8 @@ def root():
         "status": "running",
         "endpoints": {
             "signup": "POST /signup",
-            "login": "POST /login", 
+            "register": "POST /register (email-based, alias for signup)",
+            "login": "POST /login (accepts email or username)",
             "oauth_login": "POST /token",
             "google_auth": "POST /google",
             "google_callback": "GET /google/callback",
@@ -760,7 +885,7 @@ def on_startup():
         # Test database connection first
         logger.info(f"Testing database connection to: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'localhost'}")
         with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             logger.info("✅ Database connection successful")
         
         # Create tables
