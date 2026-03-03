@@ -61,5 +61,5 @@ jobs:
           # Setup Heroku Remote with API Key
           git remote add heroku-target https://heroku:$HEROKU_API_KEY@git.heroku.com/${{ matrix.app_name }}.git
           
-          # Push only that folder
-          git subtree push --prefix services/${{ matrix.service }} heroku-target main
+          # Push only that folder (force to handle Heroku remote divergence)
+          git push heroku-target $(git subtree split --prefix services/${{ matrix.service }} HEAD):refs/heads/main --force
